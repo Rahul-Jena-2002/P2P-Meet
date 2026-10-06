@@ -35,8 +35,9 @@ yarn-debug.log*
 yarn-error.log*
 .superpowers/
 
-# Ignore legacy zoom-app folder
+# Ignore legacy zoom-app and frontend folders
 zoom-app/
+frontend/
 p2p-app/.next/
 p2p-app/out/
 
