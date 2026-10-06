@@ -139,6 +139,34 @@ export default function P2PControls({
     setShowReactionsMenu(false);
   };
 
+  // Close any popup menu when clicking anywhere on the screen outside
+  React.useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (
+        e.target.closest('.p2p-dropdown') ||
+        e.target.closest('[data-dropdown-trigger]')
+      ) {
+        return;
+      }
+      setShowAudioMenu(false);
+      setShowVideoMenu(false);
+      setShowReactionsMenu(false);
+      setShowWatchModal(false);
+    };
+
+    if (showAudioMenu || showVideoMenu || showReactionsMenu || showWatchModal) {
+      const timer = setTimeout(() => {
+        window.addEventListener('click', handleOutsideClick);
+        window.addEventListener('touchstart', handleOutsideClick, { passive: true });
+      }, 10);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('click', handleOutsideClick);
+        window.removeEventListener('touchstart', handleOutsideClick);
+      };
+    }
+  }, [showAudioMenu, showVideoMenu, showReactionsMenu, showWatchModal]);
+
   return (
     <>
       <div className={`absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none p2p-overlay-bar w-auto max-w-[98%] ${
@@ -241,7 +269,14 @@ export default function P2PControls({
           </button>
 
           <button
-            onClick={() => setShowAudioMenu(!showAudioMenu)}
+            data-dropdown-trigger="audio"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowAudioMenu(s => !s);
+              setShowVideoMenu(false);
+              setShowReactionsMenu(false);
+              setShowWatchModal(false);
+            }}
             className="hidden sm:block p-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
             title="Audio Settings"
           >
@@ -286,7 +321,14 @@ export default function P2PControls({
           </button>
 
           <button
-            onClick={() => setShowVideoMenu(!showVideoMenu)}
+            data-dropdown-trigger="video"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowVideoMenu(s => !s);
+              setShowAudioMenu(false);
+              setShowReactionsMenu(false);
+              setShowWatchModal(false);
+            }}
             className="hidden sm:block p-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
             title="Video & Background Filter Settings"
           >
@@ -415,11 +457,16 @@ export default function P2PControls({
         {/* 6. WATCH TOGETHER (CO-STREAMING) */}
         <div className="relative">
           <button
-            onClick={() => {
+            data-dropdown-trigger="watch"
+            onClick={(e) => {
+              e.stopPropagation();
               if (watchTogetherActive) {
                 onStopWatchTogether?.();
               } else {
-                setShowWatchModal(!showWatchModal);
+                setShowWatchModal(s => !s);
+                setShowAudioMenu(false);
+                setShowVideoMenu(false);
+                setShowReactionsMenu(false);
               }
             }}
             className={`flex flex-col items-center justify-center w-9 sm:w-auto sm:min-w-[56px] h-10 sm:h-12 px-1 sm:px-2 py-1 rounded-xl transition ${
@@ -499,7 +546,14 @@ export default function P2PControls({
         {/* 7. RICH GOOGLE KEYBOARD STYLE REACTIONS WITH SOUND SYNTH */}
         <div className="relative">
           <button
-            onClick={() => setShowReactionsMenu(!showReactionsMenu)}
+            data-dropdown-trigger="reactions"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowReactionsMenu(s => !s);
+              setShowAudioMenu(false);
+              setShowVideoMenu(false);
+              setShowWatchModal(false);
+            }}
             className="flex flex-col items-center justify-center w-9 sm:w-auto sm:min-w-[56px] h-10 sm:h-12 px-1 sm:px-2 py-1 rounded-xl hover:bg-white/[0.06] text-[#F5E8D8] transition"
             title="Reactions with Audio"
           >
