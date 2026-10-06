@@ -29,6 +29,10 @@ export function MediaProvider({ children }) {
   const initMedia = useCallback(async (camId, micId) => {
     try {
       setMediaError(null);
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setMediaError("Camera requires HTTPS or localhost. If opening from another Wi-Fi device, enable 'unsafely-treat-insecure-origin-as-secure' in chrome://flags.");
+        return null;
+      }
       // Stop existing tracks safely
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
