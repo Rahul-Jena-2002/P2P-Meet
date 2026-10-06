@@ -77,7 +77,7 @@ export default function P2PChatDrawer({
   const otherParticipants = participants.filter(p => p.id !== currentUserId);
 
   return (
-    <aside className="w-80 sm:w-96 h-full p2p-panel border-l border-[#F5E8D8]/10 flex flex-col z-40 relative animate-in slide-in-from-right duration-200 select-text bg-[#1C1C1C] text-[#F5E8D8] shadow-2xl">
+    <aside className="fixed inset-0 sm:relative sm:inset-auto w-full sm:w-96 h-full p2p-panel sm:border-l border-[#F5E8D8]/10 flex flex-col z-50 sm:z-40 animate-in slide-in-from-right duration-200 select-text bg-[#1C1C1C] text-[#F5E8D8] shadow-2xl">
       {/* Header */}
       <div className="p-4 border-b border-[#F5E8D8]/10 flex items-center justify-between">
         <div className="flex items-center gap-2">

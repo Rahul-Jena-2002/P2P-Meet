@@ -138,15 +138,15 @@ export default function P2PControls({
   };
 
   return (
-    <div className={`absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none p2p-overlay-bar w-auto max-w-[95%] ${
+    <div className={`absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none p2p-overlay-bar w-auto max-w-[98%] ${
       isVisible ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-6 pointer-events-none'
     }`}>
-      <div className="flex items-center gap-2 sm:gap-3 md:gap-3.5 px-3.5 sm:px-5 py-2.5 rounded-2xl sm:rounded-3xl p2p-dock shadow-2xl">
+      <div className="flex items-center gap-1 sm:gap-3 md:gap-3.5 px-2 sm:px-5 py-1.5 sm:py-2.5 rounded-2xl sm:rounded-3xl p2p-dock shadow-2xl max-w-full">
         {/* 1. MUTE / AUDIO */}
         <div className="relative flex items-center gap-0.5">
           <button
             onClick={toggleAudio}
-            className={`flex flex-col items-center justify-center min-w-[52px] sm:min-w-[58px] h-12 px-2 py-1 rounded-xl transition ${
+            className={`flex flex-col items-center justify-center w-9 sm:w-auto sm:min-w-[58px] h-10 sm:h-12 px-1 sm:px-2 py-1 rounded-xl transition ${
               audioEnabled
                 ? 'hover:bg-white/[0.06] text-[#F5E8D8] border border-transparent'
                 : 'bg-[#FF4500]/15 text-[#FF4500] border border-[#FF4500]/30 hover:bg-[#FF4500]/25'
@@ -155,20 +155,20 @@ export default function P2PControls({
           >
             {audioEnabled ? (
               <div className="relative">
-                <Mic className="w-5 h-5 text-[#F5E8D8]" />
+                <Mic className="w-4 h-4 sm:w-5 sm:h-5 text-[#F5E8D8]" />
                 {audioLevel > 15 && (
                   <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#DAA520]" />
                 )}
               </div>
             ) : (
-              <MicOff className="w-5 h-5" />
+              <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
-            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">{audioEnabled ? 'Mute' : 'Unmute'}</span>
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap hidden sm:inline">{audioEnabled ? 'Mute' : 'Unmute'}</span>
           </button>
 
           <button
             onClick={() => setShowAudioMenu(!showAudioMenu)}
-            className="p-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
+            className="hidden sm:block p-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
             title="Audio Settings"
           >
             <ChevronUp className="w-3.5 h-3.5" />
@@ -200,20 +200,20 @@ export default function P2PControls({
         <div className="relative flex items-center gap-0.5">
           <button
             onClick={toggleVideo}
-            className={`flex flex-col items-center justify-center min-w-[52px] sm:min-w-[58px] h-12 px-2 py-1 rounded-xl transition ${
+            className={`flex flex-col items-center justify-center w-9 sm:w-auto sm:min-w-[58px] h-10 sm:h-12 px-1 sm:px-2 py-1 rounded-xl transition ${
               videoEnabled
                 ? 'hover:bg-white/[0.06] text-[#F5E8D8] border border-transparent'
                 : 'bg-[#FF4500]/15 text-[#FF4500] border border-[#FF4500]/30 hover:bg-[#FF4500]/25'
             }`}
             title={videoEnabled ? "Stop Camera" : "Start Camera"}
           >
-            {videoEnabled ? <Video className="w-5 h-5 text-[#F5E8D8]" /> : <VideoOff className="w-5 h-5" />}
-            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">{videoEnabled ? 'Stop Video' : 'Start Video'}</span>
+            {videoEnabled ? <Video className="w-4 h-4 sm:w-5 sm:h-5 text-[#F5E8D8]" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap hidden sm:inline">{videoEnabled ? 'Stop Video' : 'Start Video'}</span>
           </button>
 
           <button
             onClick={() => setShowVideoMenu(!showVideoMenu)}
-            className="p-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
+            className="hidden sm:block p-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
             title="Video & Background Filter Settings"
           >
             <ChevronUp className="w-3.5 h-3.5" />
@@ -293,49 +293,49 @@ export default function P2PControls({
           )}
         </div>
 
-        <div className="w-[1px] h-7 bg-[#F5E8D8]/10 mx-0.5 shrink-0" />
+        <div className="w-[1px] h-6 sm:h-7 bg-[#F5E8D8]/10 mx-0.5 shrink-0" />
 
         {/* 3. PARTICIPANTS */}
         <button
           onClick={() => onTogglePanel('participants')}
-          className={`flex flex-col items-center justify-center min-w-[62px] sm:min-w-[70px] h-12 px-2 py-1 rounded-xl transition ${
+          className={`flex flex-col items-center justify-center w-9 sm:w-auto sm:min-w-[70px] h-10 sm:h-12 px-1 sm:px-2 py-1 rounded-xl transition ${
             activePanel === 'participants' ? 'bg-[#FF6F61]/20 text-[#FF6F61] border border-[#FF6F61]/40' : 'hover:bg-white/[0.06] text-[#F5E8D8]'
           }`}
           title="Participants"
         >
           <div className="relative flex items-center justify-center">
-            <Users className="w-5 h-5" />
-            <span className="absolute -top-1.5 -right-3 px-1.5 py-0.2 rounded-full bg-[#FF6F61] text-[9px] font-bold text-[#1C1C1C] shadow-sm">
+            <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="absolute -top-1.5 -right-2.5 px-1.5 py-0.2 rounded-full bg-[#FF6F61] text-[9px] font-bold text-[#1C1C1C] shadow-sm">
               {participantCount}
             </span>
           </div>
-          <span className="text-[10px] font-medium mt-1 whitespace-nowrap">Participants</span>
+          <span className="text-[10px] font-medium mt-1 whitespace-nowrap hidden sm:inline">Participants</span>
         </button>
 
         {/* 4. CHAT */}
         <button
           onClick={() => onTogglePanel('chat')}
-          className={`flex flex-col items-center justify-center min-w-[48px] sm:min-w-[54px] h-12 px-2 py-1 rounded-xl transition ${
+          className={`flex flex-col items-center justify-center w-9 sm:w-auto sm:min-w-[54px] h-10 sm:h-12 px-1 sm:px-2 py-1 rounded-xl transition ${
             activePanel === 'chat' ? 'bg-[#FF6F61]/20 text-[#FF6F61] border border-[#FF6F61]/40' : 'hover:bg-white/[0.06] text-[#F5E8D8]'
           }`}
           title="Chat & Direct P2P Files"
         >
-          <MessageSquare className="w-5 h-5" />
-          <span className="text-[10px] font-medium mt-1 whitespace-nowrap">Chat</span>
+          <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="text-[10px] font-medium mt-1 whitespace-nowrap hidden sm:inline">Chat</span>
         </button>
 
         {/* 5. PRIMARY ACTION "SHARE SCREEN" */}
         <button
           onClick={screenSharing ? stopScreenShare : startScreenShare}
-          className={`flex flex-col items-center justify-center min-w-[68px] sm:min-w-[76px] h-12 px-3 py-1 rounded-xl transition ${
+          className={`flex flex-col items-center justify-center w-9 sm:w-auto sm:min-w-[76px] h-10 sm:h-12 px-1 sm:px-3 py-1 rounded-xl transition ${
             screenSharing
               ? 'bg-[#FF4500] hover:bg-[#FF4500]/80 text-[#F5E8D8]'
               : 'bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white font-semibold'
           }`}
           title={screenSharing ? "Stop Sharing" : "Share Screen"}
         >
-          <ArrowUpRight className="w-5 h-5 stroke-[2.5]" />
-          <span className="text-[10px] font-medium mt-1 whitespace-nowrap">{screenSharing ? 'Stop Share' : 'Share'}</span>
+          <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+          <span className="text-[10px] font-medium mt-1 whitespace-nowrap hidden sm:inline">{screenSharing ? 'Stop Share' : 'Share'}</span>
         </button>
 
         {/* 6. WATCH TOGETHER (CO-STREAMING) */}
@@ -348,21 +348,21 @@ export default function P2PControls({
                 setShowWatchModal(!showWatchModal);
               }
             }}
-            className={`flex flex-col items-center justify-center min-w-[50px] sm:min-w-[56px] h-12 px-2 py-1 rounded-xl transition ${
+            className={`flex flex-col items-center justify-center w-9 sm:w-auto sm:min-w-[56px] h-10 sm:h-12 px-1 sm:px-2 py-1 rounded-xl transition ${
               watchTogetherActive
                 ? 'bg-[#DAA520]/20 text-[#DAA520] border border-[#DAA520]/40'
                 : 'hover:bg-white/[0.06] text-[#F5E8D8]'
             }`}
             title="Watch Together (Co-streaming)"
           >
-            <Sparkles className="w-5 h-5 text-[#DAA520]" />
-            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-[#DAA520]" />
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap hidden sm:inline">
               {watchTogetherActive ? 'End' : 'Watch'}
             </span>
           </button>
 
           {showWatchModal && (
-            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-80 rounded-2xl p2p-dropdown p-4 text-xs text-[#F5E8D8] z-50 shadow-2xl space-y-3">
+            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-72 sm:w-80 rounded-2xl p2p-dropdown p-4 text-xs text-[#F5E8D8] z-50 shadow-2xl space-y-3">
               <div className="flex items-center justify-between border-b border-[#F5E8D8]/10 pb-2">
                 <span className="font-bold text-[#F5E8D8] flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-[#DAA520]" /> Co-Streaming Watch Party
@@ -426,15 +426,15 @@ export default function P2PControls({
         <div className="relative">
           <button
             onClick={() => setShowReactionsMenu(!showReactionsMenu)}
-            className="flex flex-col items-center justify-center min-w-[52px] sm:min-w-[56px] h-12 px-2 py-1 rounded-xl hover:bg-white/[0.06] text-[#F5E8D8] transition"
+            className="flex flex-col items-center justify-center w-9 sm:w-auto sm:min-w-[56px] h-10 sm:h-12 px-1 sm:px-2 py-1 rounded-xl hover:bg-white/[0.06] text-[#F5E8D8] transition"
             title="Reactions with Audio"
           >
-            <Smile className="w-5 h-5 text-[#DAA520]" />
-            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">Reactions</span>
+            <Smile className="w-4 h-4 sm:w-5 sm:h-5 text-[#DAA520]" />
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap hidden sm:inline">Reactions</span>
           </button>
 
           {showReactionsMenu && (
-            <div className="absolute bottom-16 right-0 w-80 rounded-2xl p2p-dropdown p-3 z-50 animate-in fade-in zoom-in-95 shadow-2xl space-y-2.5">
+            <div className="absolute bottom-16 right-0 w-72 sm:w-80 rounded-2xl p2p-dropdown p-3 z-50 animate-in fade-in zoom-in-95 shadow-2xl space-y-2.5">
               {/* Category tabs & Sound Mute Toggle */}
               <div className="flex items-center justify-between pb-2 border-b border-[#F5E8D8]/10">
                 <div className="flex items-center gap-1">
@@ -484,15 +484,15 @@ export default function P2PControls({
           )}
         </div>
 
-        <div className="w-[1px] h-7 bg-[#F5E8D8]/10 mx-0.5 shrink-0" />
+        <div className="w-[1px] h-6 sm:h-7 bg-[#F5E8D8]/10 mx-0.5 shrink-0" />
 
         {/* 8. END / LEAVE BUTTON */}
         <button
           onClick={onLeaveMeeting}
-          className="min-w-[66px] sm:min-w-[74px] h-10 px-3.5 rounded-xl bg-[#FF4500] hover:bg-[#FF4500]/90 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition ml-0.5 shrink-0"
+          className="h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl bg-[#FF4500] hover:bg-[#FF4500]/90 text-white font-semibold text-xs flex items-center justify-center gap-1 sm:gap-1.5 transition ml-0.5 shrink-0"
         >
           <PhoneOff className="w-3.5 h-3.5" />
-          <span>{isHost ? 'End' : 'Leave'}</span>
+          <span className="hidden sm:inline">{isHost ? 'End' : 'Leave'}</span>
         </button>
       </div>
     </div>

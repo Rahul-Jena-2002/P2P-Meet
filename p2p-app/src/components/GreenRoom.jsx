@@ -82,19 +82,21 @@ export default function GreenRoom({ onJoinMeeting }) {
   };
 
   return (
-    <div className="relative w-screen h-screen bg-[#1C1C1C] text-[#F5E8D8] flex flex-col items-center justify-center p-6 overflow-hidden select-none">
+    <div className="relative min-h-screen w-full bg-[#1C1C1C] text-[#F5E8D8] flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 overflow-y-auto select-none">
       {/* Header */}
-      <div className="absolute top-8 left-8 flex items-center gap-3">
-        <P2PLogo size={40} />
-        <div>
-          <h1 className="text-lg font-bold text-[#F5E8D8] tracking-tight">p2pmeet</h1>
-          <span className="text-xs text-[#F5E8D8]/60 flex items-center gap-1.5 font-medium">
-            <Shield className="w-3.5 h-3.5 text-[#DAA520]" /> Direct Peer-to-Peer Encrypted
-          </span>
+      <div className="w-full max-w-4xl flex items-center justify-between py-3 mb-2 sm:mb-6 md:absolute md:top-8 md:left-8 md:w-auto md:py-0">
+        <div className="flex items-center gap-3">
+          <P2PLogo size={36} />
+          <div>
+            <h1 className="text-base sm:text-lg font-bold text-[#F5E8D8] tracking-tight">p2pmeet</h1>
+            <span className="text-[11px] sm:text-xs text-[#F5E8D8]/60 flex items-center gap-1.5 font-medium">
+              <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#DAA520]" /> Direct Peer-to-Peer Encrypted
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 items-center z-10">
+      <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 items-center z-10 my-auto pb-6 sm:pb-0">
         {/* Left: Camera & Mic Hardware Preview Box */}
         <div className="flex flex-col items-center">
           <div className="relative w-full aspect-video rounded-3xl overflow-hidden bg-[#242424] border border-[#F5E8D8]/10 shadow-2xl flex items-center justify-center">
