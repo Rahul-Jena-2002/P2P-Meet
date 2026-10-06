@@ -1,6 +1,5 @@
 /*
- * OpenMeet - Open-source, self-hostable video meeting platform
- * Local Wi-Fi & LAN WebRTC Signaling Server
+ * p2pmeet - Local Wi-Fi & LAN WebRTC Signaling Server
  */
 import { WebSocketServer } from 'ws';
 
@@ -179,4 +178,4 @@ wss.on('connection', (ws) => {
   });
 });
 
-console.log(`🚀 OpenMeet Local Signaling Server listening on ws://0.0.0.0:${PORT}`);
+console.log(`🚀 p2pmeet Local Signaling Server listening on ws://0.0.0.0:${PORT}`);

@@ -66,15 +66,15 @@ export default function P2PControls({
   };
 
   return (
-    <div className={`fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none p2p-overlay-bar ${
+    <div className={`fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none p2p-overlay-bar w-auto max-w-[95vw] ${
       isVisible ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-6 pointer-events-none'
     }`}>
-      <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-2xl sm:rounded-3xl p2p-dock">
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl sm:rounded-3xl p2p-dock shadow-2xl">
         {/* 1. MUTE / AUDIO */}
-        <div className="relative flex items-center">
+        <div className="relative flex items-center gap-0.5">
           <button
             onClick={toggleAudio}
-            className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl transition ${
+            className={`flex flex-col items-center justify-center min-w-[54px] sm:min-w-[62px] h-12 px-2 py-1 rounded-xl transition ${
               audioEnabled
                 ? 'hover:bg-white/[0.06] text-[#F5E8D8] border border-transparent'
                 : 'bg-[#FF4500]/15 text-[#FF4500] border border-[#FF4500]/30 hover:bg-[#FF4500]/25'
@@ -85,18 +85,18 @@ export default function P2PControls({
               <div className="relative">
                 <Mic className="w-5 h-5 text-[#F5E8D8]" />
                 {audioLevel > 15 && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#DAA520] animate-ping" />
+                  <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#DAA520]" />
                 )}
               </div>
             ) : (
               <MicOff className="w-5 h-5" />
             )}
-            <span className="text-[10px] font-semibold mt-0.5">{audioEnabled ? 'Mute' : 'Unmute'}</span>
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">{audioEnabled ? 'Mute' : 'Unmute'}</span>
           </button>
 
           <button
             onClick={() => setShowAudioMenu(!showAudioMenu)}
-            className="p-1.5 -ml-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
+            className="p-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
             title="Audio Settings"
           >
             <ChevronUp className="w-3.5 h-3.5" />
@@ -104,7 +104,7 @@ export default function P2PControls({
 
           {/* Audio Device Dropdown */}
           {showAudioMenu && (
-            <div className="absolute bottom-16 left-0 w-64 rounded-2xl zoom-dropdown p-3 text-xs text-[#F5E8D8] z-50 animate-in fade-in slide-in-from-bottom-2">
+            <div className="absolute bottom-16 left-0 w-64 rounded-2xl p2p-dropdown p-3 text-xs text-[#F5E8D8] z-50 animate-in fade-in slide-in-from-bottom-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#F5E8D8]/50 px-2 block mb-1">
                 Select Microphone
               </span>
@@ -125,23 +125,23 @@ export default function P2PControls({
         </div>
 
         {/* 2. VIDEO / CAMERA */}
-        <div className="relative flex items-center">
+        <div className="relative flex items-center gap-0.5">
           <button
             onClick={toggleVideo}
-            className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl transition ${
+            className={`flex flex-col items-center justify-center min-w-[54px] sm:min-w-[62px] h-12 px-2 py-1 rounded-xl transition ${
               videoEnabled
                 ? 'hover:bg-white/[0.06] text-[#F5E8D8] border border-transparent'
                 : 'bg-[#FF4500]/15 text-[#FF4500] border border-[#FF4500]/30 hover:bg-[#FF4500]/25'
             }`}
             title={videoEnabled ? "Stop Camera" : "Start Camera"}
           >
-            {videoEnabled ? <Video className="w-4 h-4 text-[#F5E8D8]" /> : <VideoOff className="w-4 h-4" />}
-            <span className="text-[10px] font-medium mt-0.5">{videoEnabled ? 'Stop Video' : 'Start Video'}</span>
+            {videoEnabled ? <Video className="w-5 h-5 text-[#F5E8D8]" /> : <VideoOff className="w-5 h-5" />}
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">{videoEnabled ? 'Stop Video' : 'Start Video'}</span>
           </button>
 
           <button
             onClick={() => setShowVideoMenu(!showVideoMenu)}
-            className="p-1 -ml-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
+            className="p-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
             title="Video Settings"
           >
             <ChevronUp className="w-3.5 h-3.5" />
@@ -169,17 +169,17 @@ export default function P2PControls({
           )}
         </div>
 
-        <div className="w-[1px] h-7 bg-[#F5E8D8]/10 mx-1" />
+        <div className="w-[1px] h-7 bg-[#F5E8D8]/10 mx-0.5 sm:mx-1 shrink-0" />
 
         {/* 3. SECURITY */}
         <div className="relative">
           <button
             onClick={() => setShowSecurityMenu(!showSecurityMenu)}
-            className="flex flex-col items-center justify-center w-12 h-12 rounded-2xl hover:bg-white/[0.06] text-[#F5E8D8] transition"
+            className="flex flex-col items-center justify-center min-w-[52px] sm:min-w-[60px] h-12 px-2 py-1 rounded-xl hover:bg-white/[0.06] text-[#F5E8D8] transition"
             title="Security Settings"
           >
             <Shield className="w-5 h-5 text-[#DAA520]" />
-            <span className="text-[10px] font-semibold mt-0.5">Security</span>
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">Security</span>
           </button>
 
           {showSecurityMenu && (
@@ -202,42 +202,44 @@ export default function P2PControls({
         {/* 4. PARTICIPANTS */}
         <button
           onClick={() => onTogglePanel('participants')}
-          className={`relative flex flex-col items-center justify-center w-11 h-11 rounded-xl transition ${
+          className={`flex flex-col items-center justify-center min-w-[64px] sm:min-w-[72px] h-12 px-2 py-1 rounded-xl transition ${
             activePanel === 'participants' ? 'bg-[#FF6F61]/20 text-[#FF6F61] border border-[#FF6F61]/40' : 'hover:bg-white/[0.06] text-[#F5E8D8]'
           }`}
           title="Participants"
         >
-          <Users className="w-4 h-4" />
-          <span className="text-[10px] font-medium mt-0.5">Participants</span>
-          <span className="absolute top-1 right-1 px-1.5 py-0.2 rounded-full bg-[#FF6F61] text-[9px] font-bold text-[#1C1C1C]">
-            {participantCount}
-          </span>
+          <div className="relative flex items-center justify-center">
+            <Users className="w-5 h-5" />
+            <span className="absolute -top-1.5 -right-3.5 px-1.5 py-0.2 rounded-full bg-[#FF6F61] text-[9px] font-bold text-[#1C1C1C] shadow-sm">
+              {participantCount}
+            </span>
+          </div>
+          <span className="text-[10px] font-medium mt-1 whitespace-nowrap">Participants</span>
         </button>
 
         {/* 5. CHAT */}
         <button
           onClick={() => onTogglePanel('chat')}
-          className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl transition ${
+          className={`flex flex-col items-center justify-center min-w-[50px] sm:min-w-[56px] h-12 px-2 py-1 rounded-xl transition ${
             activePanel === 'chat' ? 'bg-[#FF6F61]/20 text-[#FF6F61] border border-[#FF6F61]/40' : 'hover:bg-white/[0.06] text-[#F5E8D8]'
           }`}
           title="Chat"
         >
-          <MessageSquare className="w-4 h-4" />
-          <span className="text-[10px] font-medium mt-0.5">Chat</span>
+          <MessageSquare className="w-5 h-5" />
+          <span className="text-[10px] font-medium mt-1 whitespace-nowrap">Chat</span>
         </button>
 
-        {/* 6. SIGNATURE PRIMARY ACTION "SHARE SCREEN" */}
+        {/* 6. PRIMARY ACTION "SHARE SCREEN" */}
         <button
           onClick={screenSharing ? stopScreenShare : startScreenShare}
-          className={`flex flex-col items-center justify-center px-3.5 h-11 rounded-xl transition ${
+          className={`flex flex-col items-center justify-center min-w-[72px] sm:min-w-[82px] h-12 px-3 py-1 rounded-xl transition ${
             screenSharing
               ? 'bg-[#FF4500] hover:bg-[#FF4500]/80 text-[#F5E8D8]'
               : 'bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white font-semibold'
           }`}
           title={screenSharing ? "Stop Sharing" : "Share Screen"}
         >
-          <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
-          <span className="text-[10px] font-medium mt-0.5">{screenSharing ? 'Stop Share' : 'Share'}</span>
+          <ArrowUpRight className="w-5 h-5 stroke-[2.5]" />
+          <span className="text-[10px] font-medium mt-1 whitespace-nowrap">{screenSharing ? 'Stop Share' : 'Share'}</span>
         </button>
 
         {/* 6b. WATCH TOGETHER (CO-STREAMING) */}
@@ -250,15 +252,15 @@ export default function P2PControls({
                 setShowWatchModal(!showWatchModal);
               }
             }}
-            className={`flex flex-col items-center justify-center px-3 h-11 rounded-xl transition ${
+            className={`flex flex-col items-center justify-center min-w-[52px] sm:min-w-[58px] h-12 px-2 py-1 rounded-xl transition ${
               watchTogetherActive
                 ? 'bg-[#DAA520]/20 text-[#DAA520] border border-[#DAA520]/40'
                 : 'hover:bg-white/[0.06] text-[#F5E8D8]'
             }`}
             title="Watch Together (Co-streaming)"
           >
-            <Sparkles className="w-4 h-4 text-[#DAA520]" />
-            <span className="text-[10px] font-medium mt-0.5">
+            <Sparkles className="w-5 h-5 text-[#DAA520]" />
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">
               {watchTogetherActive ? 'End' : 'Watch'}
             </span>
           </button>
@@ -328,11 +330,11 @@ export default function P2PControls({
         <div className="relative">
           <button
             onClick={() => setShowReactionsMenu(!showReactionsMenu)}
-            className="flex flex-col items-center justify-center w-11 h-11 rounded-xl hover:bg-white/[0.06] text-[#F5E8D8] transition"
+            className="flex flex-col items-center justify-center min-w-[54px] sm:min-w-[60px] h-12 px-2 py-1 rounded-xl hover:bg-white/[0.06] text-[#F5E8D8] transition"
             title="Reactions"
           >
-            <Smile className="w-4 h-4 text-[#DAA520]" />
-            <span className="text-[10px] font-medium mt-0.5">Reactions</span>
+            <Smile className="w-5 h-5 text-[#DAA520]" />
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">Reactions</span>
           </button>
 
           {showReactionsMenu && (
@@ -354,12 +356,12 @@ export default function P2PControls({
           )}
         </div>
 
-        <div className="w-[1px] h-6 bg-[#F5E8D8]/10 mx-1" />
+        <div className="w-[1px] h-7 bg-[#F5E8D8]/10 mx-0.5 sm:mx-1 shrink-0" />
 
         {/* 8. SIGNATURE END / LEAVE BUTTON */}
         <button
           onClick={onLeaveMeeting}
-          className="px-3.5 h-10 rounded-xl bg-[#FF4500] hover:bg-[#FF4500]/90 text-white font-semibold text-xs flex items-center gap-1.5 transition ml-0.5"
+          className="min-w-[68px] sm:min-w-[76px] h-10 px-4 rounded-xl bg-[#FF4500] hover:bg-[#FF4500]/90 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition ml-0.5 shrink-0"
         >
           <PhoneOff className="w-3.5 h-3.5" />
           <span>{isHost ? 'End' : 'Leave'}</span>
