@@ -4,7 +4,7 @@
   "private": true,
   "description": "Privacy-First Decentralized Video Meetings & Direct P2P File Sharing",
   "scripts": {
-    "build": "cd p2p-app && npm install && npm run build",
+    "build": "npm --prefix p2p-app install && npm --prefix p2p-app run build && node -e \"const fs=require('fs'); if(fs.existsSync('p2p-app/out')){ fs.cpSync('p2p-app/out', 'out', {recursive:true}); console.log('Successfully copied to ./out'); }\"",
     "deploy": "npx wrangler deploy",
     "start": "cd p2p-app && npm run dev"
   },
