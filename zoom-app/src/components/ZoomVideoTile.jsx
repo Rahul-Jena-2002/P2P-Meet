@@ -24,12 +24,15 @@ export default function ZoomVideoTile({
   useEffect(() => {
     const el = videoRef.current;
     if (el && stream) {
-      el.srcObject = stream;
+      if (el.srcObject !== stream) {
+        el.srcObject = stream;
+      }
       el.onloadedmetadata = () => {
         el.play().catch(e => console.warn('Video play error:', e));
       };
+      el.play().catch(e => console.warn('Video play error:', e));
     }
-  }, [stream, isVideoOn]);
+  }, [stream, isVideoOn, isScreenSharing]);
 
   const initials = name
     ? name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
@@ -41,14 +44,14 @@ export default function ZoomVideoTile({
         isSpeaking ? 'speaking-halo border-blue-500' : 'border-slate-800/80 hover:border-slate-700/80'
       }`}
     >
-      {/* Video stream */}
-      {isVideoOn && stream ? (
+      {/* Video stream (shows if video is on OR screen is sharing) */}
+      {(isVideoOn || isScreenSharing) && stream ? (
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted={isLocal}
-          className={`w-full h-full object-cover ${isLocal && !isScreenSharing ? 'scale-x-[-1]' : ''}`}
+          className={`w-full h-full object-contain bg-black ${isLocal && !isScreenSharing ? 'scale-x-[-1]' : ''}`}
         />
       ) : (
         /* Sleek Avatar when camera is off */

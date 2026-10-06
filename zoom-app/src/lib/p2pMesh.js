@@ -29,39 +29,48 @@ export class P2PMesh {
   connect() {
     if (typeof window === 'undefined') return;
 
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const hostname = window.location.hostname || 'localhost';
-    const wsUrl = `ws://${hostname}:3001`;
+    const wsUrl = `${protocol}//${hostname}:3001`;
 
-    console.log('[P2P] Connecting to signaling server at:', wsUrl);
-    this.ws = new WebSocket(wsUrl);
+    try {
+      console.log('[P2P] Connecting to signaling server at:', wsUrl);
+      this.ws = new WebSocket(wsUrl);
 
-    this.ws.onopen = () => {
-      console.log('[P2P] Connected to signaling server');
-      this.ws.send(JSON.stringify({
-        type: 'join-room',
-        roomId: this.roomId,
-        userId: this.userId,
-        userName: this.userName
-      }));
-    };
+      this.ws.onopen = () => {
+        console.log('[P2P] Connected to signaling server');
+        this.ws.send(JSON.stringify({
+          type: 'join-room',
+          roomId: this.roomId,
+          userId: this.userId,
+          userName: this.userName
+        }));
+      };
 
-    this.ws.onerror = (err) => {
-      console.error('[P2P] Signaling connection error:', err);
-      this.onError?.(err);
-    };
+      this.ws.onerror = (err) => {
+        // Soft warning to avoid Turbopack runtime error overlay
+        console.warn('[P2P] Signaling connection issue (will retry in 2s):', err);
+      };
 
-    this.ws.onclose = () => {
-      console.log('[P2P] Signaling connection closed');
-    };
+      this.ws.onclose = () => {
+        if (!this.isDestroyed) {
+          setTimeout(() => {
+            if (!this.isDestroyed) this.connect();
+          }, 2000);
+        }
+      };
 
-    this.ws.onmessage = async (evt) => {
-      try {
-        const msg = JSON.parse(evt.data);
-        await this.handleSignalingMessage(msg);
-      } catch (e) {
-        console.error('[P2P] Error handling signaling message:', e);
-      }
-    };
+      this.ws.onmessage = async (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          await this.handleSignalingMessage(msg);
+        } catch (e) {
+          console.warn('[P2P] Error handling signaling message:', e);
+        }
+      };
+    } catch (err) {
+      console.warn('[P2P] Failed to create WebSocket:', err);
+    }
   }
 
   async handleSignalingMessage(msg) {
@@ -95,15 +104,17 @@ export class P2PMesh {
         break;
       }
 
-      case 'chat':
-      case 'reaction': {
-        this.onData?.(msg);
-        break;
-      }
-
       case 'user-left': {
         this.closePeer(msg.userId);
         this.onPeerLeave?.(msg.userId);
+        break;
+      }
+
+      // Chat, reactions, remote control, screen share state, watch together
+      case 'chat':
+      case 'reaction':
+      default: {
+        this.onData?.(msg);
         break;
       }
     }

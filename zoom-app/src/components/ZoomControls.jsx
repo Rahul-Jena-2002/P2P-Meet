@@ -19,7 +19,10 @@ export default function ZoomControls({
   activePanel,
   onTogglePanel,
   onSendReaction,
-  onLeaveMeeting
+  onLeaveMeeting,
+  onStartWatchTogether,
+  onStopWatchTogether,
+  watchTogetherActive
 }) {
   const {
     audioEnabled,
@@ -41,6 +44,8 @@ export default function ZoomControls({
   const [showVideoMenu, setShowVideoMenu] = useState(false);
   const [showReactionsMenu, setShowReactionsMenu] = useState(false);
   const [showSecurityMenu, setShowSecurityMenu] = useState(false);
+  const [showWatchModal, setShowWatchModal] = useState(false);
+  const [customVideoUrl, setCustomVideoUrl] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
 
   const reactions = [
@@ -231,6 +236,90 @@ export default function ZoomControls({
           <ArrowUpRight className="w-5 h-5 stroke-[2.5]" />
           <span className="text-[10px] font-bold mt-0.5">{screenSharing ? 'Stop Share' : 'Share Screen'}</span>
         </button>
+
+        {/* 6b. WATCH TOGETHER (CO-STREAMING) */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              if (watchTogetherActive) {
+                onStopWatchTogether?.();
+              } else {
+                setShowWatchModal(!showWatchModal);
+              }
+            }}
+            className={`flex flex-col items-center justify-center px-3 h-12 rounded-2xl transition ${
+              watchTogetherActive
+                ? 'bg-indigo-600/90 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30'
+                : 'hover:bg-white/10 text-slate-200'
+            }`}
+            title="Watch Together (Co-streaming)"
+          >
+            <Sparkles className="w-5 h-5 text-indigo-400" />
+            <span className="text-[10px] font-semibold mt-0.5">
+              {watchTogetherActive ? 'End Watch' : 'Watch Party'}
+            </span>
+          </button>
+
+          {showWatchModal && (
+            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-80 rounded-2xl zoom-dropdown p-4 text-xs text-slate-200 z-50 shadow-2xl space-y-3">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-indigo-400" /> Co-Streaming Watch Party
+                </span>
+                <button
+                  onClick={() => setShowWatchModal(false)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">Quick Play Presets</span>
+                <button
+                  onClick={() => {
+                    onStartWatchTogether?.("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+                    setShowWatchModal(false);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition text-slate-200 font-medium"
+                >
+                  🎬 Big Buck Bunny (HD Animation)
+                </button>
+                <button
+                  onClick={() => {
+                    onStartWatchTogether?.("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4");
+                    setShowWatchModal(false);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition text-slate-200 font-medium"
+                >
+                  🚀 Tears of Steel (HD Sci-Fi)
+                </button>
+              </div>
+
+              <div className="space-y-1.5 pt-1 border-t border-white/10">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">Or Custom Video URL</span>
+                <input
+                  type="text"
+                  placeholder="https://.../video.mp4"
+                  value={customVideoUrl}
+                  onChange={(e) => setCustomVideoUrl(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-indigo-500"
+                />
+                <button
+                  onClick={() => {
+                    if (customVideoUrl.trim()) {
+                      onStartWatchTogether?.(customVideoUrl.trim());
+                      setShowWatchModal(false);
+                    }
+                  }}
+                  className="w-full py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow"
+                >
+                  Start Synced Playback
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* 7. REACTIONS */}
         <div className="relative">

@@ -23,15 +23,34 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
     audioLevel
   } = useMedia();
 
-  const [peers, setPeers] = useState({}); // { [peerId]: { id, name, stream, isHost, isAudioOn, isVideoOn } }
+  const [peers, setPeers] = useState({});
   const [messages, setMessages] = useState([]);
-  const [activePanel, setActivePanel] = useState(null); // 'chat' | 'participants' | null
+  const [activePanel, setActivePanel] = useState(null); // 'chat' | 'participants' | 'watch'
   const [viewMode, setViewMode] = useState('gallery'); // 'gallery' | 'speaker'
-  const [reactions, setReactions] = useState([]); // [{ id, emoji, left }]
+  const [reactions, setReactions] = useState([]);
+
+  // Remote Access state
+  const [remoteControlState, setRemoteControlState] = useState({
+    isControlling: false,
+    isBeingControlled: false,
+    controllerName: null,
+    requestPending: false,
+    requesterId: null,
+    requesterName: null
+  });
+  const [remoteCursor, setRemoteCursor] = useState(null);
+  const [remoteRipples, setRemoteRipples] = useState([]);
+
+  // Watch Together state
+  const [watchTogetherState, setWatchTogetherState] = useState({
+    active: false,
+    url: '',
+    isPlaying: false,
+    currentTime: 0
+  });
 
   const meshRef = useRef(null);
 
-  // Initialize P2P Mesh
   useEffect(() => {
     const mesh = new P2PMesh({
       roomId: meetingInfo.code,
@@ -47,9 +66,19 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
             stream: null,
             isHost: false,
             isAudioOn: true,
-            isVideoOn: true
+            isVideoOn: true,
+            isScreenSharing: false
           }
         }));
+        // Notify new joiner of current state
+        meshRef.current?.broadcast({
+          type: 'PEER_MEDIA_STATE',
+          userId: meetingInfo.userId,
+          userName: meetingInfo.name,
+          isScreenSharing: screenSharing,
+          isVideoOn: videoEnabled,
+          isAudioOn: audioEnabled
+        });
       },
       onPeerLeave: (peerId) => {
         setPeers(prev => {
@@ -57,6 +86,16 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
           delete updated[peerId];
           return updated;
         });
+        if (remoteControlState.requesterId === peerId || remoteControlState.isBeingControlled) {
+          setRemoteControlState({
+            isControlling: false,
+            isBeingControlled: false,
+            controllerName: null,
+            requestPending: false,
+            requesterId: null,
+            requesterName: null
+          });
+        }
       },
       onStream: (peerId, remoteStream, name) => {
         setPeers(prev => ({
@@ -70,12 +109,62 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
         }));
       },
       onData: (data) => {
-        if (data.type === 'CHAT') {
-          setMessages(m => [...m, data.payload]);
-        } else if (data.type === 'REACTION') {
-          spawnReaction(data.payload.emoji);
-        } else if (data.type === 'MUTE_ALL') {
-          // If remote host muted all
+        const { type } = data;
+
+        if (type === 'chat') {
+          setMessages(m => [...m, data]);
+        } else if (type === 'reaction') {
+          spawnReaction(data.emoji);
+        } else if (type === 'PEER_MEDIA_STATE') {
+          setPeers(prev => ({
+            ...prev,
+            [data.userId]: {
+              ...(prev[data.userId] || {}),
+              id: data.userId,
+              name: data.userName || prev[data.userId]?.name,
+              isScreenSharing: !!data.isScreenSharing,
+              isVideoOn: data.isVideoOn !== false,
+              isAudioOn: data.isAudioOn !== false
+            }
+          }));
+        } else if (type === 'REMOTE_REQ') {
+          setRemoteControlState(s => ({
+            ...s,
+            requestPending: true,
+            requesterId: data.requesterId,
+            requesterName: data.requesterName
+          }));
+        } else if (type === 'REMOTE_RES') {
+          if (data.allowed && (!data.targetId || data.targetId === meetingInfo.userId)) {
+            setRemoteControlState(s => ({ ...s, isControlling: true }));
+          } else if (!data.allowed) {
+            alert('Remote control request was declined.');
+          }
+        } else if (type === 'REMOTE_REVOKE') {
+          setRemoteControlState({
+            isControlling: false,
+            isBeingControlled: false,
+            controllerName: null,
+            requestPending: false,
+            requesterId: null,
+            requesterName: null
+          });
+          setRemoteCursor(null);
+        } else if (type === 'REMOTE_MOUSE') {
+          setRemoteCursor({ x: data.x, y: data.y, name: data.name });
+          if (data.click) {
+            const ripId = Date.now() + Math.random();
+            setRemoteRipples(r => [...r, { id: ripId, x: data.x, y: data.y }]);
+            setTimeout(() => {
+              setRemoteRipples(r => r.filter(item => item.id !== ripId));
+            }, 800);
+          }
+        } else if (type === 'WATCH_START') {
+          setWatchTogetherState({ active: true, url: data.url, isPlaying: true, currentTime: 0 });
+        } else if (type === 'WATCH_SYNC') {
+          setWatchTogetherState(prev => ({ ...prev, ...data.sync }));
+        } else if (type === 'WATCH_STOP') {
+          setWatchTogetherState({ active: false, url: '', isPlaying: false, currentTime: 0 });
         }
       }
     });
@@ -88,16 +177,24 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
     };
   }, [meetingInfo.code, meetingInfo.userId]);
 
-  // Update stream when screen share or camera changes
+  // Update stream and broadcast state when screen share or camera changes
   useEffect(() => {
     if (meshRef.current) {
       meshRef.current.replaceStream(screenStream || localStream);
+      meshRef.current.broadcast({
+        type: 'PEER_MEDIA_STATE',
+        userId: meetingInfo.userId,
+        userName: meetingInfo.name,
+        isScreenSharing: screenSharing,
+        isVideoOn: videoEnabled,
+        isAudioOn: audioEnabled
+      });
     }
-  }, [localStream, screenStream]);
+  }, [localStream, screenStream, screenSharing, videoEnabled, audioEnabled]);
 
   const spawnReaction = (emoji) => {
     const id = Date.now() + Math.random();
-    const left = Math.floor(Math.random() * 80) + 10; // random 10% - 90%
+    const left = Math.floor(Math.random() * 80) + 10;
     setReactions(r => [...r, { id, emoji, left }]);
     setTimeout(() => {
       setReactions(r => r.filter(item => item.id !== id));
@@ -107,7 +204,7 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
   const handleSendReaction = (emoji) => {
     spawnReaction(emoji);
     meshRef.current?.broadcast({
-      type: 'REACTION',
+      type: 'reaction',
       payload: { emoji, senderId: meetingInfo.userId }
     });
   };
@@ -121,14 +218,118 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
     };
     setMessages(m => [...m, msg]);
     meshRef.current?.broadcast({
-      type: 'CHAT',
+      type: 'chat',
       payload: msg
     });
   };
 
-  const handleMuteAll = () => {
+  // Remote Control Handlers (Zoom + RemoteDesk style)
+  const handleRequestRemoteControl = () => {
     meshRef.current?.broadcast({
-      type: 'MUTE_ALL'
+      type: 'REMOTE_REQ',
+      requesterId: meetingInfo.userId,
+      requesterName: meetingInfo.name
+    });
+  };
+
+  const handleGrantRemoteControl = (allowed) => {
+    meshRef.current?.broadcast({
+      type: 'REMOTE_RES',
+      allowed,
+      targetId: remoteControlState.requesterId
+    });
+    if (allowed) {
+      setRemoteControlState(s => ({
+        ...s,
+        isBeingControlled: true,
+        controllerName: s.requesterName,
+        requestPending: false
+      }));
+    } else {
+      setRemoteControlState(s => ({ ...s, requestPending: false }));
+    }
+  };
+
+  const handleGrantRemoteControlToPeer = (targetPeerId, targetPeerName) => {
+    meshRef.current?.broadcast({
+      type: 'REMOTE_RES',
+      allowed: true,
+      targetId: targetPeerId
+    });
+    setRemoteControlState(s => ({
+      ...s,
+      isBeingControlled: true,
+      controllerName: targetPeerName,
+      requestPending: false
+    }));
+  };
+
+  const handleSimulateRemoteControl = () => {
+    setRemoteControlState(s => ({
+      ...s,
+      isBeingControlled: true,
+      controllerName: 'Simulated Remote Guest',
+      requestPending: false
+    }));
+    let count = 0;
+    const interval = setInterval(() => {
+      count++;
+      const x = 30 + Math.sin(count * 0.45) * 25;
+      const y = 35 + Math.cos(count * 0.45) * 20;
+      const click = count % 5 === 0;
+      setRemoteCursor({ x, y, name: 'Guest (Simulated)' });
+      if (click) {
+        const ripId = Date.now() + Math.random();
+        setRemoteRipples(r => [...r, { id: ripId, x, y }]);
+        setTimeout(() => setRemoteRipples(r => r.filter(i => i.id !== ripId)), 800);
+      }
+      if (count > 25) clearInterval(interval);
+    }, 200);
+  };
+
+  const handleRevokeRemoteControl = () => {
+    meshRef.current?.broadcast({
+      type: 'REMOTE_REVOKE'
+    });
+    setRemoteControlState({
+      isControlling: false,
+      isBeingControlled: false,
+      controllerName: null,
+      requestPending: false,
+      requesterId: null,
+      requesterName: null
+    });
+    setRemoteCursor(null);
+  };
+
+  const handleSendRemoteMouseEvent = (eventData) => {
+    meshRef.current?.broadcast({
+      type: 'REMOTE_MOUSE',
+      ...eventData,
+      name: meetingInfo.name
+    });
+  };
+
+  // Watch Together Co-Streaming Handlers
+  const handleStartWatchTogether = (url) => {
+    setWatchTogetherState({ active: true, url, isPlaying: true, currentTime: 0 });
+    meshRef.current?.broadcast({
+      type: 'WATCH_START',
+      url
+    });
+  };
+
+  const handleStopWatchTogether = () => {
+    setWatchTogetherState({ active: false, url: '', isPlaying: false, currentTime: 0 });
+    meshRef.current?.broadcast({
+      type: 'WATCH_STOP'
+    });
+  };
+
+  const handleWatchTogetherSync = (syncData) => {
+    meshRef.current?.broadcast({
+      type: 'WATCH_SYNC',
+      sync: syncData
     });
   };
 
@@ -157,7 +358,7 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
 
   return (
     <div className="relative w-screen h-screen bg-[#090b10] overflow-hidden flex select-none">
-      {/* 1. TOP-MOST LAYER: Fullscreen Edge-to-Edge Video Grid */}
+      {/* 1. TOP-MOST LAYER: Fullscreen Edge-to-Edge Video Canvas */}
       <div className="flex-1 h-full w-full relative">
         <ZoomGrid
           localUser={localUserObj}
@@ -169,6 +370,18 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
           isScreenSharing={screenSharing}
           viewMode={viewMode}
           speakingUserId={audioLevel > 20 ? meetingInfo.userId : null}
+          remoteControlState={remoteControlState}
+          onRequestRemoteControl={handleRequestRemoteControl}
+          onGrantRemoteControl={handleGrantRemoteControl}
+          onGrantRemoteControlToPeer={handleGrantRemoteControlToPeer}
+          onSimulateRemoteControl={handleSimulateRemoteControl}
+          onRevokeRemoteControl={handleRevokeRemoteControl}
+          onSendRemoteMouseEvent={handleSendRemoteMouseEvent}
+          remoteCursor={remoteCursor}
+          remoteRipples={remoteRipples}
+          watchTogetherState={watchTogetherState}
+          onWatchTogetherSync={handleWatchTogetherSync}
+          onStopWatchTogether={handleStopWatchTogether}
         />
       </div>
 
@@ -189,6 +402,9 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
         onTogglePanel={(panel) => setActivePanel(p => p === panel ? null : panel)}
         onSendReaction={handleSendReaction}
         onLeaveMeeting={onLeave}
+        onStartWatchTogether={handleStartWatchTogether}
+        onStopWatchTogether={handleStopWatchTogether}
+        watchTogetherActive={watchTogetherState.active}
       />
 
       {/* 4. Side Drawers (Chat & Participants) */}
@@ -206,7 +422,6 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
           participants={participantList}
           isHost={meetingInfo.isHost}
           roomCode={meetingInfo.code}
-          onMuteAll={handleMuteAll}
           onClose={() => setActivePanel(null)}
         />
       )}

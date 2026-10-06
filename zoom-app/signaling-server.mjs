@@ -20,7 +20,7 @@ wss.on('connection', (ws) => {
 
       switch (type) {
         case 'join-room': {
-          const { roomId, userId, userName } = data;
+          const { roomId, userId, userName, state } = data;
           socketMeta.set(ws, { roomId, userId, userName });
 
           if (!rooms.has(roomId)) {
@@ -31,7 +31,7 @@ wss.on('connection', (ws) => {
           // Get existing users in room to return to caller
           const existingUsers = [];
           room.forEach((meta, uId) => {
-            existingUsers.push({ userId: uId, userName: meta.userName });
+            existingUsers.push({ userId: uId, userName: meta.userName, state: meta.state || {} });
           });
 
           // Send list of existing users to the joining user
@@ -46,13 +46,34 @@ wss.on('connection', (ws) => {
               meta.ws.send(JSON.stringify({
                 type: 'user-joined',
                 userId,
-                userName
+                userName,
+                state: state || {}
               }));
             }
           });
 
-          room.set(userId, { ws, userName });
+          room.set(userId, { ws, userName, state: state || {} });
           console.log(`[Signaling] User "${userName}" (${userId}) joined room "${roomId}". Room count: ${room.size}`);
+          break;
+        }
+
+        case 'PEER_MEDIA_STATE': {
+          const meta = socketMeta.get(ws);
+          if (meta) {
+            const room = rooms.get(meta.roomId);
+            if (room && room.has(meta.userId)) {
+              const uMeta = room.get(meta.userId);
+              uMeta.state = { ...(uMeta.state || {}), ...data };
+            }
+            if (room) {
+              const payload = JSON.stringify(data);
+              room.forEach((peer) => {
+                if (peer.ws !== ws && peer.ws.readyState === ws.OPEN) {
+                  peer.ws.send(payload);
+                }
+              });
+            }
+          }
           break;
         }
 
@@ -109,6 +130,21 @@ wss.on('connection', (ws) => {
                 peer.ws.send(payload);
               }
             });
+          }
+          break;
+        }
+        default: {
+          const meta = socketMeta.get(ws);
+          if (meta) {
+            const room = rooms.get(meta.roomId);
+            if (room) {
+              const payload = JSON.stringify(data);
+              room.forEach((peer) => {
+                if (peer.ws !== ws && peer.ws.readyState === ws.OPEN) {
+                  peer.ws.send(payload);
+                }
+              });
+            }
           }
           break;
         }
