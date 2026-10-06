@@ -357,7 +357,7 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
   ];
 
   return (
-    <div className="relative w-screen h-screen bg-[#090b10] overflow-hidden flex select-none">
+    <div className="relative w-screen h-screen bg-[#1C1C1C] text-[#F5E8D8] overflow-hidden flex select-none">
       {/* 1. TOP-MOST LAYER: Fullscreen Edge-to-Edge Video Canvas */}
       <div className="flex-1 h-full w-full relative">
         <ZoomGrid

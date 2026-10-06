@@ -6,8 +6,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "OpenMeet - Video Meetings & Screen Sharing",
-  description: "Lightweight, instant, peer-to-peer video meetings and screen sharing.",
+  title: "p2pmeet",
+  description: "Instant peer-to-peer video meetings, co-streaming, and remote screen sharing.",
   icons: {
     icon: "/favicon.ico",
   },
@@ -16,7 +16,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark h-full w-full">
-      <body className="h-screen w-screen overflow-hidden bg-[#0b0d13] text-slate-100 antialiased select-none">
+      <body className="h-screen w-screen overflow-hidden bg-[#1C1C1C] text-[#F5E8D8] antialiased select-none">
         {children}
       </body>
     </html>

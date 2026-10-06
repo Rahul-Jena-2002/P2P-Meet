@@ -29,7 +29,7 @@ export default function Home() {
 
   return (
     <MediaProvider>
-      <main className="w-screen h-screen overflow-hidden bg-[#090b10]">
+      <main className="w-screen h-screen overflow-hidden bg-[#1C1C1C] text-[#F5E8D8]">
         {meetingState ? (
           <ZoomMeetingRoom
             meetingInfo={meetingState}

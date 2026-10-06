@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+:root {
+  --bg-primary: #1C1C1C;
+  --bg-surface: #242424;
+  --bg-surface-elevated: #2C2C2C;
+  --text-primary: #F5E8D8;
+  --text-muted: rgba(245, 232, 216, 0.70);
+  --text-subtle: rgba(245, 232, 216, 0.45);
+  --accent-coral: #FF6F61;
+  --accent-gold: #DAA520;
+  --accent-orange: #FF4500;
+  --border-warm: rgba(245, 232, 216, 0.10);
+  --border-warm-hover: rgba(245, 232, 216, 0.20);
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -11,50 +25,55 @@
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    background-color: #0b0d13;
-    color: #f1f5f9;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #1C1C1C;
+    color: #F5E8D8;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    letter-spacing: -0.011em;
     user-select: none;
     -webkit-user-select: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Glassmorphism Floating Dock */
+/* Apple & shadcn-inspired warm glassmorphism */
 .zoom-dock {
-  background: rgba(18, 21, 28, 0.85);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+  background: rgba(28, 28, 28, 0.88);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(245, 232, 216, 0.12);
+  box-shadow: 0 20px 48px -10px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(245, 232, 216, 0.05);
 }
 
 .zoom-panel {
-  background: rgba(14, 17, 23, 0.95);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(28, 28, 28, 0.94);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(245, 232, 216, 0.12);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.65);
 }
 
 .zoom-dropdown {
-  background: rgba(20, 24, 33, 0.98);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.6);
+  background: rgba(36, 36, 36, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(245, 232, 216, 0.14);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(245, 232, 216, 0.05);
 }
 
-/* Active Speaker Halo */
-@keyframes speaker-halo {
-  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
-  50% { box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.4); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
+/* Warm active speaker halo */
+@keyframes speaker-halo-warm {
+  0% { box-shadow: 0 0 0 0 rgba(255, 111, 97, 0.75); }
+  50% { box-shadow: 0 0 0 4px rgba(255, 111, 97, 0.35); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 111, 97, 0.75); }
 }
 
 .speaking-halo {
-  animation: speaker-halo 1.5s infinite ease-in-out;
-  border-color: #3b82f6 !important;
+  animation: speaker-halo-warm 1.6s infinite ease-in-out;
+  border-color: #FF6F61 !important;
 }
 
-/* Custom sleek scrollbar */
+/* Custom warm scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -63,9 +82,9 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(245, 232, 216, 0.18);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(245, 232, 216, 0.32);
 }

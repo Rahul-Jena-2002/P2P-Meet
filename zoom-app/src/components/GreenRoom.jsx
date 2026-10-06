@@ -81,20 +81,20 @@ export default function GreenRoom({ onJoinMeeting }) {
   };
 
   return (
-    <div className="relative w-screen h-screen bg-[#090b10] flex flex-col items-center justify-center p-6 overflow-hidden select-none">
-      {/* Ambient glowing background orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[128px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-[128px] pointer-events-none" />
+    <div className="relative w-screen h-screen bg-[#1C1C1C] text-[#F5E8D8] flex flex-col items-center justify-center p-6 overflow-hidden select-none">
+      {/* Ambient warm glowing background orbs */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#FF6F61]/5 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#DAA520]/5 rounded-full blur-[140px] pointer-events-none" />
 
       {/* Header */}
-      <div className="absolute top-8 left-8 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/25">
-          OM
+      <div className="absolute top-8 left-8 flex items-center gap-3.5">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#FF6F61] to-[#FF4500] flex items-center justify-center text-[#1C1C1C] font-black text-xs tracking-wider shadow-lg shadow-[#FF6F61]/20 border border-[#F5E8D8]/10">
+          P2P
         </div>
         <div>
-          <h1 className="text-xl font-extrabold text-white tracking-tight">OpenMeet</h1>
-          <span className="text-xs text-slate-400 flex items-center gap-1">
-            <Shield className="w-3 h-3 text-emerald-400" /> Serverless Cloudflare Ready
+          <h1 className="text-xl font-bold text-[#F5E8D8] tracking-tight">p2pmeet</h1>
+          <span className="text-xs text-[#F5E8D8]/60 flex items-center gap-1.5 font-medium">
+            <Shield className="w-3.5 h-3.5 text-[#DAA520]" /> Direct Peer-to-Peer Encrypted
           </span>
         </div>
       </div>
@@ -102,7 +102,7 @@ export default function GreenRoom({ onJoinMeeting }) {
       <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 items-center z-10">
         {/* Left: Camera & Mic Hardware Preview Box */}
         <div className="flex flex-col items-center">
-          <div className="relative w-full aspect-video rounded-3xl overflow-hidden bg-[#131722] border border-white/10 shadow-2xl flex items-center justify-center">
+          <div className="relative w-full aspect-video rounded-3xl overflow-hidden bg-[#242424] border border-[#F5E8D8]/10 shadow-2xl flex items-center justify-center">
             {videoEnabled && localStream ? (
               <video
                 ref={videoRef}
@@ -112,18 +112,18 @@ export default function GreenRoom({ onJoinMeeting }) {
                 className="w-full h-full object-cover scale-x-[-1]"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center text-slate-400">
-                <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center text-slate-500 mb-2 border border-white/5">
+              <div className="flex flex-col items-center justify-center text-[#F5E8D8]/50">
+                <div className="w-20 h-20 rounded-full bg-[#1C1C1C] flex items-center justify-center text-[#F5E8D8]/40 mb-2.5 border border-[#F5E8D8]/10 shadow-inner">
                   <VideoOff className="w-8 h-8" />
                 </div>
-                <span className="text-xs font-medium">Camera is turned off</span>
+                <span className="text-xs font-medium text-[#F5E8D8]/60">Camera is turned off</span>
               </div>
             )}
 
             {/* Notice if camera/mic restricted on HTTP */}
             {mediaError && (
-              <div className="absolute top-3 left-3 right-3 p-2.5 rounded-xl bg-amber-500/90 backdrop-blur-md text-black text-xs flex items-center gap-2 shadow-lg font-medium">
-                <AlertCircle className="w-4 h-4 shrink-0 text-black" />
+              <div className="absolute top-3 left-3 right-3 p-2.5 rounded-xl bg-[#DAA520]/95 backdrop-blur-md text-[#1C1C1C] text-xs flex items-center gap-2 shadow-lg font-semibold border border-black/10">
+                <AlertCircle className="w-4 h-4 shrink-0 text-[#1C1C1C]" />
                 <span className="text-[11px] leading-snug">{mediaError}</span>
               </div>
             )}
@@ -131,11 +131,11 @@ export default function GreenRoom({ onJoinMeeting }) {
             {/* Live Audio Meter & Control Pill */}
             <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
               {/* Mic volume bar */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs text-slate-300">
-                <Volume2 className={`w-3.5 h-3.5 ${audioLevel > 10 ? 'text-emerald-400' : 'text-slate-400'}`} />
-                <div className="w-16 h-1.5 bg-white/20 rounded-full overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1C1C1C]/80 backdrop-blur-md border border-[#F5E8D8]/10 text-xs text-[#F5E8D8]/80 shadow-md">
+                <Volume2 className={`w-3.5 h-3.5 ${audioLevel > 10 ? 'text-[#DAA520]' : 'text-[#F5E8D8]/40'}`} />
+                <div className="w-16 h-1.5 bg-[#F5E8D8]/15 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-emerald-400 transition-all duration-75 rounded-full"
+                    className="h-full bg-[#DAA520] transition-all duration-75 rounded-full"
                     style={{ width: `${audioLevel}%` }}
                   />
                 </div>
@@ -146,8 +146,10 @@ export default function GreenRoom({ onJoinMeeting }) {
                 <button
                   type="button"
                   onClick={toggleAudio}
-                  className={`p-2.5 rounded-xl backdrop-blur-md border border-white/10 transition shadow-lg ${
-                    audioEnabled ? 'bg-black/60 text-white hover:bg-black/80' : 'bg-red-600 text-white shadow-red-600/30'
+                  className={`p-2.5 rounded-xl backdrop-blur-md border transition-all shadow-lg ${
+                    audioEnabled
+                      ? 'bg-[#1C1C1C]/80 text-[#F5E8D8] hover:bg-[#1C1C1C] border-[#F5E8D8]/15'
+                      : 'bg-[#FF4500] text-[#F5E8D8] border-[#FF4500] shadow-[#FF4500]/30'
                   }`}
                   title={audioEnabled ? "Mute" : "Unmute"}
                 >
@@ -157,8 +159,10 @@ export default function GreenRoom({ onJoinMeeting }) {
                 <button
                   type="button"
                   onClick={toggleVideo}
-                  className={`p-2.5 rounded-xl backdrop-blur-md border border-white/10 transition shadow-lg ${
-                    videoEnabled ? 'bg-black/60 text-white hover:bg-black/80' : 'bg-red-600 text-white shadow-red-600/30'
+                  className={`p-2.5 rounded-xl backdrop-blur-md border transition-all shadow-lg ${
+                    videoEnabled
+                      ? 'bg-[#1C1C1C]/80 text-[#F5E8D8] hover:bg-[#1C1C1C] border-[#F5E8D8]/15'
+                      : 'bg-[#FF4500] text-[#F5E8D8] border-[#FF4500] shadow-[#FF4500]/30'
                   }`}
                   title={videoEnabled ? "Turn off camera" : "Turn on camera"}
                 >
@@ -168,7 +172,7 @@ export default function GreenRoom({ onJoinMeeting }) {
                 <button
                   type="button"
                   onClick={() => setShowSettings(!showSettings)}
-                  className="p-2.5 rounded-xl bg-black/60 hover:bg-black/80 text-white border border-white/10 transition"
+                  className="p-2.5 rounded-xl bg-[#1C1C1C]/80 hover:bg-[#1C1C1C] text-[#F5E8D8] border border-[#F5E8D8]/15 transition shadow-lg"
                   title="Device Settings"
                 >
                   <Settings2 className="w-4 h-4" />
@@ -179,13 +183,13 @@ export default function GreenRoom({ onJoinMeeting }) {
 
           {/* Device Settings Flyout */}
           {showSettings && (
-            <div className="w-full mt-3 p-3 rounded-2xl zoom-panel text-xs text-slate-300 space-y-2 border border-white/10 animate-in fade-in slide-in-from-top-2">
+            <div className="w-full mt-3 p-3.5 rounded-2xl bg-[#242424] text-xs text-[#F5E8D8] space-y-2.5 border border-[#F5E8D8]/12 shadow-2xl animate-in fade-in slide-in-from-top-2">
               <div>
-                <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Camera</label>
+                <label className="text-[10px] uppercase font-bold text-[#F5E8D8]/50 block mb-1 tracking-wider">Camera</label>
                 <select
                   value={selectedCam}
                   onChange={(e) => switchCamera(e.target.value)}
-                  className="w-full bg-[#181d29] px-2.5 py-1.5 rounded-lg border border-white/10 text-white focus:outline-none"
+                  className="w-full bg-[#1C1C1C] px-3 py-1.5 rounded-lg border border-[#F5E8D8]/15 text-[#F5E8D8] focus:outline-none focus:border-[#FF6F61]"
                 >
                   {devices.video.map(d => (
                     <option key={d.deviceId} value={d.deviceId}>{d.label || 'Default Camera'}</option>
@@ -193,11 +197,11 @@ export default function GreenRoom({ onJoinMeeting }) {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">Microphone</label>
+                <label className="text-[10px] uppercase font-bold text-[#F5E8D8]/50 block mb-1 tracking-wider">Microphone</label>
                 <select
                   value={selectedMic}
                   onChange={(e) => switchMicrophone(e.target.value)}
-                  className="w-full bg-[#181d29] px-2.5 py-1.5 rounded-lg border border-white/10 text-white focus:outline-none"
+                  className="w-full bg-[#1C1C1C] px-3 py-1.5 rounded-lg border border-[#F5E8D8]/15 text-[#F5E8D8] focus:outline-none focus:border-[#FF6F61]"
                 >
                   {devices.audio.map(d => (
                     <option key={d.deviceId} value={d.deviceId}>{d.label || 'Default Microphone'}</option>
@@ -210,28 +214,32 @@ export default function GreenRoom({ onJoinMeeting }) {
 
         {/* Right: Join / Create Meeting Form */}
         <div className="flex flex-col space-y-5">
-          <div className="flex p-1 rounded-2xl bg-[#141724] border border-white/10 shadow-inner">
+          <div className="flex p-1 rounded-2xl bg-[#242424] border border-[#F5E8D8]/10 shadow-inner">
             <button
               onClick={() => setMode('new')}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
-                mode === 'new' ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30' : 'text-slate-400 hover:text-white'
+              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                mode === 'new'
+                  ? 'bg-[#FF6F61] text-[#1C1C1C] font-bold shadow-md shadow-[#FF6F61]/25'
+                  : 'text-[#F5E8D8]/60 hover:text-[#F5E8D8]'
               }`}
             >
               Start New Meeting
             </button>
             <button
               onClick={() => setMode('join')}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition ${
-                mode === 'join' ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30' : 'text-slate-400 hover:text-white'
+              className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                mode === 'join'
+                  ? 'bg-[#FF6F61] text-[#1C1C1C] font-bold shadow-md shadow-[#FF6F61]/25'
+                  : 'text-[#F5E8D8]/60 hover:text-[#F5E8D8]'
               }`}
             >
               Join with Code
             </button>
           </div>
 
-          <form onSubmit={handleStart} className="p-6 rounded-3xl zoom-panel border border-white/10 shadow-2xl space-y-4">
+          <form onSubmit={handleStart} className="p-7 rounded-3xl bg-[#242424] border border-[#F5E8D8]/10 shadow-2xl space-y-4.5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-[#F5E8D8]/80 mb-1.5">
                 Your Display Name
               </label>
               <input
@@ -239,13 +247,13 @@ export default function GreenRoom({ onJoinMeeting }) {
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 placeholder="e.g. Alex (or tap Launch to join)"
-                className="w-full px-4 py-2.5 rounded-xl bg-[#181d29] border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+                className="w-full px-4 py-2.5 rounded-xl bg-[#1C1C1C] border border-[#F5E8D8]/15 text-[#F5E8D8] text-sm placeholder-[#F5E8D8]/30 focus:outline-none focus:border-[#FF6F61] focus:ring-1 focus:ring-[#FF6F61]/30 transition"
               />
             </div>
 
             {mode === 'new' ? (
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-[#F5E8D8]/80 mb-1.5">
                   Meeting Topic
                 </label>
                 <input
@@ -253,12 +261,12 @@ export default function GreenRoom({ onJoinMeeting }) {
                   value={meetingTitle}
                   onChange={(e) => setMeetingTitle(e.target.value)}
                   placeholder="e.g. Design Sync"
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#181d29] border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#1C1C1C] border border-[#F5E8D8]/15 text-[#F5E8D8] text-sm placeholder-[#F5E8D8]/30 focus:outline-none focus:border-[#FF6F61] focus:ring-1 focus:ring-[#FF6F61]/30 transition"
                 />
               </div>
             ) : (
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-[#F5E8D8]/80 mb-1.5">
                   6-Letter Meeting Code
                 </label>
                 <input
@@ -268,14 +276,14 @@ export default function GreenRoom({ onJoinMeeting }) {
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                   placeholder="e.g. X9TY4K"
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#181d29] border border-white/10 text-white font-mono uppercase tracking-widest text-center text-lg font-bold placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#1C1C1C] border border-[#F5E8D8]/15 text-[#F5E8D8] font-mono uppercase tracking-widest text-center text-lg font-bold placeholder-[#F5E8D8]/30 focus:outline-none focus:border-[#FF6F61] focus:ring-1 focus:ring-[#FF6F61]/30 transition"
                 />
               </div>
             )}
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-blue-600/30 hover:scale-[1.01] active:scale-[0.99] transition duration-150"
+              className="w-full py-3.5 rounded-2xl bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-[#FF6F61]/20 hover:scale-[1.01] active:scale-[0.99] transition duration-200"
             >
               <span>{mode === 'new' ? 'Launch Meeting' : 'Join Call'}</span>
               <ArrowRight className="w-4 h-4" />
