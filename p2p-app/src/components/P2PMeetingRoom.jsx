@@ -453,13 +453,15 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
         />
       </div>
 
-      {/* 4. Side Drawers (Chat & Participants) */}
+      {/* 4. Overlays with Auto Floating Video (Chat & Participants) */}
       {activePanel === 'chat' && (
         <P2PChatDrawer
           messages={messages}
           currentUserId={meetingInfo.userId}
           participants={participantList}
           onSendMessage={handleSendMessage}
+          activeVideoStream={screenStream || Object.values(peers)[0]?.stream || localStream}
+          activeSpeakerName={screenStream ? `${meetingInfo.name}'s Screen` : (Object.values(peers)[0]?.name || `${meetingInfo.name} (You)`)}
           onClose={() => setActivePanel(null)}
         />
       )}

@@ -8,7 +8,8 @@ import React, { useState } from 'react';
 import {
   Mic, MicOff, Video, VideoOff, ChevronUp, Users,
   MessageSquare, Smile, PhoneOff, Check,
-  Sparkles, ArrowUpRight, Sliders, Volume2, VolumeX, Eye
+  Sparkles, ArrowUpRight, Sliders, Volume2, VolumeX, Eye,
+  MoreHorizontal, FileText, Clapperboard
 } from 'lucide-react';
 import { useMedia } from './MediaProvider';
 import { soundSynth } from '../lib/soundEffects';
@@ -52,6 +53,7 @@ export default function P2PControls({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showWatchModal, setShowWatchModal] = useState(false);
   const [customVideoUrl, setCustomVideoUrl] = useState('');
+  const [showMobileMoreSheet, setShowMobileMoreSheet] = useState(false);
 
   const filterOptions = [
     { id: 'none', label: 'Normal', icon: '✨' },
@@ -138,12 +140,84 @@ export default function P2PControls({
   };
 
   return (
-    <div className={`absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none p2p-overlay-bar w-auto max-w-[98%] ${
-      isVisible ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-6 pointer-events-none'
-    }`}>
-      <div className="flex items-center gap-1 sm:gap-3 md:gap-3.5 px-2 sm:px-5 py-1.5 sm:py-2.5 rounded-2xl sm:rounded-3xl p2p-dock shadow-2xl max-w-full">
-        {/* 1. MUTE / AUDIO */}
-        <div className="relative flex items-center gap-0.5">
+    <>
+      <div className={`absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none p2p-overlay-bar w-auto max-w-[98%] ${
+        isVisible ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-6 pointer-events-none'
+      }`}>
+        {/* A. MOBILE 5-BUTTON DOCK (Teams / Zoom Mobile Style) */}
+        <div className="flex md:hidden items-center justify-around gap-1 px-3 py-2 rounded-2xl p2p-dock shadow-2xl w-[92vw] max-w-[380px]">
+          {/* 1. Mute */}
+          <button
+            onClick={toggleAudio}
+            className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
+              audioEnabled ? 'hover:bg-white/10 text-[#F5E8D8]' : 'bg-[#FF4500] text-white shadow-md shadow-[#FF4500]/30'
+            }`}
+            title={audioEnabled ? "Mute" : "Unmute"}
+          >
+            {audioEnabled ? (
+              <div className="relative">
+                <Mic className="w-4 h-4 text-[#F5E8D8]" />
+                {audioLevel > 15 && (
+                  <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#DAA520]" />
+                )}
+              </div>
+            ) : (
+              <MicOff className="w-4 h-4" />
+            )}
+            <span className="text-[9px] font-medium mt-0.5">{audioEnabled ? 'Mute' : 'Unmute'}</span>
+          </button>
+
+          {/* 2. Video */}
+          <button
+            onClick={toggleVideo}
+            className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
+              videoEnabled ? 'hover:bg-white/10 text-[#F5E8D8]' : 'bg-[#FF4500] text-white shadow-md shadow-[#FF4500]/30'
+            }`}
+            title={videoEnabled ? "Stop Video" : "Start Video"}
+          >
+            {videoEnabled ? <Video className="w-4 h-4 text-[#F5E8D8]" /> : <VideoOff className="w-4 h-4" />}
+            <span className="text-[9px] font-medium mt-0.5">{videoEnabled ? 'Stop' : 'Start'}</span>
+          </button>
+
+          {/* 3. Screen Share */}
+          <button
+            onClick={screenSharing ? stopScreenShare : startScreenShare}
+            className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
+              screenSharing ? 'bg-[#FF4500] text-white' : 'hover:bg-white/10 text-[#F5E8D8]'
+            }`}
+            title={screenSharing ? "Stop Sharing" : "Share Screen"}
+          >
+            <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
+            <span className="text-[9px] font-medium mt-0.5">{screenSharing ? 'Stop' : 'Share'}</span>
+          </button>
+
+          {/* 4. Chat */}
+          <button
+            onClick={() => onTogglePanel('chat')}
+            className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
+              activePanel === 'chat' ? 'bg-[#FF6F61] text-[#1C1C1C] font-bold' : 'hover:bg-white/10 text-[#F5E8D8]'
+            }`}
+            title="Chat"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span className="text-[9px] font-medium mt-0.5">Chat</span>
+          </button>
+
+          {/* 5. More (⋯) */}
+          <button
+            onClick={() => setShowMobileMoreSheet(true)}
+            className="flex flex-col items-center justify-center w-12 h-11 rounded-xl hover:bg-white/10 text-[#F5E8D8] transition"
+            title="More Options"
+          >
+            <MoreHorizontal className="w-4 h-4 text-[#DAA520]" />
+            <span className="text-[9px] font-medium mt-0.5">More</span>
+          </button>
+        </div>
+
+        {/* B. DESKTOP FULL DOCK */}
+        <div className="hidden md:flex items-center gap-1 sm:gap-3 md:gap-3.5 px-2 sm:px-5 py-1.5 sm:py-2.5 rounded-2xl sm:rounded-3xl p2p-dock shadow-2xl max-w-full">
+          {/* 1. MUTE / AUDIO */}
+          <div className="relative flex items-center gap-0.5">
           <button
             onClick={toggleAudio}
             className={`flex flex-col items-center justify-center w-9 sm:w-auto sm:min-w-[58px] h-10 sm:h-12 px-1 sm:px-2 py-1 rounded-xl transition ${
@@ -496,5 +570,124 @@ export default function P2PControls({
         </button>
       </div>
     </div>
+
+      {/* C. MOBILE MORE BOTTOM SHEET */}
+      {showMobileMoreSheet && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className="fixed inset-0"
+            onClick={() => setShowMobileMoreSheet(false)}
+          />
+          <div className="relative w-full max-w-lg rounded-t-3xl bg-[#242424] border-t border-[#F5E8D8]/15 shadow-2xl p-5 pb-8 z-10 animate-in slide-in-from-bottom duration-250 select-none">
+            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4" />
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-[#F5E8D8]">Meeting Options</h3>
+                <p className="text-[11px] text-[#F5E8D8]/50">Room code: {roomCode}</p>
+              </div>
+              <button
+                onClick={() => setShowMobileMoreSheet(false)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-[#F5E8D8]/60 hover:text-white flex items-center justify-center text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5 mb-5">
+              {/* Participants */}
+              <button
+                onClick={() => {
+                  onTogglePanel('participants');
+                  setShowMobileMoreSheet(false);
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/[0.04] active:bg-white/[0.1] border border-white/5 transition"
+              >
+                <div className="relative">
+                  <Users className="w-6 h-6 text-[#FF6F61]" />
+                  <span className="absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-[#FF6F61] text-[9px] font-bold text-[#1C1C1C]">
+                    {participantCount}
+                  </span>
+                </div>
+                <span className="text-xs font-medium text-[#F5E8D8] mt-2">People</span>
+              </button>
+
+              {/* Reactions */}
+              <button
+                onClick={() => {
+                  setShowReactionsMenu(true);
+                  setShowMobileMoreSheet(false);
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/[0.04] active:bg-white/[0.1] border border-white/5 transition"
+              >
+                <Smile className="w-6 h-6 text-[#DAA520]" />
+                <span className="text-xs font-medium text-[#F5E8D8] mt-2">Reactions</span>
+              </button>
+
+              {/* Video Filters */}
+              <button
+                onClick={() => {
+                  setShowVideoMenu(true);
+                  setShowMobileMoreSheet(false);
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/[0.04] active:bg-white/[0.1] border border-white/5 transition"
+              >
+                <Sparkles className="w-6 h-6 text-[#FF6F61]" />
+                <span className="text-xs font-medium text-[#F5E8D8] mt-2">Filters</span>
+              </button>
+
+              {/* Watch Together */}
+              <button
+                onClick={() => {
+                  setShowWatchModal(true);
+                  setShowMobileMoreSheet(false);
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/[0.04] active:bg-white/[0.1] border border-white/5 transition"
+              >
+                <Clapperboard className="w-6 h-6 text-[#DAA520]" />
+                <span className="text-xs font-medium text-[#F5E8D8] mt-2">Watch Party</span>
+              </button>
+
+              {/* Direct P2P File */}
+              <button
+                onClick={() => {
+                  onTogglePanel('chat');
+                  setShowMobileMoreSheet(false);
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/[0.04] active:bg-white/[0.1] border border-white/5 transition"
+              >
+                <FileText className="w-6 h-6 text-[#FF6F61]" />
+                <span className="text-xs font-medium text-[#F5E8D8] mt-2">P2P Files</span>
+              </button>
+
+              {/* Switch Camera */}
+              <button
+                onClick={() => {
+                  if (devices.video.length > 1) {
+                    const other = devices.video.find(d => d.deviceId !== selectedCam);
+                    if (other) switchCamera(other.deviceId);
+                  }
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white/[0.04] active:bg-white/[0.1] border border-white/5 transition"
+              >
+                <Sliders className="w-6 h-6 text-[#DAA520]" />
+                <span className="text-xs font-medium text-[#F5E8D8] mt-2">Flip Cam</span>
+              </button>
+            </div>
+
+            {/* Leave Meeting Button */}
+            <button
+              onClick={() => {
+                setShowMobileMoreSheet(false);
+                onLeaveMeeting();
+              }}
+              className="w-full py-3.5 rounded-2xl bg-[#FF4500] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#FF4500]/25 active:scale-98 transition"
+            >
+              <PhoneOff className="w-4 h-4" />
+              <span>{isHost ? 'End Meeting for All' : 'Leave Meeting'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

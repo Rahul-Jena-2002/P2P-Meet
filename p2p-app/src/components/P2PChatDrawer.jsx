@@ -14,6 +14,8 @@ export default function P2PChatDrawer({
   onSendFile,
   onRequestFile,
   participants = [],
+  activeVideoStream,
+  activeSpeakerName,
   onClose
 }) {
   const [text, setText] = useState('');
@@ -22,6 +24,14 @@ export default function P2PChatDrawer({
   const [requestNote, setRequestNote] = useState('');
   const endRef = useRef(null);
   const fileInputRef = useRef(null);
+  const pipVideoRef = useRef(null);
+
+  useEffect(() => {
+    if (pipVideoRef.current && activeVideoStream) {
+      pipVideoRef.current.srcObject = activeVideoStream;
+      pipVideoRef.current.play().catch(() => {});
+    }
+  }, [activeVideoStream]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -81,6 +91,13 @@ export default function P2PChatDrawer({
       {/* Header */}
       <div className="p-4 border-b border-[#F5E8D8]/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
+          <button
+            onClick={onClose}
+            className="sm:hidden p-1.5 -ml-1.5 rounded-lg text-[#F5E8D8]/70 hover:text-white"
+            title="Back to Meeting"
+          >
+            ←
+          </button>
           <h3 className="text-sm font-bold text-[#F5E8D8] tracking-wide">Meeting Chat & Files</h3>
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#DAA520]/15 text-[#DAA520] border border-[#DAA520]/25 font-bold">
             P2P
@@ -94,6 +111,36 @@ export default function P2PChatDrawer({
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Auto Floating Mini Video PiP (Zoom / Teams style: tap to return to full video) */}
+      {activeVideoStream && (
+        <div
+          onClick={onClose}
+          className="mx-3 my-2.5 p-2 rounded-2xl bg-[#242424] border border-[#DAA520]/30 shadow-xl flex items-center gap-3 cursor-pointer hover:border-[#DAA520] transition group select-none active:scale-98"
+          title="Tap to return to meeting video"
+        >
+          <div className="relative w-20 h-13 rounded-xl overflow-hidden bg-black shrink-0 border border-white/10 shadow-inner">
+            <video
+              ref={pipVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition" />
+          </div>
+          <div className="flex-1 min-w-0 pr-1">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#F5E8D8] truncate">
+              <span className="w-2 h-2 rounded-full bg-[#DAA520] animate-pulse shrink-0" />
+              <span>{activeSpeakerName || 'Meeting in progress'}</span>
+            </div>
+            <p className="text-[11px] text-[#FF6F61] font-semibold mt-0.5 flex items-center gap-1">
+              <span>Tap to return to video</span>
+              <span className="group-hover:translate-x-0.5 transition-transform">↗</span>
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Recipient & Action Bar */}
       <div className="px-4 py-2 border-b border-[#F5E8D8]/10 bg-[#1C1C1C]/40 flex items-center justify-between text-xs text-[#F5E8D8]/60">

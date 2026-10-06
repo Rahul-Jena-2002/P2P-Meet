@@ -77,6 +77,176 @@ export default function P2PGrid({
     onSendRemoteMouseEvent?.({ type: 'click', click: true, x, y });
   };
 
+  const [mobileSwapPip, setMobileSwapPip] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // -------------------------------------------------------------
+  // MOBILE DEDICATED LAYOUTS (Native Zoom/Teams/FaceTime Model)
+  // -------------------------------------------------------------
+  if (isMobile) {
+    // 1. Mobile Screen Share / Presentation Mode: Fullscreen presentation with corner PiP camera
+    if (heroTile || watchTogetherState?.active) {
+      const pipStream = heroTile?.isLocal ? (peerList[0]?.stream || null) : (screenStream || localStream);
+      const pipName = heroTile?.isLocal ? (peerList[0]?.name || 'Peer') : localUser.name;
+
+      return (
+        <div className="absolute inset-0 w-full h-full bg-[#1C1C1C] overflow-hidden flex flex-col pt-12 pb-20 select-none">
+          {/* Main Stage: 100% full width and height */}
+          <div className="relative flex-1 w-full h-full overflow-hidden flex items-center justify-center bg-black">
+            {watchTogetherState?.active ? (
+              <video
+                src={watchTogetherState.url}
+                controls
+                autoPlay
+                playsInline
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <P2PVideoTile
+                name={heroTile.name}
+                stream={heroTile.stream}
+                isLocal={heroTile.isLocal}
+                isHost={heroTile.isHost}
+                isAudioOn={true}
+                isVideoOn={true}
+                isScreenSharing={heroTile.isScreenSharing}
+                isSpeaking={false}
+              />
+            )}
+
+            {/* Corner floating PiP camera */}
+            {pipStream && (
+              <div className="absolute bottom-4 right-3 w-28 h-36 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20 bg-[#242424]">
+                <P2PVideoTile
+                  name={pipName}
+                  stream={pipStream}
+                  isLocal={!heroTile?.isLocal}
+                  isAudioOn={isAudioOn}
+                  isVideoOn={isVideoOn}
+                  isScreenSharing={false}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // 2. Mobile 1-on-1 Call: Fullscreen remote peer with floating self camera PiP (Tap to swap!)
+    if (totalCount === 2) {
+      const remotePeer = peerList[0];
+      const mainIsRemote = !mobileSwapPip;
+      const mainUser = mainIsRemote ? remotePeer : { ...localUser, stream: localStream, isLocal: true, isAudioOn, isVideoOn };
+      const pipUser = mainIsRemote ? { ...localUser, stream: localStream, isLocal: true, isAudioOn, isVideoOn } : remotePeer;
+
+      return (
+        <div className="absolute inset-0 w-full h-full bg-[#1C1C1C] overflow-hidden flex flex-col pt-12 pb-20 select-none">
+          {/* Full-Screen Main Video */}
+          <div className="relative flex-1 w-full h-full overflow-hidden">
+            <P2PVideoTile
+              name={mainUser.name}
+              stream={mainUser.stream}
+              isLocal={mainUser.isLocal}
+              isHost={mainUser.isHost}
+              isAudioOn={mainUser.isAudioOn}
+              isVideoOn={mainUser.isVideoOn}
+              isSpeaking={speakingUserId === mainUser.id}
+            />
+
+            {/* Floating PiP Corner Tile (Tap to swap!) */}
+            <div
+              onClick={() => setMobileSwapPip(s => !s)}
+              className="absolute bottom-4 right-3 w-28 h-40 rounded-2xl overflow-hidden border-2 border-white/25 shadow-2xl z-20 active:scale-95 transition-transform cursor-pointer bg-[#242424]"
+              title="Tap to switch camera view"
+            >
+              <P2PVideoTile
+                name={pipUser.name}
+                stream={pipUser.stream}
+                isLocal={pipUser.isLocal}
+                isHost={pipUser.isHost}
+                isAudioOn={pipUser.isAudioOn}
+                isVideoOn={pipUser.isVideoOn}
+                isSpeaking={speakingUserId === pipUser.id}
+              />
+              <div className="absolute top-1.5 right-1.5 px-1 py-0.2 rounded bg-black/50 text-[9px] text-white/80 backdrop-blur-sm pointer-events-none">
+                Swap ⇋
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 3. Mobile Multi-Person (> 2 people): Active speaker large on top, clean carousel below
+    if (totalCount > 2) {
+      const activePeer = peerList.find(p => p.id === speakingUserId) || peerList[0];
+      const otherPeers = [
+        { id: localUser.id, name: `${localUser.name} (You)`, stream: localStream, isLocal: true, isAudioOn, isVideoOn },
+        ...peerList.filter(p => p.id !== activePeer.id)
+      ];
+
+      return (
+        <div className="absolute inset-0 w-full h-full bg-[#1C1C1C] overflow-hidden flex flex-col pt-12 pb-20 select-none gap-2">
+          {/* Main Speaker Stage (~65% height) */}
+          <div className="relative flex-1 w-full min-h-0 rounded-2xl overflow-hidden border border-[#F5E8D8]/10 bg-[#242424]">
+            <P2PVideoTile
+              name={activePeer.name}
+              stream={activePeer.stream}
+              isHost={activePeer.isHost}
+              isAudioOn={activePeer.isAudioOn}
+              isVideoOn={activePeer.isVideoOn}
+              isSpeaking={speakingUserId === activePeer.id}
+            />
+          </div>
+
+          {/* Horizontal Carousel for other participants */}
+          <div className="h-28 w-full flex flex-row gap-2 overflow-x-auto overflow-y-hidden shrink-0 px-2">
+            {otherPeers.map(p => (
+              <div key={p.id} className="w-32 h-full shrink-0 rounded-xl overflow-hidden border border-white/10">
+                <P2PVideoTile
+                  name={p.name}
+                  stream={p.stream}
+                  isLocal={p.isLocal}
+                  isHost={p.isHost}
+                  isAudioOn={p.isAudioOn}
+                  isVideoOn={p.isVideoOn}
+                  isSpeaking={speakingUserId === p.id}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // 4. Solo in room on Mobile (1 person): Clean fullscreen self view
+    return (
+      <div className="absolute inset-0 w-full h-full bg-[#1C1C1C] overflow-hidden flex flex-col pt-12 pb-20 select-none">
+        <div className="relative flex-1 w-full h-full overflow-hidden">
+          <P2PVideoTile
+            name={localUser.name}
+            stream={localStream}
+            isLocal={true}
+            isHost={localUser.isHost}
+            isAudioOn={isAudioOn}
+            isVideoOn={isVideoOn}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // DESKTOP LAYOUTS (Screens >= md)
+  // -------------------------------------------------------------
+
   // 1. P2P SIDE-BY-SIDE PRESENTATION MODE (Screen Sharing / Watch Together / Pinned Hero)
   if (heroTile || watchTogetherState?.active) {
     return (
