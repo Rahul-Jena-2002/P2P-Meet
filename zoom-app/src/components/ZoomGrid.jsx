@@ -28,7 +28,7 @@ export default function ZoomGrid({
     ? (pinnedId === localUser.id
         ? { id: localUser.id, name: localUser.name, stream: screenStream || localStream, isLocal: true, isHost: localUser.isHost, isAudioOn, isVideoOn, isScreenSharing }
         : peers[pinnedId])
-    : (screenSharing
+    : (isScreenSharing
         ? { id: localUser.id, name: `${localUser.name} (Screen)`, stream: screenStream, isLocal: true, isHost: localUser.isHost, isAudioOn, isVideoOn, isScreenSharing: true }
         : null);
 
