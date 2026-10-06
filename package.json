@@ -17,5 +17,8 @@
     "privacy-first"
   ],
   "author": "Rahul Jena",
-  "license": "AGPL-3.0-or-later"
+  "license": "AGPL-3.0-or-later",
+  "devDependencies": {
+    "wrangler": "^3.99.0"
+  }
 }

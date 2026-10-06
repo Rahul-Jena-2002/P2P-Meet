@@ -1,6 +1,8 @@
 name = "p2pmeet"
 compatibility_date = "2024-09-23"
 
+[build]
+command = "npm run build"
+
 [assets]
 directory = "./out"
-binding = "ASSETS"

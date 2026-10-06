@@ -1,6 +1,8 @@
 name = "p2pmeet"
 compatibility_date = "2024-09-23"
 
+[build]
+command = "npm --prefix p2p-app install && npm --prefix p2p-app run build"
+
 [assets]
 directory = "./p2p-app/out"
-binding = "ASSETS"
