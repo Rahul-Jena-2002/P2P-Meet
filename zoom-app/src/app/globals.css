@@ -36,41 +36,40 @@
   }
 }
 
-/* Apple & shadcn-inspired warm glassmorphism */
-.zoom-dock {
-  background: rgba(28, 28, 28, 0.88);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
+/* Apple & shadcn-inspired minimal warm dock & panels */
+.p2p-dock, .zoom-dock {
+  background: rgba(28, 28, 28, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(245, 232, 216, 0.12);
-  box-shadow: 0 20px 48px -10px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(245, 232, 216, 0.05);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
-.zoom-panel {
-  background: rgba(28, 28, 28, 0.94);
-  backdrop-filter: blur(32px) saturate(180%);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
-  border: 1px solid rgba(245, 232, 216, 0.12);
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.65);
-}
-
-.zoom-dropdown {
-  background: rgba(36, 36, 36, 0.96);
+.p2p-panel, .zoom-panel {
+  background: rgba(28, 28, 28, 0.95);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(245, 232, 216, 0.12);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+}
+
+.p2p-dropdown, .zoom-dropdown {
+  background: rgba(36, 36, 36, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(245, 232, 216, 0.14);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(245, 232, 216, 0.05);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
 }
 
-/* Warm active speaker halo */
-@keyframes speaker-halo-warm {
-  0% { box-shadow: 0 0 0 0 rgba(255, 111, 97, 0.75); }
-  50% { box-shadow: 0 0 0 4px rgba(255, 111, 97, 0.35); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 111, 97, 0.75); }
+/* Autohide overlay transition */
+.p2p-overlay-bar {
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Minimal clean active speaker indicator */
 .speaking-halo {
-  animation: speaker-halo-warm 1.6s infinite ease-in-out;
   border-color: #FF6F61 !important;
+  box-shadow: 0 0 0 2px rgba(255, 111, 97, 0.4);
 }
 
 /* Custom warm scrollbar */

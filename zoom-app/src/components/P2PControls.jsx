@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useMedia } from './MediaProvider';
 
-export default function ZoomControls({
+export default function P2PControls({
   roomCode,
   isHost,
   participantCount,
@@ -22,7 +22,8 @@ export default function ZoomControls({
   onLeaveMeeting,
   onStartWatchTogether,
   onStopWatchTogether,
-  watchTogetherActive
+  watchTogetherActive,
+  isVisible = true
 }) {
   const {
     audioEnabled,
@@ -65,16 +66,18 @@ export default function ZoomControls({
   };
 
   return (
-    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 select-none">
-      <div className="flex items-center gap-2 px-4 py-2.5 rounded-3xl zoom-dock">
+    <div className={`fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none p2p-overlay-bar ${
+      isVisible ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-6 pointer-events-none'
+    }`}>
+      <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-2xl sm:rounded-3xl p2p-dock">
         {/* 1. MUTE / AUDIO */}
         <div className="relative flex items-center">
           <button
             onClick={toggleAudio}
-            className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all ${
+            className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl transition ${
               audioEnabled
-                ? 'hover:bg-white/[0.06] text-[#F5E8D8]'
-                : 'bg-[#FF4500] text-[#F5E8D8] shadow-lg shadow-[#FF4500]/20'
+                ? 'hover:bg-white/[0.06] text-[#F5E8D8] border border-transparent'
+                : 'bg-[#FF4500]/15 text-[#FF4500] border border-[#FF4500]/30 hover:bg-[#FF4500]/25'
             }`}
             title={audioEnabled ? "Mute Microphone" : "Unmute Microphone"}
           >
@@ -125,20 +128,20 @@ export default function ZoomControls({
         <div className="relative flex items-center">
           <button
             onClick={toggleVideo}
-            className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all ${
+            className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl transition ${
               videoEnabled
-                ? 'hover:bg-white/[0.06] text-[#F5E8D8]'
-                : 'bg-[#FF4500] text-[#F5E8D8] shadow-lg shadow-[#FF4500]/20'
+                ? 'hover:bg-white/[0.06] text-[#F5E8D8] border border-transparent'
+                : 'bg-[#FF4500]/15 text-[#FF4500] border border-[#FF4500]/30 hover:bg-[#FF4500]/25'
             }`}
             title={videoEnabled ? "Stop Camera" : "Start Camera"}
           >
-            {videoEnabled ? <Video className="w-5 h-5 text-[#F5E8D8]" /> : <VideoOff className="w-5 h-5" />}
-            <span className="text-[10px] font-semibold mt-0.5">{videoEnabled ? 'Stop Video' : 'Start Video'}</span>
+            {videoEnabled ? <Video className="w-4 h-4 text-[#F5E8D8]" /> : <VideoOff className="w-4 h-4" />}
+            <span className="text-[10px] font-medium mt-0.5">{videoEnabled ? 'Stop Video' : 'Start Video'}</span>
           </button>
 
           <button
             onClick={() => setShowVideoMenu(!showVideoMenu)}
-            className="p-1.5 -ml-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
+            className="p-1 -ml-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
             title="Video Settings"
           >
             <ChevronUp className="w-3.5 h-3.5" />
@@ -146,7 +149,7 @@ export default function ZoomControls({
 
           {/* Video Device Dropdown */}
           {showVideoMenu && (
-            <div className="absolute bottom-16 left-0 w-64 rounded-2xl zoom-dropdown p-3 text-xs text-[#F5E8D8] z-50 animate-in fade-in slide-in-from-bottom-2">
+            <div className="absolute bottom-16 left-0 w-64 rounded-2xl p2p-dropdown p-3 text-xs text-[#F5E8D8] z-50 animate-in fade-in slide-in-from-bottom-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#F5E8D8]/50 px-2 block mb-1">
                 Select Camera
               </span>
@@ -180,7 +183,7 @@ export default function ZoomControls({
           </button>
 
           {showSecurityMenu && (
-            <div className="absolute bottom-16 left-0 w-56 rounded-2xl zoom-dropdown p-3 text-xs text-[#F5E8D8] z-50 space-y-2">
+            <div className="absolute bottom-16 left-0 w-56 rounded-2xl p2p-dropdown p-3 text-xs text-[#F5E8D8] z-50 space-y-2">
               <div className="flex items-center gap-2 p-2 rounded-xl bg-[#DAA520]/10 text-[#DAA520] border border-[#DAA520]/20 font-medium">
                 <Lock className="w-4 h-4 shrink-0" />
                 <span>P2P Direct Encrypted</span>
@@ -199,14 +202,14 @@ export default function ZoomControls({
         {/* 4. PARTICIPANTS */}
         <button
           onClick={() => onTogglePanel('participants')}
-          className={`relative flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition ${
+          className={`relative flex flex-col items-center justify-center w-11 h-11 rounded-xl transition ${
             activePanel === 'participants' ? 'bg-[#FF6F61]/20 text-[#FF6F61] border border-[#FF6F61]/40' : 'hover:bg-white/[0.06] text-[#F5E8D8]'
           }`}
           title="Participants"
         >
-          <Users className="w-5 h-5" />
-          <span className="text-[10px] font-semibold mt-0.5">Participants</span>
-          <span className="absolute 1 top-1 right-1 px-1.5 py-0.2 rounded-full bg-[#FF6F61] text-[9px] font-black text-[#1C1C1C]">
+          <Users className="w-4 h-4" />
+          <span className="text-[10px] font-medium mt-0.5">Participants</span>
+          <span className="absolute top-1 right-1 px-1.5 py-0.2 rounded-full bg-[#FF6F61] text-[9px] font-bold text-[#1C1C1C]">
             {participantCount}
           </span>
         </button>
@@ -214,27 +217,27 @@ export default function ZoomControls({
         {/* 5. CHAT */}
         <button
           onClick={() => onTogglePanel('chat')}
-          className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition ${
+          className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl transition ${
             activePanel === 'chat' ? 'bg-[#FF6F61]/20 text-[#FF6F61] border border-[#FF6F61]/40' : 'hover:bg-white/[0.06] text-[#F5E8D8]'
           }`}
           title="Chat"
         >
-          <MessageSquare className="w-5 h-5" />
-          <span className="text-[10px] font-semibold mt-0.5">Chat</span>
+          <MessageSquare className="w-4 h-4" />
+          <span className="text-[10px] font-medium mt-0.5">Chat</span>
         </button>
 
         {/* 6. SIGNATURE PRIMARY ACTION "SHARE SCREEN" */}
         <button
           onClick={screenSharing ? stopScreenShare : startScreenShare}
-          className={`flex flex-col items-center justify-center px-3.5 h-12 rounded-2xl transition-all shadow-md ${
+          className={`flex flex-col items-center justify-center px-3.5 h-11 rounded-xl transition ${
             screenSharing
               ? 'bg-[#FF4500] hover:bg-[#FF4500]/80 text-[#F5E8D8]'
-              : 'bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white shadow-[#FF6F61]/20 font-bold'
+              : 'bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white font-semibold'
           }`}
           title={screenSharing ? "Stop Sharing" : "Share Screen"}
         >
-          <ArrowUpRight className="w-5 h-5 stroke-[2.5]" />
-          <span className="text-[10px] font-bold mt-0.5">{screenSharing ? 'Stop Share' : 'Share Screen'}</span>
+          <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
+          <span className="text-[10px] font-medium mt-0.5">{screenSharing ? 'Stop Share' : 'Share'}</span>
         </button>
 
         {/* 6b. WATCH TOGETHER (CO-STREAMING) */}
@@ -247,21 +250,21 @@ export default function ZoomControls({
                 setShowWatchModal(!showWatchModal);
               }
             }}
-            className={`flex flex-col items-center justify-center px-3 h-12 rounded-2xl transition ${
+            className={`flex flex-col items-center justify-center px-3 h-11 rounded-xl transition ${
               watchTogetherActive
-                ? 'bg-[#DAA520]/25 text-[#DAA520] border border-[#DAA520]/40 shadow-lg shadow-[#DAA520]/20'
+                ? 'bg-[#DAA520]/20 text-[#DAA520] border border-[#DAA520]/40'
                 : 'hover:bg-white/[0.06] text-[#F5E8D8]'
             }`}
             title="Watch Together (Co-streaming)"
           >
-            <Sparkles className="w-5 h-5 text-[#DAA520]" />
-            <span className="text-[10px] font-semibold mt-0.5">
-              {watchTogetherActive ? 'End Watch' : 'Watch Party'}
+            <Sparkles className="w-4 h-4 text-[#DAA520]" />
+            <span className="text-[10px] font-medium mt-0.5">
+              {watchTogetherActive ? 'End' : 'Watch'}
             </span>
           </button>
 
           {showWatchModal && (
-            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-80 rounded-2xl zoom-dropdown p-4 text-xs text-[#F5E8D8] z-50 shadow-2xl space-y-3">
+            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-80 rounded-2xl p2p-dropdown p-4 text-xs text-[#F5E8D8] z-50 shadow-2xl space-y-3">
               <div className="flex items-center justify-between border-b border-[#F5E8D8]/10 pb-2">
                 <span className="font-bold text-[#F5E8D8] flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-[#DAA520]" /> Co-Streaming Watch Party
@@ -312,7 +315,7 @@ export default function ZoomControls({
                       setShowWatchModal(false);
                     }
                   }}
-                  className="w-full py-2 rounded-xl bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white font-bold transition shadow"
+                  className="w-full py-2 rounded-xl bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white font-medium transition"
                 >
                   Start Synced Playback
                 </button>
@@ -325,15 +328,15 @@ export default function ZoomControls({
         <div className="relative">
           <button
             onClick={() => setShowReactionsMenu(!showReactionsMenu)}
-            className="flex flex-col items-center justify-center w-12 h-12 rounded-2xl hover:bg-white/[0.06] text-[#F5E8D8] transition"
+            className="flex flex-col items-center justify-center w-11 h-11 rounded-xl hover:bg-white/[0.06] text-[#F5E8D8] transition"
             title="Reactions"
           >
-            <Smile className="w-5 h-5 text-[#DAA520]" />
-            <span className="text-[10px] font-semibold mt-0.5">Reactions</span>
+            <Smile className="w-4 h-4 text-[#DAA520]" />
+            <span className="text-[10px] font-medium mt-0.5">Reactions</span>
           </button>
 
           {showReactionsMenu && (
-            <div className="absolute bottom-16 right-0 rounded-2xl zoom-dropdown p-2 flex items-center gap-1.5 z-50 animate-in fade-in zoom-in-95">
+            <div className="absolute bottom-16 right-0 rounded-2xl p2p-dropdown p-2 flex items-center gap-1.5 z-50 animate-in fade-in zoom-in-95">
               {reactions.map((r) => (
                 <button
                   key={r.name}
@@ -341,7 +344,7 @@ export default function ZoomControls({
                     onSendReaction(r.emoji);
                     setShowReactionsMenu(false);
                   }}
-                  className="w-10 h-10 rounded-xl hover:bg-white/[0.08] flex items-center justify-center text-xl hover:scale-125 transition duration-150"
+                  className="w-9 h-9 rounded-xl hover:bg-white/[0.08] flex items-center justify-center text-lg hover:scale-115 transition duration-150"
                   title={r.name}
                 >
                   {r.emoji}
@@ -351,14 +354,14 @@ export default function ZoomControls({
           )}
         </div>
 
-        <div className="w-[1px] h-7 bg-[#F5E8D8]/10 mx-1" />
+        <div className="w-[1px] h-6 bg-[#F5E8D8]/10 mx-1" />
 
         {/* 8. SIGNATURE END / LEAVE BUTTON */}
         <button
           onClick={onLeaveMeeting}
-          className="px-4 h-11 rounded-2xl bg-[#FF4500] hover:bg-[#FF4500]/90 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-[#FF4500]/25 transition duration-150 ml-1"
+          className="px-3.5 h-10 rounded-xl bg-[#FF4500] hover:bg-[#FF4500]/90 text-white font-semibold text-xs flex items-center gap-1.5 transition ml-0.5"
         >
-          <PhoneOff className="w-4 h-4" />
+          <PhoneOff className="w-3.5 h-3.5" />
           <span>{isHost ? 'End' : 'Leave'}</span>
         </button>
       </div>

@@ -7,7 +7,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Mic, MicOff, Pin, PinOff, Monitor, Shield, Volume2 } from 'lucide-react';
 
-export default function ZoomVideoTile({
+export default function P2PVideoTile({
   name,
   stream,
   isLocal = false,
@@ -40,7 +40,7 @@ export default function ZoomVideoTile({
 
   return (
     <div
-      className={`relative w-full h-full rounded-2xl overflow-hidden bg-[#242424] border transition-all duration-300 flex items-center justify-center group select-none shadow-2xl ${
+      className={`relative w-full h-full rounded-2xl overflow-hidden bg-[#242424] border transition-all duration-200 flex items-center justify-center group select-none ${
         isSpeaking ? 'speaking-halo border-[#FF6F61]' : 'border-[#F5E8D8]/10 hover:border-[#F5E8D8]/20'
       }`}
     >
@@ -54,14 +54,14 @@ export default function ZoomVideoTile({
           className={`w-full h-full object-contain bg-[#1C1C1C] ${isLocal && !isScreenSharing ? 'scale-x-[-1]' : ''}`}
         />
       ) : (
-        /* Sleek Warm Avatar when camera is off */
-        <div className="flex flex-col items-center justify-center w-full h-full bg-[#242424]">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#FF6F61] via-[#FF6F61] to-[#DAA520] flex items-center justify-center text-[#1C1C1C] text-2xl font-black shadow-xl shadow-[#FF6F61]/15 mb-2.5 border border-[#F5E8D8]/20">
+        /* Minimal Warm Avatar when camera is off */
+        <div className="flex flex-col items-center justify-center w-full h-full bg-[#202020]">
+          <div className="w-18 h-18 rounded-full bg-[#2D2D2D] border border-[#F5E8D8]/15 flex items-center justify-center text-[#F5E8D8] text-xl font-bold mb-2">
             {initials}
           </div>
-          <span className="text-[#F5E8D8] text-sm font-semibold tracking-tight">{name}</span>
+          <span className="text-[#F5E8D8] text-sm font-medium">{name}</span>
           {!isVideoOn && (
-            <span className="text-[#F5E8D8]/45 text-xs mt-0.5 font-medium">Camera off</span>
+            <span className="text-[#F5E8D8]/40 text-xs mt-0.5">Camera off</span>
           )}
         </div>
       )}

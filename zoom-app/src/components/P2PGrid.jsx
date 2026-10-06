@@ -6,9 +6,9 @@
  */
 import React, { useState } from 'react';
 import { MousePointer, ShieldAlert, Monitor, Check, X, Play, Pause, Clapperboard } from 'lucide-react';
-import ZoomVideoTile from './ZoomVideoTile';
+import P2PVideoTile from './P2PVideoTile';
 
-export default function ZoomGrid({
+export default function P2PGrid({
   localUser,
   localStream,
   screenStream,
@@ -77,10 +77,10 @@ export default function ZoomGrid({
     onSendRemoteMouseEvent?.({ type: 'click', click: true, x, y });
   };
 
-  // 1. ZOOM SIDE-BY-SIDE PRESENTATION MODE (Screen Sharing / Watch Together / Pinned Hero)
+  // 1. P2P SIDE-BY-SIDE PRESENTATION MODE (Screen Sharing / Watch Together / Pinned Hero)
   if (heroTile || watchTogetherState?.active) {
     return (
-      <div className="absolute inset-0 w-full h-full p-4 pt-16 pb-24 flex flex-row gap-4">
+      <div className="absolute inset-0 w-full h-full p-2 sm:p-3 flex flex-row gap-2.5 sm:gap-3">
         {/* LEFT / CENTER: Huge Main Presentation Stage (75% to 80% width) */}
         <div className="flex-1 h-full min-w-0 flex flex-col relative rounded-2xl overflow-hidden bg-[#1C1C1C] border border-[#F5E8D8]/10 shadow-2xl">
           {/* Top Bar for Remote Access Controls */}
@@ -240,7 +240,7 @@ export default function ZoomGrid({
               onClick={handleClick}
               className={`w-full h-full relative ${remoteControlState?.isControlling ? 'cursor-crosshair' : ''}`}
             >
-              <ZoomVideoTile
+              <P2PVideoTile
                 name={heroTile.name}
                 stream={heroTile.stream}
                 isLocal={heroTile.isLocal}
@@ -282,7 +282,7 @@ export default function ZoomGrid({
         <div className="w-56 lg:w-64 h-full flex flex-col gap-3 overflow-y-auto shrink-0 pr-1">
           {/* Local User (showing webcam stream or avatar, NOT duplicating screen share) */}
           <div className="w-full h-36 shrink-0">
-            <ZoomVideoTile
+            <P2PVideoTile
               name={localUser.name}
               stream={localStream}
               isLocal={true}
@@ -298,7 +298,7 @@ export default function ZoomGrid({
           {/* Remote Peers */}
           {peerList.map((p) => (
             <div key={p.id} className="w-full h-36 shrink-0">
-              <ZoomVideoTile
+              <P2PVideoTile
                 name={p.name}
                 stream={p.stream}
                 isHost={p.isHost}
@@ -315,11 +315,11 @@ export default function ZoomGrid({
     );
   }
 
-  // 2. ZOOM GALLERY GRID: Full-Screen Edge-to-Edge
+  // 2. P2P GALLERY GRID: Full-Screen Edge-to-Edge
   return (
-    <div className="absolute inset-0 w-full h-full p-6 pt-16 pb-24 flex items-center justify-center">
+    <div className="absolute inset-0 w-full h-full p-2 sm:p-3 flex items-center justify-center">
       <div
-        className={`w-full h-full grid gap-4 transition-all duration-300 ${
+        className={`w-full h-full grid gap-2.5 transition-all duration-300 ${
           totalCount === 1
             ? 'grid-cols-1'
             : totalCount === 2
@@ -330,7 +330,7 @@ export default function ZoomGrid({
         }`}
       >
         {/* Local user tile */}
-        <ZoomVideoTile
+        <P2PVideoTile
           name={localUser.name}
           stream={screenStream || localStream}
           isLocal={true}
@@ -344,7 +344,7 @@ export default function ZoomGrid({
 
         {/* Remote peers tiles */}
         {peerList.map((peer) => (
-          <ZoomVideoTile
+          <P2PVideoTile
             key={peer.id}
             name={peer.name}
             stream={peer.stream}

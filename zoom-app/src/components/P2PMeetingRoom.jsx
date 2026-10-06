@@ -7,13 +7,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useMedia } from './MediaProvider';
 import { P2PMesh } from '../lib/p2pMesh';
-import ZoomHeader from './ZoomHeader';
-import ZoomGrid from './ZoomGrid';
-import ZoomControls from './ZoomControls';
-import ZoomChatDrawer from './ZoomChatDrawer';
-import ZoomParticipantsDrawer from './ZoomParticipantsDrawer';
+import P2PHeader from './P2PHeader';
+import P2PGrid from './P2PGrid';
+import P2PControls from './P2PControls';
+import P2PChatDrawer from './P2PChatDrawer';
+import P2PParticipantsDrawer from './P2PParticipantsDrawer';
 
-export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
+export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   const {
     localStream,
     screenStream,
@@ -28,6 +28,32 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
   const [activePanel, setActivePanel] = useState(null); // 'chat' | 'participants' | 'watch'
   const [viewMode, setViewMode] = useState('gallery'); // 'gallery' | 'speaker'
   const [reactions, setReactions] = useState([]);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const hideTimeoutRef = useRef(null);
+
+  const resetHideTimer = () => {
+    setControlsVisible(true);
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    if (!activePanel) {
+      hideTimeoutRef.current = setTimeout(() => {
+        setControlsVisible(false);
+      }, 3500);
+    }
+  };
+
+  useEffect(() => {
+    resetHideTimer();
+    const handleActivity = () => resetHideTimer();
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('touchstart', handleActivity);
+    return () => {
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('touchstart', handleActivity);
+    };
+  }, [activePanel]);
 
   // Remote Access state
   const [remoteControlState, setRemoteControlState] = useState({
@@ -360,7 +386,7 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
     <div className="relative w-screen h-screen bg-[#1C1C1C] text-[#F5E8D8] overflow-hidden flex select-none">
       {/* 1. TOP-MOST LAYER: Fullscreen Edge-to-Edge Video Canvas */}
       <div className="flex-1 h-full w-full relative">
-        <ZoomGrid
+        <P2PGrid
           localUser={localUserObj}
           localStream={localStream}
           screenStream={screenStream}
@@ -385,16 +411,23 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
         />
       </div>
 
+      {/* Mouse proximity trigger for bottom dock */}
+      <div
+        onMouseEnter={() => setControlsVisible(true)}
+        className="fixed bottom-0 left-0 right-0 h-20 z-30 pointer-events-auto"
+      />
+
       {/* 2. Floating Top Header */}
-      <ZoomHeader
+      <P2PHeader
         title={meetingInfo.title}
         roomCode={meetingInfo.code}
         viewMode={viewMode}
         onToggleViewMode={() => setViewMode(v => v === 'gallery' ? 'speaker' : 'gallery')}
+        isVisible={controlsVisible || !!activePanel}
       />
 
       {/* 3. Floating Bottom Controls Dock */}
-      <ZoomControls
+      <P2PControls
         roomCode={meetingInfo.code}
         isHost={meetingInfo.isHost}
         participantCount={participantList.length}
@@ -405,11 +438,12 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
         onStartWatchTogether={handleStartWatchTogether}
         onStopWatchTogether={handleStopWatchTogether}
         watchTogetherActive={watchTogetherState.active}
+        isVisible={controlsVisible || !!activePanel}
       />
 
       {/* 4. Side Drawers (Chat & Participants) */}
       {activePanel === 'chat' && (
-        <ZoomChatDrawer
+        <P2PChatDrawer
           messages={messages}
           currentUserId={meetingInfo.userId}
           onSendMessage={handleSendMessage}
@@ -418,7 +452,7 @@ export default function ZoomMeetingRoom({ meetingInfo, onLeave }) {
       )}
 
       {activePanel === 'participants' && (
-        <ZoomParticipantsDrawer
+        <P2PParticipantsDrawer
           participants={participantList}
           isHost={meetingInfo.isHost}
           roomCode={meetingInfo.code}

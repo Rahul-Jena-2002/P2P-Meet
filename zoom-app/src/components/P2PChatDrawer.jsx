@@ -7,7 +7,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Users } from 'lucide-react';
 
-export default function ZoomChatDrawer({ messages, currentUserId, onSendMessage, onClose }) {
+export default function P2PChatDrawer({ messages, currentUserId, onSendMessage, onClose }) {
   const [text, setText] = useState('');
   const endRef = useRef(null);
 
@@ -23,7 +23,7 @@ export default function ZoomChatDrawer({ messages, currentUserId, onSendMessage,
   };
 
   return (
-    <aside className="w-80 sm:w-96 h-full zoom-panel border-l border-[#F5E8D8]/10 flex flex-col z-30 animate-in slide-in-from-right duration-200 select-text">
+    <aside className="w-80 sm:w-96 h-full p2p-panel border-l border-[#F5E8D8]/10 flex flex-col z-30 animate-in slide-in-from-right duration-200 select-text">
       {/* Header */}
       <div className="p-4 border-b border-[#F5E8D8]/10 flex items-center justify-between">
         <h3 className="text-sm font-bold text-[#F5E8D8] tracking-wide">Meeting Chat</h3>

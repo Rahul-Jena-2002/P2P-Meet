@@ -82,17 +82,13 @@ export default function GreenRoom({ onJoinMeeting }) {
 
   return (
     <div className="relative w-screen h-screen bg-[#1C1C1C] text-[#F5E8D8] flex flex-col items-center justify-center p-6 overflow-hidden select-none">
-      {/* Ambient warm glowing background orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#FF6F61]/5 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#DAA520]/5 rounded-full blur-[140px] pointer-events-none" />
-
       {/* Header */}
-      <div className="absolute top-8 left-8 flex items-center gap-3.5">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#FF6F61] to-[#FF4500] flex items-center justify-center text-[#1C1C1C] font-black text-xs tracking-wider shadow-lg shadow-[#FF6F61]/20 border border-[#F5E8D8]/10">
+      <div className="absolute top-8 left-8 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-[#FF6F61] flex items-center justify-center text-[#1C1C1C] font-bold text-xs tracking-wider border border-[#F5E8D8]/10">
           P2P
         </div>
         <div>
-          <h1 className="text-xl font-bold text-[#F5E8D8] tracking-tight">p2pmeet</h1>
+          <h1 className="text-lg font-bold text-[#F5E8D8] tracking-tight">p2pmeet</h1>
           <span className="text-xs text-[#F5E8D8]/60 flex items-center gap-1.5 font-medium">
             <Shield className="w-3.5 h-3.5 text-[#DAA520]" /> Direct Peer-to-Peer Encrypted
           </span>
@@ -283,7 +279,7 @@ export default function GreenRoom({ onJoinMeeting }) {
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-2xl bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-[#FF6F61]/20 hover:scale-[1.01] active:scale-[0.99] transition duration-200"
+              className="w-full py-3.5 rounded-2xl bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white font-bold text-sm flex items-center justify-center gap-2 transition duration-150"
             >
               <span>{mode === 'new' ? 'Launch Meeting' : 'Join Call'}</span>
               <ArrowRight className="w-4 h-4" />

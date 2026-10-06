@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { MediaProvider } from '@/components/MediaProvider';
 import GreenRoom from '@/components/GreenRoom';
-import ZoomMeetingRoom from '@/components/ZoomMeetingRoom';
+import P2PMeetingRoom from '@/components/P2PMeetingRoom';
 
 export default function Home() {
   const [meetingState, setMeetingState] = useState(null); // { code, title, name, isHost, userId }
@@ -31,7 +31,7 @@ export default function Home() {
     <MediaProvider>
       <main className="w-screen h-screen overflow-hidden bg-[#1C1C1C] text-[#F5E8D8]">
         {meetingState ? (
-          <ZoomMeetingRoom
+          <P2PMeetingRoom
             meetingInfo={meetingState}
             onLeave={handleLeaveMeeting}
           />
