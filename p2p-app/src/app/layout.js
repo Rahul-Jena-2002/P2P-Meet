@@ -15,10 +15,18 @@ export const metadata = {
   },
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark h-full w-full">
-      <body className="h-screen w-screen overflow-hidden bg-[#1C1C1C] text-[#F5E8D8] antialiased select-none">
+      <body className="h-[100dvh] max-h-[100dvh] w-screen overflow-hidden bg-[#1C1C1C] text-[#F5E8D8] antialiased select-none" style={{ height: '100dvh' }}>
         {children}
       </body>
     </html>

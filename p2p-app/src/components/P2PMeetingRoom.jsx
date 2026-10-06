@@ -30,12 +30,33 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   const [viewMode, setViewMode] = useState('gallery'); // 'gallery' | 'speaker'
   const [reactions, setReactions] = useState([]);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isMobileLandscape, setIsMobileLandscape] = useState(false);
   const hideTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const isTouch = typeof window !== 'undefined' && (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+      const isLand = (h < 550 && w < 1024) || (isTouch && h < 600 && w > h);
+      setIsMobileLandscape(isLand);
+      setIsMobile(w < 768 || isLand || (isTouch && w < 1024));
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
 
   const resetHideTimer = () => {
     setControlsVisible(true);
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    if (!activePanel) {
+    // On mobile devices, NEVER auto-hide controls after 7s to prevent vanishing dock
+    if (!activePanel && !isMobile) {
       hideTimeoutRef.current = setTimeout(() => {
         setControlsVisible(false);
       }, 7000);
@@ -59,7 +80,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
       window.removeEventListener('keydown', handleActivity);
       window.removeEventListener('touchstart', handleActivity);
     };
-  }, [activePanel]);
+  }, [activePanel, isMobile]);
 
   // Remote Access state
   const [remoteControlState, setRemoteControlState] = useState({
@@ -391,8 +412,14 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     }))
   ];
 
+  useEffect(() => {
+    if (meshRef.current && localStream) {
+      meshRef.current.replaceStream(localStream);
+    }
+  }, [localStream]);
+
   return (
-    <div className="relative w-screen h-screen bg-[#1C1C1C] text-[#F5E8D8] overflow-hidden flex select-none">
+    <div className="relative w-screen h-[100dvh] max-h-[100dvh] bg-[#1C1C1C] text-[#F5E8D8] overflow-hidden flex select-none" style={{ height: '100dvh' }}>
       {/* 1. Main Video Stage & Floating Overlay Area (resizes flexibly when drawers open) */}
       <div onClick={handleStageClick} className="flex-1 h-full w-full relative overflow-hidden flex flex-col">
         {/* Fullscreen Video Canvas */}
@@ -406,6 +433,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             isVideoOn={videoEnabled}
             isScreenSharing={screenSharing}
             viewMode={viewMode}
+            isMobile={isMobile}
+            isMobileLandscape={isMobileLandscape}
             speakingUserId={audioLevel > 20 ? meetingInfo.userId : null}
             remoteControlState={remoteControlState}
             onRequestRemoteControl={handleRequestRemoteControl}
@@ -429,6 +458,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           viewMode={viewMode}
           onToggleViewMode={() => setViewMode(v => v === 'gallery' ? 'speaker' : 'gallery')}
           isVisible={controlsVisible || !!activePanel}
+          isMobile={isMobile}
+          isMobileLandscape={isMobileLandscape}
         />
 
         {/* Mouse proximity trigger for bottom dock */}
@@ -450,6 +481,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           onStopWatchTogether={handleStopWatchTogether}
           watchTogetherActive={watchTogetherState.active}
           isVisible={controlsVisible || !!activePanel}
+          isMobile={isMobile}
+          isMobileLandscape={isMobileLandscape}
         />
       </div>
 

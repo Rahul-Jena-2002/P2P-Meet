@@ -30,24 +30,16 @@ export default function P2PVideoTile({
   const getVideoFilterStyle = () => {
     if (!isLocal || isScreenSharing) return {};
     switch (videoFilter) {
-      case 'blur-light':
-        return { filter: 'blur(5px)' };
-      case 'blur-heavy':
-        return { filter: 'blur(12px)' };
       case 'noir':
-        return { filter: 'grayscale(100%) contrast(1.25)' };
+        return { filter: 'grayscale(100%) contrast(1.2)' };
       case 'vivid':
-        return { filter: 'saturate(1.5) contrast(1.12)' };
+        return { filter: 'saturate(1.4) contrast(1.1)' };
       case 'warm':
-        return { filter: 'sepia(32%) saturate(1.25) brightness(1.04)' };
+        return { filter: 'sepia(25%) saturate(1.2) brightness(1.03)' };
       case 'cinema':
-        return { filter: 'contrast(1.18) brightness(0.92) saturate(1.18)' };
-      case 'sepia':
-        return { filter: 'sepia(80%) contrast(1.08)' };
-      case 'studio':
-        return { filter: 'contrast(1.1) brightness(1.06) saturate(1.22)' };
+        return { filter: 'contrast(1.15) brightness(0.95) saturate(1.15)' };
       case 'cyberpunk':
-        return { filter: 'contrast(1.22) hue-rotate(-25deg) saturate(1.35)' };
+        return { filter: 'contrast(1.2) hue-rotate(-20deg) saturate(1.3)' };
       default:
         return {};
     }

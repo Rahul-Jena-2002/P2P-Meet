@@ -14,7 +14,9 @@ export default function P2PHeader({
   viewMode,
   onToggleViewMode,
   isPanelOpen = false,
-  isVisible = true
+  isVisible = true,
+  isMobile = false,
+  isMobileLandscape = false
 }) {
   const [copied, setCopied] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
@@ -50,7 +52,7 @@ export default function P2PHeader({
   };
 
   return (
-    <header className={`absolute top-2 sm:top-4 left-2 sm:left-6 right-2 sm:right-6 transition-all duration-300 ease-out z-30 flex items-center justify-between pointer-events-none select-none gap-2 ${
+    <header className={`absolute ${isMobileLandscape ? 'top-1.5 left-2 right-2' : 'top-2 sm:top-4 left-2 sm:left-6 right-2 sm:right-6'} transition-all duration-300 ease-out z-30 flex items-center justify-between pointer-events-none select-none gap-2 ${
       isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'
     }`}>
       {/* Left: Topic & Code */}

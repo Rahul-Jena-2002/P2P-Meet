@@ -25,7 +25,9 @@ export default function P2PControls({
   onStartWatchTogether,
   onStopWatchTogether,
   watchTogetherActive,
-  isVisible = true
+  isVisible = true,
+  isMobile = false,
+  isMobileLandscape = false
 }) {
   const {
     audioEnabled,
@@ -56,16 +58,18 @@ export default function P2PControls({
   const [showMobileMoreSheet, setShowMobileMoreSheet] = useState(false);
 
   const filterOptions = [
-    { id: 'none', label: 'Normal', icon: '✨' },
-    { id: 'blur-light', label: 'Soft Blur', icon: '🌫️' },
-    { id: 'blur-heavy', label: 'Deep Blur', icon: '☁️' },
-    { id: 'studio', label: 'Studio Glow', icon: '💡' },
-    { id: 'warm', label: 'Warm Sun', icon: '☀️' },
-    { id: 'vivid', label: 'Vivid Pop', icon: '🎨' },
-    { id: 'noir', label: 'Noir (B&W)', icon: '🎞️' },
-    { id: 'cinema', label: 'Cinema Teal', icon: '🎬' },
-    { id: 'sepia', label: 'Vintage', icon: '📜' },
-    { id: 'cyberpunk', label: 'Neon Cyber', icon: '🔮' },
+    { id: 'none', label: 'Normal Camera', icon: '✨', category: 'base' },
+    { id: 'blur', label: 'Green Screen Blur', icon: '🌫️', desc: 'Face sharp, room blurred', category: 'ai' },
+    { id: 'studio', label: 'Executive Studio', icon: '🏢', desc: 'Modern loft office background', img: '/backgrounds/studio.jpg', category: 'ai' },
+    { id: 'rocket', label: 'Inside Rocket', icon: '🚀', desc: 'Sci-fi starship cockpit', img: '/backgrounds/rocket.jpg', category: 'ai' },
+    { id: 'nature', label: 'Tropical Nature', icon: '🌿', desc: 'Serene forest waterfall', img: '/backgrounds/nature.jpg', category: 'ai' },
+    { id: 'moon', label: 'Moon Surface', icon: '🌕', desc: 'Lunar landscape & Earth in space', img: '/backgrounds/moon.jpg', category: 'ai' },
+    { id: 'astronaut', label: 'Astronaut Suit', icon: '👨‍🚀', desc: 'Your face in helmet on moon', img: '/backgrounds/astronaut.jpg', category: 'ai' },
+    { id: 'cinema', label: 'Cinema Teal & Gold', icon: '🎬', category: 'grade' },
+    { id: 'cyberpunk', label: 'Neon Cyberpunk', icon: '🔮', category: 'grade' },
+    { id: 'warm', label: 'Golden Hour Warmth', icon: '☀️', category: 'grade' },
+    { id: 'noir', label: 'Noir (B&W)', icon: '🎞️', category: 'grade' },
+    { id: 'vivid', label: 'Vivid Pop', icon: '🎨', category: 'grade' },
   ];
 
   const emojiCategories = {
@@ -169,81 +173,87 @@ export default function P2PControls({
 
   return (
     <>
-      <div className={`absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none p2p-overlay-bar w-auto max-w-[98%] ${
-        isVisible ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-6 pointer-events-none'
-      }`}>
-        {/* A. MOBILE 5-BUTTON DOCK (Teams / Zoom Mobile Style) */}
-        <div className="flex md:hidden items-center justify-around gap-1 px-3 py-2 rounded-2xl p2p-dock shadow-2xl w-[92vw] max-w-[380px]">
-          {/* 1. Mute */}
-          <button
-            onClick={toggleAudio}
-            className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
-              audioEnabled ? 'hover:bg-white/10 text-[#F5E8D8]' : 'bg-[#FF4500] text-white shadow-md shadow-[#FF4500]/30'
-            }`}
-            title={audioEnabled ? "Mute" : "Unmute"}
-          >
-            {audioEnabled ? (
-              <div className="relative">
-                <Mic className="w-4 h-4 text-[#F5E8D8]" />
-                {audioLevel > 15 && (
-                  <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#DAA520]" />
-                )}
-              </div>
-            ) : (
-              <MicOff className="w-4 h-4" />
-            )}
-            <span className="text-[9px] font-medium mt-0.5">{audioEnabled ? 'Mute' : 'Unmute'}</span>
-          </button>
+      <div
+        className={`absolute left-1/2 -translate-x-1/2 z-40 select-none p2p-overlay-bar w-auto max-w-[98%] ${
+          isVisible ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-6 pointer-events-none'
+        }`}
+        style={{ bottom: 'max(10px, calc(env(safe-area-inset-bottom, 0px) + 6px))' }}
+      >
+        {isMobile ? (
+          /* A. MOBILE 5-BUTTON DOCK (Teams / Zoom Mobile Style) */
+          <div className={`flex items-center justify-around gap-1 px-3 py-1.5 rounded-2xl p2p-dock shadow-2xl ${
+            isMobileLandscape ? 'w-[80vw] max-w-[340px] py-1' : 'w-[92vw] max-w-[380px]'
+          }`}>
+            {/* 1. Mute */}
+            <button
+              onClick={toggleAudio}
+              className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
+                audioEnabled ? 'hover:bg-white/10 text-[#F5E8D8]' : 'bg-[#FF4500] text-white shadow-md shadow-[#FF4500]/30'
+              }`}
+              title={audioEnabled ? "Mute" : "Unmute"}
+            >
+              {audioEnabled ? (
+                <div className="relative">
+                  <Mic className="w-4 h-4 text-[#F5E8D8]" />
+                  {audioLevel > 15 && (
+                    <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#DAA520]" />
+                  )}
+                </div>
+              ) : (
+                <MicOff className="w-4 h-4" />
+              )}
+              <span className="text-[9px] font-medium mt-0.5">{audioEnabled ? 'Mute' : 'Unmute'}</span>
+            </button>
 
-          {/* 2. Video */}
-          <button
-            onClick={toggleVideo}
-            className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
-              videoEnabled ? 'hover:bg-white/10 text-[#F5E8D8]' : 'bg-[#FF4500] text-white shadow-md shadow-[#FF4500]/30'
-            }`}
-            title={videoEnabled ? "Stop Video" : "Start Video"}
-          >
-            {videoEnabled ? <Video className="w-4 h-4 text-[#F5E8D8]" /> : <VideoOff className="w-4 h-4" />}
-            <span className="text-[9px] font-medium mt-0.5">{videoEnabled ? 'Stop' : 'Start'}</span>
-          </button>
+            {/* 2. Video */}
+            <button
+              onClick={toggleVideo}
+              className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
+                videoEnabled ? 'hover:bg-white/10 text-[#F5E8D8]' : 'bg-[#FF4500] text-white shadow-md shadow-[#FF4500]/30'
+              }`}
+              title={videoEnabled ? "Stop Video" : "Start Video"}
+            >
+              {videoEnabled ? <Video className="w-4 h-4 text-[#F5E8D8]" /> : <VideoOff className="w-4 h-4" />}
+              <span className="text-[9px] font-medium mt-0.5">{videoEnabled ? 'Stop' : 'Start'}</span>
+            </button>
 
-          {/* 3. Screen Share */}
-          <button
-            onClick={screenSharing ? stopScreenShare : startScreenShare}
-            className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
-              screenSharing ? 'bg-[#FF4500] text-white' : 'hover:bg-white/10 text-[#F5E8D8]'
-            }`}
-            title={screenSharing ? "Stop Sharing" : "Share Screen"}
-          >
-            <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
-            <span className="text-[9px] font-medium mt-0.5">{screenSharing ? 'Stop' : 'Share'}</span>
-          </button>
+            {/* 3. Screen Share */}
+            <button
+              onClick={screenSharing ? stopScreenShare : startScreenShare}
+              className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
+                screenSharing ? 'bg-[#FF4500] text-white' : 'hover:bg-white/10 text-[#F5E8D8]'
+              }`}
+              title={screenSharing ? "Stop Sharing" : "Share Screen"}
+            >
+              <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
+              <span className="text-[9px] font-medium mt-0.5">{screenSharing ? 'Stop' : 'Share'}</span>
+            </button>
 
-          {/* 4. Chat */}
-          <button
-            onClick={() => onTogglePanel('chat')}
-            className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
-              activePanel === 'chat' ? 'bg-[#FF6F61] text-[#1C1C1C] font-bold' : 'hover:bg-white/10 text-[#F5E8D8]'
-            }`}
-            title="Chat"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span className="text-[9px] font-medium mt-0.5">Chat</span>
-          </button>
+            {/* 4. Chat */}
+            <button
+              onClick={() => onTogglePanel('chat')}
+              className={`flex flex-col items-center justify-center w-12 h-11 rounded-xl transition ${
+                activePanel === 'chat' ? 'bg-[#FF6F61] text-[#1C1C1C] font-bold' : 'hover:bg-white/10 text-[#F5E8D8]'
+              }`}
+              title="Chat"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="text-[9px] font-medium mt-0.5">Chat</span>
+            </button>
 
-          {/* 5. More (⋯) */}
-          <button
-            onClick={() => setShowMobileMoreSheet(true)}
-            className="flex flex-col items-center justify-center w-12 h-11 rounded-xl hover:bg-white/10 text-[#F5E8D8] transition"
-            title="More Options"
-          >
-            <MoreHorizontal className="w-4 h-4 text-[#DAA520]" />
-            <span className="text-[9px] font-medium mt-0.5">More</span>
-          </button>
-        </div>
-
-        {/* B. DESKTOP FULL DOCK */}
-        <div className="hidden md:flex items-center gap-1 sm:gap-3 md:gap-3.5 px-2 sm:px-5 py-1.5 sm:py-2.5 rounded-2xl sm:rounded-3xl p2p-dock shadow-2xl max-w-full">
+            {/* 5. More (⋯) */}
+            <button
+              onClick={() => setShowMobileMoreSheet(true)}
+              className="flex flex-col items-center justify-center w-12 h-11 rounded-xl hover:bg-white/10 text-[#F5E8D8] transition"
+              title="More Options"
+            >
+              <MoreHorizontal className="w-4 h-4 text-[#DAA520]" />
+              <span className="text-[9px] font-medium mt-0.5">More</span>
+            </button>
+          </div>
+        ) : (
+          /* B. DESKTOP FULL DOCK */
+          <div className="flex items-center gap-1 sm:gap-3 md:gap-3.5 px-2 sm:px-5 py-1.5 sm:py-2.5 rounded-2xl sm:rounded-3xl p2p-dock shadow-2xl max-w-full">
           {/* 1. MUTE / AUDIO */}
           <div className="relative flex items-center gap-0.5">
           <button
@@ -335,23 +345,23 @@ export default function P2PControls({
             <ChevronUp className="w-3.5 h-3.5" />
           </button>
 
-          {/* Video Options & Background Filters Dropdown */}
-          {showVideoMenu && (
-            <div className="absolute bottom-16 left-0 w-72 rounded-2xl p2p-dropdown p-3.5 text-xs text-[#F5E8D8] z-50 animate-in fade-in slide-in-from-bottom-2 shadow-2xl space-y-3">
+          {/* Video Options & Background Filters Dropdown (Desktop) */}
+          {showVideoMenu && !isMobile && (
+            <div className="absolute bottom-16 left-0 w-80 sm:w-96 rounded-2xl p2p-dropdown p-4 text-xs text-[#F5E8D8] z-50 animate-in fade-in slide-in-from-bottom-2 shadow-2xl space-y-3">
               {/* Tabs */}
               <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-[#F5E8D8]/10 text-xs">
                 <button
                   onClick={() => setVideoMenuTab('effects')}
-                  className={`flex-1 py-1 rounded-lg font-medium transition flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 py-1.5 rounded-lg font-medium transition flex items-center justify-center gap-1.5 ${
                     videoMenuTab === 'effects' ? 'bg-[#FF6F61] text-[#1C1C1C] font-semibold' : 'text-[#F5E8D8]/60 hover:text-[#F5E8D8]'
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Blur & Filters</span>
+                  <span>Virtual Backgrounds</span>
                 </button>
                 <button
                   onClick={() => setVideoMenuTab('devices')}
-                  className={`flex-1 py-1 rounded-lg font-medium transition flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 py-1.5 rounded-lg font-medium transition flex items-center justify-center gap-1.5 ${
                     videoMenuTab === 'devices' ? 'bg-[#FF6F61] text-[#1C1C1C] font-semibold' : 'text-[#F5E8D8]/60 hover:text-[#F5E8D8]'
                   }`}
                 >
@@ -361,33 +371,74 @@ export default function P2PControls({
               </div>
 
               {videoMenuTab === 'effects' ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between text-[11px] text-[#F5E8D8]/60 px-0.5">
-                    <span>Background & Screen Filters</span>
+                    <span className="font-semibold text-[#F5E8D8]">Green Screen & Backgrounds</span>
                     <span className="font-mono text-[#DAA520]">{filterOptions.find(f => f.id === videoFilter)?.label}</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
-                    {filterOptions.map((f) => (
-                      <button
-                        key={f.id}
-                        onClick={() => setVideoFilter?.(f.id)}
-                        className={`px-2.5 py-2 rounded-xl text-left flex items-center justify-between transition border ${
-                          videoFilter === f.id
-                            ? 'bg-[#DAA520]/20 border-[#DAA520] text-[#DAA520] font-semibold'
-                            : 'bg-white/[0.03] border-transparent hover:bg-white/[0.07] text-[#F5E8D8]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{f.icon}</span>
-                          <span className="text-xs truncate">{f.label}</span>
-                        </div>
-                        {videoFilter === f.id && <Check className="w-3.5 h-3.5 shrink-0" />}
-                      </button>
-                    ))}
+
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-[#DAA520] tracking-wider block mb-1.5 px-0.5">
+                      ✦ AI Virtual Backgrounds & Blur
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                      {filterOptions.filter(f => f.category === 'base' || f.category === 'ai').map((f) => (
+                        <button
+                          key={f.id}
+                          onClick={() => setVideoFilter?.(f.id)}
+                          className={`p-2 rounded-xl text-left transition border relative overflow-hidden group flex flex-col justify-between h-20 active:scale-98 ${
+                            videoFilter === f.id
+                              ? 'bg-[#DAA520]/25 border-[#DAA520] text-[#DAA520] shadow-md ring-1 ring-[#DAA520]'
+                              : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08] text-[#F5E8D8]'
+                          }`}
+                        >
+                          {f.img && (
+                            <div
+                              className="absolute inset-0 opacity-25 group-hover:opacity-40 transition bg-cover bg-center pointer-events-none"
+                              style={{ backgroundImage: `url(${f.img})` }}
+                            />
+                          )}
+                          <div className="relative z-10 flex items-center justify-between w-full">
+                            <span className="text-xl">{f.icon}</span>
+                            {videoFilter === f.id && (
+                              <span className="p-0.5 rounded-full bg-[#DAA520] text-[#1C1C1C]">
+                                <Check className="w-3 h-3 stroke-[3]" />
+                              </span>
+                            )}
+                          </div>
+                          <div className="relative z-10">
+                            <span className="text-xs font-bold block leading-tight truncate">{f.label}</span>
+                            {f.desc && <span className="text-[9px] text-[#F5E8D8]/60 block leading-tight truncate mt-0.5">{f.desc}</span>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-white/10">
+                    <span className="text-[10px] uppercase font-bold text-[#F5E8D8]/50 tracking-wider block mb-1.5 px-0.5">
+                      Color Grades
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {filterOptions.filter(f => f.category === 'grade').map((f) => (
+                        <button
+                          key={f.id}
+                          onClick={() => setVideoFilter?.(f.id)}
+                          className={`px-2 py-1.5 rounded-lg text-left transition border text-[11px] font-medium flex items-center gap-1.5 ${
+                            videoFilter === f.id
+                              ? 'bg-[#DAA520]/20 border-[#DAA520] text-[#DAA520] font-semibold'
+                              : 'bg-white/[0.03] border-transparent hover:bg-white/[0.07] text-[#F5E8D8]'
+                          }`}
+                        >
+                          <span>{f.icon}</span>
+                          <span className="truncate">{f.label}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 max-h-56 overflow-y-auto">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[#F5E8D8]/50 px-1 block">
                     Select Camera Device
                   </span>
@@ -623,7 +674,8 @@ export default function P2PControls({
           <span className="hidden sm:inline">{isHost ? 'End' : 'Leave'}</span>
         </button>
       </div>
-    </div>
+    )}
+  </div>
 
       {/* C. MOBILE MORE BOTTOM SHEET */}
       {showMobileMoreSheet && (
@@ -739,6 +791,104 @@ export default function P2PControls({
               <PhoneOff className="w-4 h-4" />
               <span>{isHost ? 'End Meeting for All' : 'Leave Meeting'}</span>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* D. MOBILE VIDEO EFFECTS & VIRTUAL BACKGROUNDS SHEET */}
+      {showVideoMenu && isMobile && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className="fixed inset-0"
+            onClick={() => setShowVideoMenu(false)}
+          />
+          <div className="relative w-full max-w-lg rounded-t-3xl sm:rounded-3xl bg-[#242424] border-t sm:border border-[#F5E8D8]/15 shadow-2xl p-5 pb-8 z-10 animate-in slide-in-from-bottom duration-250 select-none max-h-[85vh] overflow-y-auto">
+            <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4 sm:hidden" />
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+              <div>
+                <h3 className="text-sm font-bold text-[#F5E8D8] flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#FF6F61]" />
+                  <span>Virtual Backgrounds & Effects</span>
+                </h3>
+                <p className="text-[11px] text-[#F5E8D8]/50">Green screen effects & camera settings</p>
+              </div>
+              <button
+                onClick={() => setShowVideoMenu(false)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-[#F5E8D8]/60 hover:text-white flex items-center justify-center text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-[#F5E8D8]">
+              {/* AI Virtual Backgrounds */}
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#DAA520] tracking-wider block mb-2">
+                  ✦ AI Virtual Backgrounds (Green Screen)
+                </span>
+                <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+                  {filterOptions.filter(f => f.category === 'base' || f.category === 'ai').map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => {
+                        setVideoFilter?.(f.id);
+                        setShowVideoMenu(false);
+                      }}
+                      className={`p-2.5 rounded-xl text-left transition border relative overflow-hidden group flex flex-col justify-between h-20 active:scale-95 ${
+                        videoFilter === f.id
+                          ? 'bg-[#DAA520]/25 border-[#DAA520] text-[#DAA520] shadow-md ring-1 ring-[#DAA520]'
+                          : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08] text-[#F5E8D8]'
+                      }`}
+                    >
+                      {f.img && (
+                        <div
+                          className="absolute inset-0 opacity-30 transition bg-cover bg-center pointer-events-none"
+                          style={{ backgroundImage: `url(${f.img})` }}
+                        />
+                      )}
+                      <div className="relative z-10 flex items-center justify-between w-full">
+                        <span className="text-xl">{f.icon}</span>
+                        {videoFilter === f.id && (
+                          <span className="p-0.5 rounded-full bg-[#DAA520] text-[#1C1C1C]">
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative z-10">
+                        <span className="text-xs font-bold block leading-tight truncate">{f.label}</span>
+                        {f.desc && <span className="text-[9px] text-[#F5E8D8]/60 block leading-tight truncate mt-0.5">{f.desc}</span>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Color Styles */}
+              <div className="pt-2 border-t border-white/10">
+                <span className="text-[10px] uppercase font-bold text-[#F5E8D8]/50 tracking-wider block mb-1.5">
+                  Color Grades
+                </span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {filterOptions.filter(f => f.category === 'grade').map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => {
+                        setVideoFilter?.(f.id);
+                        setShowVideoMenu(false);
+                      }}
+                      className={`px-2 py-1.5 rounded-lg text-left transition border text-[11px] font-medium flex items-center gap-1.5 ${
+                        videoFilter === f.id
+                          ? 'bg-[#DAA520]/20 border-[#DAA520] text-[#DAA520] font-semibold'
+                          : 'bg-white/[0.03] border-transparent hover:bg-white/[0.07] text-[#F5E8D8]'
+                      }`}
+                    >
+                      <span>{f.icon}</span>
+                      <span className="truncate">{f.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

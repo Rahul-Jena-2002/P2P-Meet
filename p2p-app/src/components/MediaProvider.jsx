@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { videoProcessor } from '../lib/videoProcessor';
 
 const MediaContext = createContext(null);
 
@@ -18,13 +19,14 @@ export function MediaProvider({ children }) {
   const [selectedCam, setSelectedCam] = useState('');
   const [selectedMic, setSelectedMic] = useState('');
   const [audioLevel, setAudioLevel] = useState(0); // 0 to 100 for mic meter
-  const [videoFilter, setVideoFilter] = useState('none'); // 'none', 'blur-light', 'blur-heavy', 'office', 'studio', 'nature', 'noir', 'vivid', 'sepia'
+  const [videoFilter, setVideoFilterState] = useState('none');
   const [mediaError, setMediaError] = useState(null);
 
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const animFrameRef = useRef(null);
   const streamRef = useRef(null);
+  const rawStreamRef = useRef(null);
 
   // Initialize or re-acquire user media
   const initMedia = useCallback(async (camId, micId) => {
@@ -48,11 +50,21 @@ export function MediaProvider({ children }) {
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
-      setLocalStream(stream);
+      rawStreamRef.current = stream;
 
       // Track enabled states
       stream.getAudioTracks().forEach(t => { t.enabled = audioEnabled; });
       stream.getVideoTracks().forEach(t => { t.enabled = videoEnabled; });
+
+      if (videoFilter !== 'none') {
+        videoProcessor.start(stream, videoFilter, (updated) => {
+          setLocalStream(updated);
+        }).then((processed) => {
+          setLocalStream(processed || stream);
+        });
+      } else {
+        setLocalStream(stream);
+      }
 
       // Enumerate available hardware devices
       try {
@@ -184,6 +196,23 @@ export function MediaProvider({ children }) {
     setScreenStream(null);
     setScreenSharing(false);
   }, [screenStream]);
+
+  const setVideoFilter = useCallback(async (filter) => {
+    setVideoFilterState(filter);
+    if (filter === 'none') {
+      videoProcessor.stopProcessing();
+      if (rawStreamRef.current) {
+        setLocalStream(rawStreamRef.current);
+      }
+    } else if (rawStreamRef.current) {
+      const processed = await videoProcessor.start(rawStreamRef.current, filter, (updated) => {
+        setLocalStream(updated);
+      });
+      if (processed) {
+        setLocalStream(processed);
+      }
+    }
+  }, []);
 
   return (
     <MediaContext.Provider value={{
