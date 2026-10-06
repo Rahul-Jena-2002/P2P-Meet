@@ -132,10 +132,18 @@ export class P2PMesh {
     this.peers.set(targetId, { pc, queue: candidateQueue, stream: remoteStream, name: targetName });
 
     // Add local tracks to peer connection
-    if (this.stream) {
+    if (this.stream && this.stream.getTracks().length > 0) {
       this.stream.getTracks().forEach((track) => {
         pc.addTrack(track, this.stream);
       });
+    } else {
+      // Insecure HTTP or mobile without camera: allow receiving incoming audio and video
+      try {
+        pc.addTransceiver('video', { direction: 'recvonly' });
+        pc.addTransceiver('audio', { direction: 'recvonly' });
+      } catch (e) {
+        console.warn('[P2P] Transceiver setup warning:', e);
+      }
     }
 
     // ICE Candidate handler
@@ -147,12 +155,20 @@ export class P2PMesh {
       }
     };
 
-    // Track handler
+    // Track handler (robust against mobile Safari / Chrome empty streams)
     pc.ontrack = (e) => {
-      console.log(`[P2P] Received track from ${targetId}:`, e.track.kind);
-      e.streams[0].getTracks().forEach((track) => {
-        remoteStream.addTrack(track);
-      });
+      console.log(`[P2P] Received track from ${targetId}:`, e.track?.kind);
+      if (e.streams && e.streams[0]) {
+        e.streams[0].getTracks().forEach((track) => {
+          if (!remoteStream.getTracks().includes(track)) {
+            remoteStream.addTrack(track);
+          }
+        });
+      } else if (e.track) {
+        if (!remoteStream.getTracks().includes(e.track)) {
+          remoteStream.addTrack(e.track);
+        }
+      }
       this.onStream?.(targetId, remoteStream, targetName);
     };
 

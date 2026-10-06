@@ -120,11 +120,11 @@ export default function GreenRoom({ onJoinMeeting }) {
               </div>
             )}
 
-            {/* Error banner if camera failed */}
+            {/* Notice if camera/mic restricted on HTTP */}
             {mediaError && (
-              <div className="absolute top-3 left-3 right-3 p-2 rounded-xl bg-red-500/80 backdrop-blur-md text-white text-xs flex items-center gap-1.5 shadow-lg">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span className="truncate">{mediaError}</span>
+              <div className="absolute top-3 left-3 right-3 p-2.5 rounded-xl bg-amber-500/90 backdrop-blur-md text-black text-xs flex items-center gap-2 shadow-lg font-medium">
+                <AlertCircle className="w-4 h-4 shrink-0 text-black" />
+                <span className="text-[11px] leading-snug">{mediaError}</span>
               </div>
             )}
 
@@ -236,10 +236,9 @@ export default function GreenRoom({ onJoinMeeting }) {
               </label>
               <input
                 type="text"
-                required
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
-                placeholder="e.g. Alex Carter"
+                placeholder="e.g. Alex (or tap Launch to join)"
                 className="w-full px-4 py-2.5 rounded-xl bg-[#181d29] border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
               />
             </div>

@@ -30,7 +30,9 @@ export function MediaProvider({ children }) {
     try {
       setMediaError(null);
       if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setMediaError("Camera requires HTTPS or localhost. If opening from another Wi-Fi device, enable 'unsafely-treat-insecure-origin-as-secure' in chrome://flags.");
+        setMediaError("Mobile browsers restrict camera/mic on HTTP. You can still join to view, chat, and watch!");
+        setVideoEnabled(false);
+        setAudioEnabled(false);
         return null;
       }
       // Stop existing tracks safely
@@ -70,17 +72,10 @@ export function MediaProvider({ children }) {
 
       return stream;
     } catch (err) {
-      console.error('Camera/Mic permission error:', err);
-      setMediaError(err.message || 'Permission denied or camera in use');
-      // Fallback to audio-only if video fails
-      try {
-        const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        streamRef.current = audioOnly;
-        setLocalStream(audioOnly);
-        setVideoEnabled(false);
-      } catch (e) {
-        console.warn('Microphone also failed:', e);
-      }
+      console.warn('Camera/Mic permission notice:', err);
+      setMediaError("Camera/Mic not available on this connection. Joining in Viewer mode.");
+      setVideoEnabled(false);
+      setAudioEnabled(false);
       return null;
     }
   }, [audioEnabled, videoEnabled, selectedCam, selectedMic]);
