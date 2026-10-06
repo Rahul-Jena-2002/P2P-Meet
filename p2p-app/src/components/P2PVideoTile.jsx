@@ -84,7 +84,7 @@ export default function P2PVideoTile({
           playsInline
           muted={isLocal}
           style={getVideoFilterStyle()}
-          className={`w-full h-full object-contain bg-[#1C1C1C] transition-all duration-300 ${isLocal && !isScreenSharing ? 'scale-x-[-1]' : ''}`}
+          className={`w-full h-full ${isScreenSharing ? 'object-contain' : 'object-cover'} bg-[#1C1C1C] transition-all duration-300 ${isLocal && !isScreenSharing ? 'scale-x-[-1]' : ''}`}
         />
       ) : (
         /* Minimal Warm Avatar when camera is off */

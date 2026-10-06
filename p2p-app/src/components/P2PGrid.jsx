@@ -80,9 +80,9 @@ export default function P2PGrid({
   // 1. P2P SIDE-BY-SIDE PRESENTATION MODE (Screen Sharing / Watch Together / Pinned Hero)
   if (heroTile || watchTogetherState?.active) {
     return (
-      <div className="absolute inset-0 w-full h-full p-2 sm:p-3 flex flex-row gap-2.5 sm:gap-3">
-        {/* LEFT / CENTER: Huge Main Presentation Stage (75% to 80% width) */}
-        <div className="flex-1 h-full min-w-0 flex flex-col relative rounded-2xl overflow-hidden bg-[#1C1C1C] border border-[#F5E8D8]/10 shadow-2xl">
+      <div className="absolute inset-0 w-full h-full p-2 sm:p-3 pt-14 pb-20 sm:pt-16 sm:pb-24 flex flex-col md:flex-row gap-2 sm:gap-3">
+        {/* LEFT / CENTER: Huge Main Presentation Stage */}
+        <div className="flex-1 min-h-0 w-full flex flex-col relative rounded-2xl overflow-hidden bg-[#1C1C1C] border border-[#F5E8D8]/10 shadow-2xl">
           {/* Top Bar for Remote Access Controls */}
           {heroTile && (
             <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between pointer-events-none">
@@ -278,10 +278,10 @@ export default function P2PGrid({
           )}
         </div>
 
-        {/* RIGHT SIDEBAR: Vertical Participant Strip (compact column on right) */}
-        <div className="w-56 lg:w-64 h-full flex flex-col gap-3 overflow-y-auto shrink-0 pr-1">
+        {/* PARTICIPANT STRIP: Horizontal scroll on mobile, vertical sidebar on desktop */}
+        <div className="w-full h-28 md:w-56 lg:w-64 md:h-full flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto overflow-y-hidden md:overflow-x-hidden shrink-0 py-1 md:py-0 pr-1">
           {/* Local User (showing webcam stream or avatar, NOT duplicating screen share) */}
-          <div className="w-full h-36 shrink-0">
+          <div className="w-36 h-full md:w-full md:h-36 shrink-0">
             <P2PVideoTile
               name={localUser.name}
               stream={localStream}
@@ -297,7 +297,7 @@ export default function P2PGrid({
 
           {/* Remote Peers */}
           {peerList.map((p) => (
-            <div key={p.id} className="w-full h-36 shrink-0">
+            <div key={p.id} className="w-36 h-full md:w-full md:h-36 shrink-0">
               <P2PVideoTile
                 name={p.name}
                 stream={p.stream}
@@ -315,18 +315,18 @@ export default function P2PGrid({
     );
   }
 
-  // 2. P2P GALLERY GRID: Full-Screen Edge-to-Edge
+  // 2. P2P GALLERY GRID: Full-Screen Edge-to-Edge with Header & Dock breathing room
   return (
-    <div className="absolute inset-0 w-full h-full p-2 sm:p-3 flex items-center justify-center">
+    <div className="absolute inset-0 w-full h-full p-2 sm:p-3 pt-14 pb-20 sm:pt-16 sm:pb-24 flex items-center justify-center">
       <div
-        className={`w-full h-full grid gap-2.5 transition-all duration-300 ${
+        className={`w-full h-full grid gap-2 sm:gap-3 transition-all duration-300 ${
           totalCount === 1
-            ? 'grid-cols-1'
+            ? 'grid-cols-1 grid-rows-1'
             : totalCount === 2
-            ? 'grid-cols-1 md:grid-cols-2'
+            ? 'grid-cols-1 grid-rows-2 sm:grid-cols-2 sm:grid-rows-1'
             : totalCount <= 4
             ? 'grid-cols-2 grid-rows-2'
-            : 'grid-cols-2 md:grid-cols-3'
+            : 'grid-cols-2 sm:grid-cols-3'
         }`}
       >
         {/* Local user tile */}

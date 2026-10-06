@@ -38,8 +38,13 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     if (!activePanel) {
       hideTimeoutRef.current = setTimeout(() => {
         setControlsVisible(false);
-      }, 3500);
+      }, 7000);
     }
+  };
+
+  const handleStageClick = (e) => {
+    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.p2p-dock') || e.target.closest('.p2p-panel')) return;
+    setControlsVisible(v => !v);
   };
 
   useEffect(() => {
@@ -47,7 +52,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     const handleActivity = () => resetHideTimer();
     window.addEventListener('mousemove', handleActivity);
     window.addEventListener('keydown', handleActivity);
-    window.addEventListener('touchstart', handleActivity);
+    window.addEventListener('touchstart', handleActivity, { passive: true });
     return () => {
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
       window.removeEventListener('mousemove', handleActivity);
@@ -389,7 +394,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   return (
     <div className="relative w-screen h-screen bg-[#1C1C1C] text-[#F5E8D8] overflow-hidden flex select-none">
       {/* 1. Main Video Stage & Floating Overlay Area (resizes flexibly when drawers open) */}
-      <div className="flex-1 h-full w-full relative overflow-hidden flex flex-col">
+      <div onClick={handleStageClick} className="flex-1 h-full w-full relative overflow-hidden flex flex-col">
         {/* Fullscreen Video Canvas */}
         <div className="w-full h-full relative">
           <P2PGrid

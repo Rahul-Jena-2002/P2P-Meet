@@ -50,27 +50,29 @@ export default function P2PHeader({
   };
 
   return (
-    <header className={`absolute top-4 left-4 sm:left-6 right-4 sm:right-6 transition-all duration-300 ease-out z-30 flex items-center justify-between pointer-events-none select-none ${
+    <header className={`absolute top-2 sm:top-4 left-2 sm:left-6 right-2 sm:right-6 transition-all duration-300 ease-out z-30 flex items-center justify-between pointer-events-none select-none gap-2 ${
       isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'
     }`}>
       {/* Left: Topic & Code */}
-      <div className="flex items-center gap-3 pointer-events-auto">
-        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-2xl p2p-dock">
-          <P2PLogo size={24} />
-          <div className="flex items-center gap-1.5 text-[#DAA520] text-xs font-semibold">
-            <ShieldCheck className="w-4 h-4" />
-            <span className="hidden sm:inline">P2P Encrypted</span>
+      <div className="flex items-center gap-2 pointer-events-auto min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl p2p-dock max-w-full">
+          <P2PLogo size={20} className="shrink-0" />
+          <div className="hidden md:flex items-center gap-1 text-[#DAA520] text-xs font-semibold shrink-0">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>P2P</span>
           </div>
-          <div className="w-[1px] h-4 bg-[#F5E8D8]/10" />
-          <h2 className="text-sm font-bold text-[#F5E8D8] tracking-tight">{title || 'p2pmeet Session'}</h2>
-          <div className="w-[1px] h-4 bg-[#F5E8D8]/10" />
+          <div className="hidden md:block w-[1px] h-3.5 bg-[#F5E8D8]/10" />
+          <h2 className="text-xs sm:text-sm font-bold text-[#F5E8D8] tracking-tight truncate max-w-[85px] sm:max-w-[160px]">
+            {title || 'p2pmeet'}
+          </h2>
+          <div className="w-[1px] h-3.5 bg-[#F5E8D8]/10 shrink-0" />
           <button
             onClick={handleCopyCode}
-            className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#F5E8D8]/5 hover:bg-[#F5E8D8]/10 border border-[#F5E8D8]/10 text-[#F5E8D8] hover:border-[#FF6F61]/40 transition text-xs font-mono font-semibold"
+            className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-lg bg-[#F5E8D8]/5 hover:bg-[#F5E8D8]/10 border border-[#F5E8D8]/10 text-[#F5E8D8] hover:border-[#FF6F61]/40 transition text-[11px] sm:text-xs font-mono font-semibold shrink-0"
             title="Click to copy invite link"
           >
             <span>{roomCode}</span>
-            {copied ? <Check className="w-3.5 h-3.5 text-[#DAA520]" /> : <Copy className="w-3.5 h-3.5 text-[#F5E8D8]/50" />}
+            {copied ? <Check className="w-3 h-3 text-[#DAA520]" /> : <Copy className="w-3 h-3 text-[#F5E8D8]/50" />}
           </button>
         </div>
       </div>
@@ -82,10 +84,10 @@ export default function P2PHeader({
       </div>
 
       {/* Right: Layout Switcher & Fullscreen */}
-      <div className="flex items-center gap-2 pointer-events-auto">
+      <div className="flex items-center gap-1 sm:gap-2 pointer-events-auto shrink-0">
         <button
           onClick={onToggleViewMode}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-2xl p2p-dock text-[#F5E8D8] hover:text-white transition text-xs font-semibold border border-[#F5E8D8]/10"
+          className="flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1.5 rounded-xl sm:rounded-2xl p2p-dock text-[#F5E8D8] hover:text-white transition text-xs font-semibold border border-[#F5E8D8]/10"
           title="Switch Gallery / Speaker View"
         >
           <LayoutGrid className="w-4 h-4 text-[#FF6F61]" />
@@ -94,7 +96,7 @@ export default function P2PHeader({
 
         <button
           onClick={toggleFullscreen}
-          className="p-2.5 rounded-2xl p2p-dock text-[#F5E8D8] hover:text-[#FF6F61] transition border border-[#F5E8D8]/10"
+          className="p-1.5 sm:p-2 rounded-xl sm:rounded-2xl p2p-dock text-[#F5E8D8] hover:text-[#FF6F61] transition border border-[#F5E8D8]/10"
           title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
