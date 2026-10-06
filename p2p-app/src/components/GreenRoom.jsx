@@ -7,9 +7,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic, MicOff, Video, VideoOff, Video as VideoIcon, ArrowRight,
-  Shield, Sparkles, Volume2, Settings2, ChevronDown, Check, AlertCircle
+  Shield, Volume2, Settings2, AlertCircle
 } from 'lucide-react';
 import { useMedia } from './MediaProvider';
+import P2PLogo from './P2PLogo';
 
 export default function GreenRoom({ onJoinMeeting }) {
   const {
@@ -84,9 +85,7 @@ export default function GreenRoom({ onJoinMeeting }) {
     <div className="relative w-screen h-screen bg-[#1C1C1C] text-[#F5E8D8] flex flex-col items-center justify-center p-6 overflow-hidden select-none">
       {/* Header */}
       <div className="absolute top-8 left-8 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-[#FF6F61] flex items-center justify-center text-[#1C1C1C] font-bold text-xs tracking-wider border border-[#F5E8D8]/10">
-          P2P
-        </div>
+        <P2PLogo size={40} />
         <div>
           <h1 className="text-lg font-bold text-[#F5E8D8] tracking-tight">p2pmeet</h1>
           <span className="text-xs text-[#F5E8D8]/60 flex items-center gap-1.5 font-medium">

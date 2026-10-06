@@ -1,7 +1,7 @@
-# 🛡️ p2pmeet
+# 🛡️ p2pmeet - Decentralized Privacy-First Video Meetings
 
 <p align="center">
-  <img src="p2p-app/public/p2pmeet-logo.svg" alt="p2pmeet Logo" width="120" height="120" />
+  <img src="public/p2pmeet-logo.svg" alt="p2pmeet Logo" width="120" height="120" />
 </p>
 
 <p align="center">
@@ -22,14 +22,14 @@
 
 - **🔒 100% Direct Peer-to-Peer (WebRTC E2EE)**:
   - Video streams, audio tracks, chat messages, and file payloads are transmitted **directly between peers** using WebRTC DataChannels and DTLS-SRTP encryption (AES-128/256 GCM).
-  - Even when hosted on Cloudflare Pages, Cloudflare only serves static assets and the initial handshake. **Zero media or chat data passes through or touches any server.**
+  - Even when hosted on Cloudflare Pages, Cloudflare only serves static assets and initial handshake. Zero media data touches any server.
 - **📁 Universal Direct P2P File Sharing & Requests**:
   - Share files of **ANY format** directly inside the meeting chat.
   - Interactive file cards with file size, direct P2P badge, and one-click instant download.
   - "Request File" feature allowing participants to request documents or assets from specific peers.
 - **✨ Camera Background Blur & Screen Filters**:
   - Virtual background effects including **Soft Blur**, **Deep Blur**, **Studio Glow**, **Warm Sun**, **Vivid Pop**, and **Cinema Noir**.
-  - Flexible video grid with Speaker View & Gallery View.
+  - Flexible video grid with Speaker View & Gallery View that never overlaps with chat or participant drawers.
 - **🎉 Interactive Emoji Reactions & Audio**:
   - Categorized reaction bar (Smileys, Animals & Nature, Gestures, Celebrations & Vibes).
   - Built-in audio effects synthesized in real-time via Web Audio API.
@@ -40,65 +40,6 @@
 
 ---
 
-## 🚀 Quick Start (Local Development)
-
-### 1. Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
-
-### 2. Install & Run
-```bash
-# Clone the repository
-git clone https://github.com/Rahul-Jena-2002/P2P-Meet.git
-cd P2P-Meet/p2p-app
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Start local WebSocket signaling server (optional for local LAN testing)
-node signaling-server.mjs
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## ⛅ Hosting on Cloudflare Pages
-
-`p2pmeet` is pre-configured for static export to Cloudflare Pages:
-
-### Method 1: Connect GitHub Repository to Cloudflare Pages (Recommended)
-1. Go to the [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Compute (Workers & Pages)** → **Create** → **Pages** → **Connect to Git**.
-2. Select repository: `Rahul-Jena-2002/P2P-Meet`.
-3. In Build settings:
-   - **Framework preset**: `Next.js (Static Export)`
-   - **Build command**: `cd p2p-app && npm install && npm run build`
-   - **Build output directory**: `p2p-app/out`
-   - *(Or if Root Directory is set to `p2p-app`)*:
-     - **Build command**: `npm run build`
-     - **Build output directory**: `out`
-4. Click **Save and Deploy**!
-
-### Method 2: Deploy via Wrangler CLI
-```bash
-# From repository root
-npm run build
-npx wrangler deploy
-```
-
----
-
 ## 💖 Support the Developer
 
-If you find `p2pmeet` useful or want to support continued development of open-source privacy-first communication tools, please consider sponsoring:
-
 👉 **[Sponsor Rahul Jena on GitHub](https://github.com/sponsors/Rahul-Jena-2002)**
-
----
-
-## 📜 License
-
-This project is licensed under the **AGPL-3.0 License** - see the LICENSE file for details.

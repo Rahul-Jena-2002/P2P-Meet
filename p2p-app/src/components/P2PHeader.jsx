@@ -6,12 +6,14 @@
  */
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, LayoutGrid, Maximize2, Minimize2, Copy, Check, Clock } from 'lucide-react';
+import P2PLogo from './P2PLogo';
 
 export default function P2PHeader({
   title,
   roomCode,
   viewMode,
   onToggleViewMode,
+  isPanelOpen = false,
   isVisible = true
 }) {
   const [copied, setCopied] = useState(false);
@@ -48,12 +50,13 @@ export default function P2PHeader({
   };
 
   return (
-    <header className={`fixed top-4 left-6 right-6 z-40 flex items-center justify-between pointer-events-none select-none transition-all duration-300 ease-out ${
+    <header className={`absolute top-4 left-4 sm:left-6 right-4 sm:right-6 transition-all duration-300 ease-out z-30 flex items-center justify-between pointer-events-none select-none ${
       isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'
     }`}>
       {/* Left: Topic & Code */}
       <div className="flex items-center gap-3 pointer-events-auto">
-        <div className="flex items-center gap-2.5 px-4 py-2 rounded-2xl p2p-dock">
+        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-2xl p2p-dock">
+          <P2PLogo size={24} />
           <div className="flex items-center gap-1.5 text-[#DAA520] text-xs font-semibold">
             <ShieldCheck className="w-4 h-4" />
             <span className="hidden sm:inline">P2P Encrypted</span>

@@ -1,0 +1,500 @@
+'use client';
+/*
+ * p2pmeet - Decentralized Privacy-First Video Meetings
+ * Copyright (C) 2026 p2pmeet Contributors
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+import React, { useState } from 'react';
+import {
+  Mic, MicOff, Video, VideoOff, ChevronUp, Users,
+  MessageSquare, Smile, PhoneOff, Check,
+  Sparkles, ArrowUpRight, Sliders, Volume2, VolumeX, Eye
+} from 'lucide-react';
+import { useMedia } from './MediaProvider';
+import { soundSynth } from '../lib/soundEffects';
+
+export default function P2PControls({
+  roomCode,
+  isHost,
+  participantCount,
+  activePanel,
+  onTogglePanel,
+  onSendReaction,
+  onLeaveMeeting,
+  onStartWatchTogether,
+  onStopWatchTogether,
+  watchTogetherActive,
+  isVisible = true
+}) {
+  const {
+    audioEnabled,
+    videoEnabled,
+    screenSharing,
+    devices,
+    selectedCam,
+    selectedMic,
+    audioLevel,
+    videoFilter = 'none',
+    setVideoFilter,
+    toggleAudio,
+    toggleVideo,
+    switchCamera,
+    switchMicrophone,
+    startScreenShare,
+    stopScreenShare
+  } = useMedia();
+
+  const [showAudioMenu, setShowAudioMenu] = useState(false);
+  const [showVideoMenu, setShowVideoMenu] = useState(false);
+  const [videoMenuTab, setVideoMenuTab] = useState('effects'); // 'devices' | 'effects'
+  const [showReactionsMenu, setShowReactionsMenu] = useState(false);
+  const [reactionCategory, setReactionCategory] = useState('emotions'); // 'emotions' | 'animals' | 'gestures' | 'celebrations'
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showWatchModal, setShowWatchModal] = useState(false);
+  const [customVideoUrl, setCustomVideoUrl] = useState('');
+
+  const filterOptions = [
+    { id: 'none', label: 'Normal', icon: '✨' },
+    { id: 'blur-light', label: 'Soft Blur', icon: '🌫️' },
+    { id: 'blur-heavy', label: 'Deep Blur', icon: '☁️' },
+    { id: 'studio', label: 'Studio Glow', icon: '💡' },
+    { id: 'warm', label: 'Warm Sun', icon: '☀️' },
+    { id: 'vivid', label: 'Vivid Pop', icon: '🎨' },
+    { id: 'noir', label: 'Noir (B&W)', icon: '🎞️' },
+    { id: 'cinema', label: 'Cinema Teal', icon: '🎬' },
+    { id: 'sepia', label: 'Vintage', icon: '📜' },
+    { id: 'cyberpunk', label: 'Neon Cyber', icon: '🔮' },
+  ];
+
+  const emojiCategories = {
+    emotions: {
+      name: 'Smileys',
+      emojis: [
+        { char: '😂', name: 'Joy' },
+        { char: '🤣', name: 'ROFL' },
+        { char: '😍', name: 'Love' },
+        { char: '🥳', name: 'Party' },
+        { char: '😎', name: 'Cool' },
+        { char: '🤩', name: 'Star' },
+        { char: '🥺', name: 'Please' },
+        { char: '😴', name: 'Sleepy' },
+        { char: '🤯', name: 'Mindblown' },
+        { char: '😇', name: 'Angel' },
+      ]
+    },
+    animals: {
+      name: 'Animals',
+      emojis: [
+        { char: '🐶', name: 'Dog' },
+        { char: '🐱', name: 'Cat' },
+        { char: '🦁', name: 'Lion' },
+        { char: '🐼', name: 'Panda' },
+        { char: '🦊', name: 'Fox' },
+        { char: '🐸', name: 'Frog' },
+        { char: '🐵', name: 'Monkey' },
+        { char: '🦄', name: 'Unicorn' },
+        { char: '🐝', name: 'Bee' },
+        { char: '🦉', name: 'Owl' },
+      ]
+    },
+    gestures: {
+      name: 'Gestures',
+      emojis: [
+        { char: '👍', name: 'Thumbs Up' },
+        { char: '👏', name: 'Clap' },
+        { char: '🙌', name: 'High Five' },
+        { char: '✌️', name: 'Peace' },
+        { char: '🤝', name: 'Handshake' },
+        { char: '✊', name: 'Fist' },
+        { char: '🤙', name: 'Call Me' },
+        { char: '🫶', name: 'Heart Hands' },
+        { char: '🙏', name: 'Thank You' },
+        { char: '👎', name: 'Thumbs Down' },
+      ]
+    },
+    celebrations: {
+      name: 'Vibes',
+      emojis: [
+        { char: '🎉', name: 'Popper' },
+        { char: '🚀', name: 'Rocket' },
+        { char: '🔥', name: 'Fire' },
+        { char: '✨', name: 'Sparkles' },
+        { char: '💯', name: '100' },
+        { char: '💖', name: 'Pink Heart' },
+        { char: '🍕', name: 'Pizza' },
+        { char: '☕', name: 'Coffee' },
+        { char: '⚡', name: 'Zap' },
+        { char: '🌈', name: 'Rainbow' },
+      ]
+    }
+  };
+
+  const handleTriggerEmoji = (emojiChar) => {
+    if (soundEnabled) {
+      soundSynth.playEmojiSound(emojiChar);
+    }
+    onSendReaction(emojiChar);
+    setShowReactionsMenu(false);
+  };
+
+  return (
+    <div className={`absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 select-none p2p-overlay-bar w-auto max-w-[95%] ${
+      isVisible ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-6 pointer-events-none'
+    }`}>
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-3.5 px-3.5 sm:px-5 py-2.5 rounded-2xl sm:rounded-3xl p2p-dock shadow-2xl">
+        {/* 1. MUTE / AUDIO */}
+        <div className="relative flex items-center gap-0.5">
+          <button
+            onClick={toggleAudio}
+            className={`flex flex-col items-center justify-center min-w-[52px] sm:min-w-[58px] h-12 px-2 py-1 rounded-xl transition ${
+              audioEnabled
+                ? 'hover:bg-white/[0.06] text-[#F5E8D8] border border-transparent'
+                : 'bg-[#FF4500]/15 text-[#FF4500] border border-[#FF4500]/30 hover:bg-[#FF4500]/25'
+            }`}
+            title={audioEnabled ? "Mute Microphone" : "Unmute Microphone"}
+          >
+            {audioEnabled ? (
+              <div className="relative">
+                <Mic className="w-5 h-5 text-[#F5E8D8]" />
+                {audioLevel > 15 && (
+                  <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#DAA520]" />
+                )}
+              </div>
+            ) : (
+              <MicOff className="w-5 h-5" />
+            )}
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">{audioEnabled ? 'Mute' : 'Unmute'}</span>
+          </button>
+
+          <button
+            onClick={() => setShowAudioMenu(!showAudioMenu)}
+            className="p-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
+            title="Audio Settings"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Audio Device Dropdown */}
+          {showAudioMenu && (
+            <div className="absolute bottom-16 left-0 w-64 rounded-2xl p2p-dropdown p-3 text-xs text-[#F5E8D8] z-50 animate-in fade-in slide-in-from-bottom-2 shadow-2xl">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#F5E8D8]/50 px-2 block mb-1">
+                Select Microphone
+              </span>
+              {devices.audio.map((d) => (
+                <button
+                  key={d.deviceId}
+                  onClick={() => { switchMicrophone(d.deviceId); setShowAudioMenu(false); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition ${
+                    selectedMic === d.deviceId ? 'bg-[#FF6F61] text-[#1C1C1C] font-semibold' : 'hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <span className="truncate">{d.label || `Microphone ${d.deviceId.substring(0, 5)}`}</span>
+                  {selectedMic === d.deviceId && <Check className="w-3.5 h-3.5 shrink-0" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 2. VIDEO / CAMERA WITH BLUR & FILTERS */}
+        <div className="relative flex items-center gap-0.5">
+          <button
+            onClick={toggleVideo}
+            className={`flex flex-col items-center justify-center min-w-[52px] sm:min-w-[58px] h-12 px-2 py-1 rounded-xl transition ${
+              videoEnabled
+                ? 'hover:bg-white/[0.06] text-[#F5E8D8] border border-transparent'
+                : 'bg-[#FF4500]/15 text-[#FF4500] border border-[#FF4500]/30 hover:bg-[#FF4500]/25'
+            }`}
+            title={videoEnabled ? "Stop Camera" : "Start Camera"}
+          >
+            {videoEnabled ? <Video className="w-5 h-5 text-[#F5E8D8]" /> : <VideoOff className="w-5 h-5" />}
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">{videoEnabled ? 'Stop Video' : 'Start Video'}</span>
+          </button>
+
+          <button
+            onClick={() => setShowVideoMenu(!showVideoMenu)}
+            className="p-1 text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] rounded-lg transition"
+            title="Video & Background Filter Settings"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Video Options & Background Filters Dropdown */}
+          {showVideoMenu && (
+            <div className="absolute bottom-16 left-0 w-72 rounded-2xl p2p-dropdown p-3.5 text-xs text-[#F5E8D8] z-50 animate-in fade-in slide-in-from-bottom-2 shadow-2xl space-y-3">
+              {/* Tabs */}
+              <div className="flex items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-[#F5E8D8]/10 text-xs">
+                <button
+                  onClick={() => setVideoMenuTab('effects')}
+                  className={`flex-1 py-1 rounded-lg font-medium transition flex items-center justify-center gap-1.5 ${
+                    videoMenuTab === 'effects' ? 'bg-[#FF6F61] text-[#1C1C1C] font-semibold' : 'text-[#F5E8D8]/60 hover:text-[#F5E8D8]'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Blur & Filters</span>
+                </button>
+                <button
+                  onClick={() => setVideoMenuTab('devices')}
+                  className={`flex-1 py-1 rounded-lg font-medium transition flex items-center justify-center gap-1.5 ${
+                    videoMenuTab === 'devices' ? 'bg-[#FF6F61] text-[#1C1C1C] font-semibold' : 'text-[#F5E8D8]/60 hover:text-[#F5E8D8]'
+                  }`}
+                >
+                  <Sliders className="w-3.5 h-3.5" />
+                  <span>Camera</span>
+                </button>
+              </div>
+
+              {videoMenuTab === 'effects' ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-[11px] text-[#F5E8D8]/60 px-0.5">
+                    <span>Background & Screen Filters</span>
+                    <span className="font-mono text-[#DAA520]">{filterOptions.find(f => f.id === videoFilter)?.label}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                    {filterOptions.map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => setVideoFilter?.(f.id)}
+                        className={`px-2.5 py-2 rounded-xl text-left flex items-center justify-between transition border ${
+                          videoFilter === f.id
+                            ? 'bg-[#DAA520]/20 border-[#DAA520] text-[#DAA520] font-semibold'
+                            : 'bg-white/[0.03] border-transparent hover:bg-white/[0.07] text-[#F5E8D8]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{f.icon}</span>
+                          <span className="text-xs truncate">{f.label}</span>
+                        </div>
+                        {videoFilter === f.id && <Check className="w-3.5 h-3.5 shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#F5E8D8]/50 px-1 block">
+                    Select Camera Device
+                  </span>
+                  {devices.video.map((d) => (
+                    <button
+                      key={d.deviceId}
+                      onClick={() => { switchCamera(d.deviceId); setShowVideoMenu(false); }}
+                      className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition ${
+                        selectedCam === d.deviceId ? 'bg-[#FF6F61] text-[#1C1C1C] font-semibold' : 'hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <span className="truncate">{d.label || `Camera ${d.deviceId.substring(0, 5)}`}</span>
+                      {selectedCam === d.deviceId && <Check className="w-3.5 h-3.5 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="w-[1px] h-7 bg-[#F5E8D8]/10 mx-0.5 shrink-0" />
+
+        {/* 3. PARTICIPANTS */}
+        <button
+          onClick={() => onTogglePanel('participants')}
+          className={`flex flex-col items-center justify-center min-w-[62px] sm:min-w-[70px] h-12 px-2 py-1 rounded-xl transition ${
+            activePanel === 'participants' ? 'bg-[#FF6F61]/20 text-[#FF6F61] border border-[#FF6F61]/40' : 'hover:bg-white/[0.06] text-[#F5E8D8]'
+          }`}
+          title="Participants"
+        >
+          <div className="relative flex items-center justify-center">
+            <Users className="w-5 h-5" />
+            <span className="absolute -top-1.5 -right-3 px-1.5 py-0.2 rounded-full bg-[#FF6F61] text-[9px] font-bold text-[#1C1C1C] shadow-sm">
+              {participantCount}
+            </span>
+          </div>
+          <span className="text-[10px] font-medium mt-1 whitespace-nowrap">Participants</span>
+        </button>
+
+        {/* 4. CHAT */}
+        <button
+          onClick={() => onTogglePanel('chat')}
+          className={`flex flex-col items-center justify-center min-w-[48px] sm:min-w-[54px] h-12 px-2 py-1 rounded-xl transition ${
+            activePanel === 'chat' ? 'bg-[#FF6F61]/20 text-[#FF6F61] border border-[#FF6F61]/40' : 'hover:bg-white/[0.06] text-[#F5E8D8]'
+          }`}
+          title="Chat & Direct P2P Files"
+        >
+          <MessageSquare className="w-5 h-5" />
+          <span className="text-[10px] font-medium mt-1 whitespace-nowrap">Chat</span>
+        </button>
+
+        {/* 5. PRIMARY ACTION "SHARE SCREEN" */}
+        <button
+          onClick={screenSharing ? stopScreenShare : startScreenShare}
+          className={`flex flex-col items-center justify-center min-w-[68px] sm:min-w-[76px] h-12 px-3 py-1 rounded-xl transition ${
+            screenSharing
+              ? 'bg-[#FF4500] hover:bg-[#FF4500]/80 text-[#F5E8D8]'
+              : 'bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white font-semibold'
+          }`}
+          title={screenSharing ? "Stop Sharing" : "Share Screen"}
+        >
+          <ArrowUpRight className="w-5 h-5 stroke-[2.5]" />
+          <span className="text-[10px] font-medium mt-1 whitespace-nowrap">{screenSharing ? 'Stop Share' : 'Share'}</span>
+        </button>
+
+        {/* 6. WATCH TOGETHER (CO-STREAMING) */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              if (watchTogetherActive) {
+                onStopWatchTogether?.();
+              } else {
+                setShowWatchModal(!showWatchModal);
+              }
+            }}
+            className={`flex flex-col items-center justify-center min-w-[50px] sm:min-w-[56px] h-12 px-2 py-1 rounded-xl transition ${
+              watchTogetherActive
+                ? 'bg-[#DAA520]/20 text-[#DAA520] border border-[#DAA520]/40'
+                : 'hover:bg-white/[0.06] text-[#F5E8D8]'
+            }`}
+            title="Watch Together (Co-streaming)"
+          >
+            <Sparkles className="w-5 h-5 text-[#DAA520]" />
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">
+              {watchTogetherActive ? 'End' : 'Watch'}
+            </span>
+          </button>
+
+          {showWatchModal && (
+            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-80 rounded-2xl p2p-dropdown p-4 text-xs text-[#F5E8D8] z-50 shadow-2xl space-y-3">
+              <div className="flex items-center justify-between border-b border-[#F5E8D8]/10 pb-2">
+                <span className="font-bold text-[#F5E8D8] flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#DAA520]" /> Co-Streaming Watch Party
+                </span>
+                <button
+                  onClick={() => setShowWatchModal(false)}
+                  className="text-[#F5E8D8]/50 hover:text-[#F5E8D8]"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-bold uppercase text-[#F5E8D8]/50 block">Quick Play Presets</span>
+                <button
+                  onClick={() => {
+                    onStartWatchTogether?.("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+                    setShowWatchModal(false);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] transition text-[#F5E8D8] font-medium"
+                >
+                  🎬 Big Buck Bunny (HD Animation)
+                </button>
+                <button
+                  onClick={() => {
+                    onStartWatchTogether?.("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4");
+                    setShowWatchModal(false);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] transition text-[#F5E8D8] font-medium"
+                >
+                  🚀 Tears of Steel (HD Sci-Fi)
+                </button>
+              </div>
+
+              <div className="space-y-1.5 pt-1 border-t border-[#F5E8D8]/10">
+                <span className="text-[10px] font-bold uppercase text-[#F5E8D8]/50 block">Or Custom Video URL</span>
+                <input
+                  type="text"
+                  placeholder="https://.../video.mp4"
+                  value={customVideoUrl}
+                  onChange={(e) => setCustomVideoUrl(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-lg bg-[#1C1C1C] border border-[#F5E8D8]/15 text-[#F5E8D8] placeholder-[#F5E8D8]/30 text-xs focus:outline-none focus:border-[#FF6F61]"
+                />
+                <button
+                  onClick={() => {
+                    if (customVideoUrl.trim()) {
+                      onStartWatchTogether?.(customVideoUrl.trim());
+                      setShowWatchModal(false);
+                    }
+                  }}
+                  className="w-full py-2 rounded-xl bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white font-medium transition"
+                >
+                  Start Synced Playback
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 7. RICH GOOGLE KEYBOARD STYLE REACTIONS WITH SOUND SYNTH */}
+        <div className="relative">
+          <button
+            onClick={() => setShowReactionsMenu(!showReactionsMenu)}
+            className="flex flex-col items-center justify-center min-w-[52px] sm:min-w-[56px] h-12 px-2 py-1 rounded-xl hover:bg-white/[0.06] text-[#F5E8D8] transition"
+            title="Reactions with Audio"
+          >
+            <Smile className="w-5 h-5 text-[#DAA520]" />
+            <span className="text-[10px] font-medium mt-1 whitespace-nowrap">Reactions</span>
+          </button>
+
+          {showReactionsMenu && (
+            <div className="absolute bottom-16 right-0 w-80 rounded-2xl p2p-dropdown p-3 z-50 animate-in fade-in zoom-in-95 shadow-2xl space-y-2.5">
+              {/* Category tabs & Sound Mute Toggle */}
+              <div className="flex items-center justify-between pb-2 border-b border-[#F5E8D8]/10">
+                <div className="flex items-center gap-1">
+                  {Object.entries(emojiCategories).map(([key, cat]) => (
+                    <button
+                      key={key}
+                      onClick={() => setReactionCategory(key)}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-medium transition ${
+                        reactionCategory === key
+                          ? 'bg-[#DAA520]/20 text-[#DAA520] font-semibold border border-[#DAA520]/30'
+                          : 'text-[#F5E8D8]/60 hover:text-[#F5E8D8] hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className={`p-1.5 rounded-lg transition ${
+                    soundEnabled ? 'text-[#DAA520] hover:bg-white/[0.06]' : 'text-[#F5E8D8]/30 hover:bg-white/[0.06]'
+                  }`}
+                  title={soundEnabled ? "Emoji Sound ON" : "Emoji Sound OFF"}
+                >
+                  {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+
+              {/* Emoji Grid */}
+              <div className="grid grid-cols-5 gap-1.5 py-1">
+                {emojiCategories[reactionCategory].emojis.map((r) => (
+                  <button
+                    key={r.name}
+                    onClick={() => handleTriggerEmoji(r.char)}
+                    className="w-12 h-12 rounded-xl bg-white/[0.02] hover:bg-white/[0.1] flex flex-col items-center justify-center text-xl hover:scale-120 transition-all duration-150 group"
+                    title={r.name}
+                  >
+                    <span>{r.char}</span>
+                    <span className="text-[9px] text-[#F5E8D8]/40 group-hover:text-[#F5E8D8]/80 leading-none mt-0.5 scale-90 truncate max-w-[40px]">
+                      {r.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="w-[1px] h-7 bg-[#F5E8D8]/10 mx-0.5 shrink-0" />
+
+        {/* 8. END / LEAVE BUTTON */}
+        <button
+          onClick={onLeaveMeeting}
+          className="min-w-[66px] sm:min-w-[74px] h-10 px-3.5 rounded-xl bg-[#FF4500] hover:bg-[#FF4500]/90 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition ml-0.5 shrink-0"
+        >
+          <PhoneOff className="w-3.5 h-3.5" />
+          <span>{isHost ? 'End' : 'Leave'}</span>
+        </button>
+      </div>
+    </div>
+  );
+}

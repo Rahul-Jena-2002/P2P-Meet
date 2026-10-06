@@ -12,6 +12,7 @@ import P2PGrid from './P2PGrid';
 import P2PControls from './P2PControls';
 import P2PChatDrawer from './P2PChatDrawer';
 import P2PParticipantsDrawer from './P2PParticipantsDrawer';
+import { soundSynth } from '../lib/soundEffects';
 
 export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   const {
@@ -138,9 +139,11 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
         const { type } = data;
 
         if (type === 'chat') {
-          setMessages(m => [...m, data]);
+          setMessages(m => [...m, data.payload || data]);
         } else if (type === 'reaction') {
-          spawnReaction(data.emoji);
+          const emoji = data.payload?.emoji || data.emoji;
+          spawnReaction(emoji);
+          soundSynth.playEmojiSound(emoji);
         } else if (type === 'PEER_MEDIA_STATE') {
           setPeers(prev => ({
             ...prev,
@@ -235,12 +238,13 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     });
   };
 
-  const handleSendMessage = (text) => {
+  const handleSendMessage = (messagePayload) => {
+    const isObj = typeof messagePayload === 'object';
     const msg = {
       senderId: meetingInfo.userId,
       senderName: meetingInfo.name,
-      text,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      ...(isObj ? messagePayload : { type: 'text', text: messagePayload })
     };
     setMessages(m => [...m, msg]);
     meshRef.current?.broadcast({
@@ -384,68 +388,72 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
 
   return (
     <div className="relative w-screen h-screen bg-[#1C1C1C] text-[#F5E8D8] overflow-hidden flex select-none">
-      {/* 1. TOP-MOST LAYER: Fullscreen Edge-to-Edge Video Canvas */}
-      <div className="flex-1 h-full w-full relative">
-        <P2PGrid
-          localUser={localUserObj}
-          localStream={localStream}
-          screenStream={screenStream}
-          peers={peers}
-          isAudioOn={audioEnabled}
-          isVideoOn={videoEnabled}
-          isScreenSharing={screenSharing}
+      {/* 1. Main Video Stage & Floating Overlay Area (resizes flexibly when drawers open) */}
+      <div className="flex-1 h-full w-full relative overflow-hidden flex flex-col">
+        {/* Fullscreen Video Canvas */}
+        <div className="w-full h-full relative">
+          <P2PGrid
+            localUser={localUserObj}
+            localStream={localStream}
+            screenStream={screenStream}
+            peers={peers}
+            isAudioOn={audioEnabled}
+            isVideoOn={videoEnabled}
+            isScreenSharing={screenSharing}
+            viewMode={viewMode}
+            speakingUserId={audioLevel > 20 ? meetingInfo.userId : null}
+            remoteControlState={remoteControlState}
+            onRequestRemoteControl={handleRequestRemoteControl}
+            onGrantRemoteControl={handleGrantRemoteControl}
+            onGrantRemoteControlToPeer={handleGrantRemoteControlToPeer}
+            onSimulateRemoteControl={handleSimulateRemoteControl}
+            onRevokeRemoteControl={handleRevokeRemoteControl}
+            onSendRemoteMouseEvent={handleSendRemoteMouseEvent}
+            remoteCursor={remoteCursor}
+            remoteRipples={remoteRipples}
+            watchTogetherState={watchTogetherState}
+            onWatchTogetherSync={handleWatchTogetherSync}
+            onStopWatchTogether={handleStopWatchTogether}
+          />
+        </div>
+
+        {/* 2. Floating Top Header (stays scoped to video stage area) */}
+        <P2PHeader
+          title={meetingInfo.title}
+          roomCode={meetingInfo.code}
           viewMode={viewMode}
-          speakingUserId={audioLevel > 20 ? meetingInfo.userId : null}
-          remoteControlState={remoteControlState}
-          onRequestRemoteControl={handleRequestRemoteControl}
-          onGrantRemoteControl={handleGrantRemoteControl}
-          onGrantRemoteControlToPeer={handleGrantRemoteControlToPeer}
-          onSimulateRemoteControl={handleSimulateRemoteControl}
-          onRevokeRemoteControl={handleRevokeRemoteControl}
-          onSendRemoteMouseEvent={handleSendRemoteMouseEvent}
-          remoteCursor={remoteCursor}
-          remoteRipples={remoteRipples}
-          watchTogetherState={watchTogetherState}
-          onWatchTogetherSync={handleWatchTogetherSync}
+          onToggleViewMode={() => setViewMode(v => v === 'gallery' ? 'speaker' : 'gallery')}
+          isVisible={controlsVisible || !!activePanel}
+        />
+
+        {/* Mouse proximity trigger for bottom dock */}
+        <div
+          onMouseEnter={() => setControlsVisible(true)}
+          className="absolute bottom-0 left-0 right-0 h-20 z-30 pointer-events-auto"
+        />
+
+        {/* 3. Floating Bottom Controls Dock (centered within video stage area) */}
+        <P2PControls
+          roomCode={meetingInfo.code}
+          isHost={meetingInfo.isHost}
+          participantCount={participantList.length}
+          activePanel={activePanel}
+          onTogglePanel={(panel) => setActivePanel(p => p === panel ? null : panel)}
+          onSendReaction={handleSendReaction}
+          onLeaveMeeting={onLeave}
+          onStartWatchTogether={handleStartWatchTogether}
           onStopWatchTogether={handleStopWatchTogether}
+          watchTogetherActive={watchTogetherState.active}
+          isVisible={controlsVisible || !!activePanel}
         />
       </div>
-
-      {/* Mouse proximity trigger for bottom dock */}
-      <div
-        onMouseEnter={() => setControlsVisible(true)}
-        className="fixed bottom-0 left-0 right-0 h-20 z-30 pointer-events-auto"
-      />
-
-      {/* 2. Floating Top Header */}
-      <P2PHeader
-        title={meetingInfo.title}
-        roomCode={meetingInfo.code}
-        viewMode={viewMode}
-        onToggleViewMode={() => setViewMode(v => v === 'gallery' ? 'speaker' : 'gallery')}
-        isVisible={controlsVisible || !!activePanel}
-      />
-
-      {/* 3. Floating Bottom Controls Dock */}
-      <P2PControls
-        roomCode={meetingInfo.code}
-        isHost={meetingInfo.isHost}
-        participantCount={participantList.length}
-        activePanel={activePanel}
-        onTogglePanel={(panel) => setActivePanel(p => p === panel ? null : panel)}
-        onSendReaction={handleSendReaction}
-        onLeaveMeeting={onLeave}
-        onStartWatchTogether={handleStartWatchTogether}
-        onStopWatchTogether={handleStopWatchTogether}
-        watchTogetherActive={watchTogetherState.active}
-        isVisible={controlsVisible || !!activePanel}
-      />
 
       {/* 4. Side Drawers (Chat & Participants) */}
       {activePanel === 'chat' && (
         <P2PChatDrawer
           messages={messages}
           currentUserId={meetingInfo.userId}
+          participants={participantList}
           onSendMessage={handleSendMessage}
           onClose={() => setActivePanel(null)}
         />

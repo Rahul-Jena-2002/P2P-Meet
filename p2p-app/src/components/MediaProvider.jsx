@@ -18,6 +18,7 @@ export function MediaProvider({ children }) {
   const [selectedCam, setSelectedCam] = useState('');
   const [selectedMic, setSelectedMic] = useState('');
   const [audioLevel, setAudioLevel] = useState(0); // 0 to 100 for mic meter
+  const [videoFilter, setVideoFilter] = useState('none'); // 'none', 'blur-light', 'blur-heavy', 'office', 'studio', 'nature', 'noir', 'vivid', 'sepia'
   const [mediaError, setMediaError] = useState(null);
 
   const audioContextRef = useRef(null);
@@ -195,6 +196,8 @@ export function MediaProvider({ children }) {
       selectedCam,
       selectedMic,
       audioLevel,
+      videoFilter,
+      setVideoFilter,
       mediaError,
       toggleAudio,
       toggleVideo,

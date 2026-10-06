@@ -5,7 +5,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import React, { useEffect, useRef } from 'react';
-import { Mic, MicOff, Pin, PinOff, Monitor, Shield, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Pin, PinOff, Monitor, Shield, Volume2, Sparkles } from 'lucide-react';
+import { useMedia } from './MediaProvider';
 
 export default function P2PVideoTile({
   name,
@@ -20,6 +21,37 @@ export default function P2PVideoTile({
   onPinToggle
 }) {
   const videoRef = useRef(null);
+  let videoFilter = 'none';
+  try {
+    const media = useMedia();
+    if (media) videoFilter = media.videoFilter || 'none';
+  } catch (e) {}
+
+  const getVideoFilterStyle = () => {
+    if (!isLocal || isScreenSharing) return {};
+    switch (videoFilter) {
+      case 'blur-light':
+        return { filter: 'blur(5px)' };
+      case 'blur-heavy':
+        return { filter: 'blur(12px)' };
+      case 'noir':
+        return { filter: 'grayscale(100%) contrast(1.25)' };
+      case 'vivid':
+        return { filter: 'saturate(1.5) contrast(1.12)' };
+      case 'warm':
+        return { filter: 'sepia(32%) saturate(1.25) brightness(1.04)' };
+      case 'cinema':
+        return { filter: 'contrast(1.18) brightness(0.92) saturate(1.18)' };
+      case 'sepia':
+        return { filter: 'sepia(80%) contrast(1.08)' };
+      case 'studio':
+        return { filter: 'contrast(1.1) brightness(1.06) saturate(1.22)' };
+      case 'cyberpunk':
+        return { filter: 'contrast(1.22) hue-rotate(-25deg) saturate(1.35)' };
+      default:
+        return {};
+    }
+  };
 
   useEffect(() => {
     const el = videoRef.current;
@@ -51,7 +83,8 @@ export default function P2PVideoTile({
           autoPlay
           playsInline
           muted={isLocal}
-          className={`w-full h-full object-contain bg-[#1C1C1C] ${isLocal && !isScreenSharing ? 'scale-x-[-1]' : ''}`}
+          style={getVideoFilterStyle()}
+          className={`w-full h-full object-contain bg-[#1C1C1C] transition-all duration-300 ${isLocal && !isScreenSharing ? 'scale-x-[-1]' : ''}`}
         />
       ) : (
         /* Minimal Warm Avatar when camera is off */

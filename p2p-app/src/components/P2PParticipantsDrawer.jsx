@@ -23,7 +23,7 @@ export default function P2PParticipantsDrawer({
   };
 
   return (
-    <aside className="w-80 sm:w-96 h-full p2p-panel border-l border-[#F5E8D8]/10 flex flex-col z-30 animate-in slide-in-from-right duration-200 select-none bg-[#1C1C1C]/95 text-[#F5E8D8]">
+    <aside className="w-80 sm:w-96 h-full p2p-panel border-l border-[#F5E8D8]/10 flex flex-col z-40 relative animate-in slide-in-from-right duration-200 select-none bg-[#1C1C1C] text-[#F5E8D8] shadow-2xl">
       {/* Header */}
       <div className="p-4 border-b border-[#F5E8D8]/10 flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-[#F5E8D8]/70">

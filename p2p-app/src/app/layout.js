@@ -6,10 +6,12 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "p2pmeet",
-  description: "Instant peer-to-peer video meetings, co-streaming, and remote screen sharing.",
+  title: "p2pmeet - Direct Peer-to-Peer Encrypted Video Meetings & File Sharing",
+  description: "Instant decentralized, privacy-first video meetings, direct P2P file sharing, synchronized co-streaming, and interactive remote control with zero server intermediaries.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg"
   },
 };
 
