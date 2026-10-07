@@ -161,30 +161,37 @@ export class MediaManager {
       video: {
         cursor: 'always',
         displaySurface: surface,
-        frameRate: { ideal: 60 },
+        frameRate: { ideal: 60, max: 60 },
         width: { ideal: 1920 },
         height: { ideal: 1080 }
       },
       audio: {
-        suppressLocalAudioPlayback: false,
         autoGainControl: false,
         echoCancellation: false,
-        noiseSuppression: false
+        noiseSuppression: false,
+        suppressLocalAudioPlayback: false
       },
       systemAudio: 'include',
-      monitorTypeSurfaces: 'include',
-      surfaceSwitching: 'include',
       selfBrowserSurface: 'exclude'
     };
 
     let stream;
     try {
       stream = await navigator.mediaDevices.getDisplayMedia(constraints);
-    } catch {
-      stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: 'monitor', cursor: 'always' },
-        audio: true
-      });
+    } catch (err) {
+      console.warn('[MediaManager] Primary display constraints failed, trying standard fallback:', err);
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: 'always' },
+          audio: true,
+          systemAudio: 'include'
+        });
+      } catch (err2) {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        });
+      }
     }
 
     const videoTrack = stream.getVideoTracks()[0];

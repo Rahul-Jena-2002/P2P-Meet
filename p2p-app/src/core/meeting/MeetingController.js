@@ -203,10 +203,56 @@ export class MeetingController {
     this.signaling.disconnect();
     this.rtc.destroy();
     this.media.stop();
+    this.cleanupAudioMixer();
     this.trackManager?.destroy?.();
     this.participants.clear();
     this.emit('participantsChanged', []);
     this.emit('left');
+  }
+
+  mixAudioTracks(micTrack, screenAudioTrack) {
+    if (!screenAudioTrack) return micTrack;
+    if (!micTrack) return screenAudioTrack;
+    if (typeof window === 'undefined') return micTrack;
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return micTrack;
+
+    try {
+      if (!this.audioMixerCtx || this.audioMixerCtx.state === 'closed') {
+        this.audioMixerCtx = new AudioContextClass();
+      }
+      if (this.audioMixerCtx.state === 'suspended') {
+        this.audioMixerCtx.resume().catch(() => {});
+      }
+
+      const destination = this.audioMixerCtx.createMediaStreamDestination();
+
+      if (micTrack) {
+        const micStream = new MediaStream([micTrack]);
+        const micSource = this.audioMixerCtx.createMediaStreamSource(micStream);
+        micSource.connect(destination);
+      }
+
+      if (screenAudioTrack) {
+        const screenStream = new MediaStream([screenAudioTrack]);
+        const screenSource = this.audioMixerCtx.createMediaStreamSource(screenStream);
+        screenSource.connect(destination);
+      }
+
+      const mixedTrack = destination.stream?.getAudioTracks?.()[0];
+      return mixedTrack || micTrack;
+    } catch (e) {
+      console.warn('[MeetingController] Failed to mix mic and screen audio:', e);
+      return screenAudioTrack || micTrack;
+    }
+  }
+
+  cleanupAudioMixer() {
+    if (this.audioMixerCtx) {
+      try { this.audioMixerCtx.close().catch(() => {}); } catch (_) {}
+      this.audioMixerCtx = null;
+    }
   }
 
   getParticipants() {
@@ -236,8 +282,16 @@ export class MeetingController {
     if (newStream && typeof newStream === 'object' && ('localStream' in newStream || 'screenStream' in newStream)) {
       await this.trackManager?.updateFromStreams?.(newStream);
       const videoTrack = newStream.localStream?.getVideoTracks?.()[0] || null;
-      const audioTrack = newStream.localStream?.getAudioTracks?.()[0] || null;
+      let audioTrack = newStream.localStream?.getAudioTracks?.()[0] || null;
       const screenTrack = newStream.screenStream?.getVideoTracks?.()[0] || null;
+      const screenAudioTrack = newStream.screenStream?.getAudioTracks?.()[0] || null;
+
+      if (screenAudioTrack) {
+        audioTrack = this.mixAudioTracks(audioTrack, screenAudioTrack);
+      } else {
+        this.cleanupAudioMixer();
+      }
+
       return this.rtc.replaceTracks?.({ audioTrack, videoTrack, screenTrack });
     }
 
