@@ -1,5 +1,6 @@
-name = "p2pmeet"
+name = "p2p-meet"
 compatibility_date = "2024-09-23"
+pages_build_output_dir = "./p2p-app/out"
 
 [build]
 command = "npm --prefix p2p-app install && npm --prefix p2p-app run build"
