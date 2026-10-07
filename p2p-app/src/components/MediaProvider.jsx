@@ -6,6 +6,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { videoProcessor } from '../lib/videoProcessor';
+import { MediaManager } from '../core/media/MediaManager';
 
 const MediaContext = createContext(null);
 
@@ -23,39 +24,28 @@ export function MediaProvider({ children }) {
   const [videoFilter, setVideoFilterState] = useState('none');
   const [mediaError, setMediaError] = useState(null);
 
-  const audioContextRef = useRef(null);
-  const analyserRef = useRef(null);
-  const animFrameRef = useRef(null);
-  const streamRef = useRef(null);
+  const mediaManagerRef = useRef(null);
+  if (!mediaManagerRef.current) {
+    mediaManagerRef.current = new MediaManager();
+  }
+  const mediaManager = mediaManagerRef.current;
   const rawStreamRef = useRef(null);
 
   // Initialize or re-acquire user media
   const initMedia = useCallback(async (camId, micId) => {
     try {
       setMediaError(null);
-      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
         setMediaError("Mobile browsers restrict camera/mic on HTTP. You can still join to view, chat, and watch!");
         setVideoEnabled(false);
         setAudioEnabled(false);
         return null;
       }
-      // Stop existing tracks safely
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-      }
 
-      const constraints = {
-        video: camId ? { deviceId: { exact: camId } } : { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-        audio: micId ? { deviceId: { exact: micId } } : true,
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
+      const stream = await mediaManager.acquireUserMedia({ camId, micId });
       rawStreamRef.current = stream;
 
-      // Track enabled states
-      stream.getAudioTracks().forEach(t => { t.enabled = audioEnabled; });
-      stream.getVideoTracks().forEach(t => { t.enabled = videoEnabled; });
+      // acquireUserMedia -> setStream already applies mediaManager's enabled flags
 
       const aiFilters = ['blur', 'blur-light', 'blur-heavy', 'studio', 'rocket', 'nature', 'moon', 'astronaut'];
       if (aiFilters.includes(videoFilter)) {
@@ -68,30 +58,19 @@ export function MediaProvider({ children }) {
         setLocalStream(stream);
       }
 
-      // Enumerate available hardware devices (cameras, microphones, and audio output speakers)
+      // Enumerate hardware devices
       try {
-        const deviceList = await navigator.mediaDevices.enumerateDevices();
-        const videoDevs = deviceList.filter(d => d.kind === 'videoinput');
-        const audioDevs = deviceList.filter(d => d.kind === 'audioinput');
-        const audioOutDevs = deviceList.filter(d => d.kind === 'audiooutput');
-        setDevices({ video: videoDevs, audio: audioDevs, audioOutput: audioOutDevs });
-
-        if (!selectedCam && videoDevs.length > 0) setSelectedCam(videoDevs[0].deviceId);
-        if (!selectedMic && audioDevs.length > 0) setSelectedMic(audioDevs[0].deviceId);
-
-        // Retrieve and restore saved speaker device
-        if (audioOutDevs.length > 0) {
+        const devs = await mediaManager.getDevices();
+        setDevices(devs);
+        if (!selectedCam && devs.video.length > 0) setSelectedCam(devs.video[0].deviceId);
+        if (!selectedMic && devs.audio.length > 0) setSelectedMic(devs.audio[0].deviceId);
+        if (devs.audioOutput.length > 0) {
           const savedSpeaker = typeof localStorage !== 'undefined' ? localStorage.getItem('p2pmeet_selected_speaker') : null;
-          const match = audioOutDevs.find(d => d.deviceId === savedSpeaker);
-          setSelectedSpeaker(match ? match.deviceId : audioOutDevs[0].deviceId);
+          const match = devs.audioOutput.find(d => d.deviceId === savedSpeaker);
+          setSelectedSpeaker(match ? match.deviceId : devs.audioOutput[0].deviceId);
         }
       } catch (err) {
         console.warn('Could not enumerate devices:', err);
-      }
-
-      // Audio volume analyzer for speaking detection and meter
-      if (stream.getAudioTracks().length > 0) {
-        setupAudioAnalyzer(stream);
       }
 
       return stream;
@@ -102,74 +81,40 @@ export function MediaProvider({ children }) {
       setAudioEnabled(false);
       return null;
     }
-  }, [audioEnabled, videoEnabled, selectedCam, selectedMic, videoFilter]);
-
-  // Audio level analyzer loop
-  const setupAudioAnalyzer = (stream) => {
-    try {
-      if (audioContextRef.current) {
-        audioContextRef.current.close().catch(() => {});
-      }
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-      audioContextRef.current = ctx;
-
-      const source = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 64;
-      source.connect(analyser);
-      analyserRef.current = analyser;
-
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
-      const checkVolume = () => {
-        if (!analyserRef.current) return;
-        analyserRef.current.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
-        }
-        const avg = sum / bufferLength;
-        const normalized = Math.min(100, Math.round((avg / 128) * 100));
-        setAudioLevel(normalized);
-        animFrameRef.current = requestAnimationFrame(checkVolume);
-      };
-      checkVolume();
-    } catch (err) {
-      console.warn('Audio analyzer error:', err);
-    }
-  };
+  }, [audioEnabled, videoEnabled, selectedCam, selectedMic, videoFilter, mediaManager]);
 
   useEffect(() => {
+    const unsubAudio = mediaManager.on('audioLevel', (lvl) => setAudioLevel(lvl));
     initMedia();
     return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
-      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      unsubAudio();
+      mediaManager.stop();
     };
   }, []);
 
   const toggleAudio = useCallback(() => {
-    if (streamRef.current) {
-      const next = !audioEnabled;
-      streamRef.current.getAudioTracks().forEach(t => { t.enabled = next; });
-      setAudioEnabled(next);
-      return next;
-    }
-    return false;
-  }, [audioEnabled]);
+    const next = !audioEnabled;
+    mediaManager.setAudioEnabled(next);
+    setAudioEnabled(next);
+    return next;
+  }, [audioEnabled, mediaManager]);
 
-  const toggleVideo = useCallback(() => {
-    if (streamRef.current) {
-      const next = !videoEnabled;
-      streamRef.current.getVideoTracks().forEach(t => { t.enabled = next; });
-      setVideoEnabled(next);
-      return next;
+  const toggleVideo = useCallback(async () => {
+    const next = !videoEnabled;
+    mediaManager.setVideoEnabled(next);
+    setVideoEnabled(next);
+    const hasLiveVideo = mediaManager.stream?.getVideoTracks().some(t => t.readyState === 'live');
+    if (next && !hasLiveVideo) {
+      // No usable camera track (viewer mode / ended track): acquire it now
+      const stream = await initMedia(selectedCam, selectedMic);
+      if (!stream?.getVideoTracks().length) {
+        mediaManager.setVideoEnabled(false);
+        setVideoEnabled(false);
+        return false;
+      }
     }
-    return false;
-  }, [videoEnabled]);
+    return next;
+  }, [videoEnabled, mediaManager, initMedia, selectedCam, selectedMic]);
 
   const switchCamera = useCallback(async (deviceId) => {
     setSelectedCam(deviceId);
@@ -230,24 +175,7 @@ export function MediaProvider({ children }) {
     }
   }, [selectedSpeaker]);
 
-  const startScreenShare = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always' },
-        audio: true
-      });
-      setScreenStream(stream);
-      setScreenSharing(true);
-
-      stream.getVideoTracks()[0].onended = () => {
-        stopScreenShare();
-      };
-      return stream;
-    } catch (err) {
-      console.warn('Screen share canceled:', err);
-      return null;
-    }
-  }, []);
+  const [isWatchPartyMode, setIsWatchPartyMode] = useState(false);
 
   const stopScreenShare = useCallback(() => {
     if (screenStream) {
@@ -255,7 +183,30 @@ export function MediaProvider({ children }) {
     }
     setScreenStream(null);
     setScreenSharing(false);
+    setIsWatchPartyMode(false);
   }, [screenStream]);
+
+  const startScreenShare = useCallback(async (options = {}) => {
+    try {
+      const stream = await mediaManager.acquireDisplayMedia(options);
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.onended = () => {
+          stream.getTracks().forEach(t => t.stop());
+          setScreenStream(null);
+          setScreenSharing(false);
+          setIsWatchPartyMode(false);
+        };
+      }
+
+      setScreenStream(stream);
+      setScreenSharing(true);
+      return stream;
+    } catch (err) {
+      console.warn('Screen share canceled or denied:', err);
+      return null;
+    }
+  }, [mediaManager]);
 
   const setVideoFilter = useCallback(async (filter) => {
     setVideoFilterState(filter);
@@ -283,6 +234,7 @@ export function MediaProvider({ children }) {
       audioEnabled,
       videoEnabled,
       screenSharing,
+      isWatchPartyMode,
       devices,
       selectedCam,
       selectedMic,

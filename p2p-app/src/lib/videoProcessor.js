@@ -160,13 +160,23 @@ class VideoBackgroundProcessor {
       this.initMediaPipe().catch(() => {});
     }
 
-    // Reuse existing processedStream if active
+    // Synchronize processedStream with live rawStream audio track
+    const canvasTrack = this.canvas.captureStream(30).getVideoTracks()[0];
+    const audioTrack = rawStream.getAudioTracks()[0];
+
     if (!this.processedStream || !this.processedStream.active) {
-      const canvasStream = this.canvas.captureStream(30);
-      const audioTrack = rawStream.getAudioTracks()[0];
-      const combinedTracks = [...canvasStream.getVideoTracks()];
+      const combinedTracks = [];
+      if (canvasTrack) combinedTracks.push(canvasTrack);
       if (audioTrack) combinedTracks.push(audioTrack);
       this.processedStream = new MediaStream(combinedTracks);
+    } else {
+      // Remove stale audio tracks and attach the live microphone track
+      this.processedStream.getAudioTracks().forEach(t => {
+        try { this.processedStream.removeTrack(t); } catch (_) {}
+      });
+      if (audioTrack) {
+        try { this.processedStream.addTrack(audioTrack); } catch (_) {}
+      }
     }
 
     this.runLoop();
@@ -328,13 +338,15 @@ class VideoBackgroundProcessor {
 
     // 2. Render User
     if (this.activeFilter === 'astronaut') {
-      // Auto-frame face into enlarged astronaut helmet visor
+      // Auto-frame face into astronaut helmet visor with glass shield
       this.updateFaceTracking(results.image, results.segmentationMask);
-      this.renderAstronautVisor(ctx, results.image, width, height);
+      this.renderAstronautVisor(ctx, results.image, width, height, results.segmentationMask);
     } else {
-      // Standard Virtual Background / Blur: Extract person with mask
+      // Standard Virtual Background / Blur: Extract person with mask and mirror face naturally
       pCtx.save();
       pCtx.clearRect(0, 0, width, height);
+      pCtx.translate(width, 0);
+      pCtx.scale(-1, 1);
       pCtx.drawImage(results.image, 0, 0, width, height);
       pCtx.globalCompositeOperation = 'destination-in';
       pCtx.drawImage(results.segmentationMask, 0, 0, width, height);
@@ -347,19 +359,31 @@ class VideoBackgroundProcessor {
     ctx.restore();
   }
 
-  // Draw astronaut background with ~1.36x zoom centered on helmet and chest
+  // Draw astronaut background accurately fitted to frame
   drawZoomedAstronautBackground(ctx, width, height) {
     const astroImg = this.loadedImages.astronaut || this.loadedImages.moon;
     if (astroImg && astroImg.complete && astroImg.naturalWidth > 0) {
-      const iw = astroImg.naturalWidth;
-      const ih = astroImg.naturalHeight;
-      // 1.36x zoom focused on astronaut helmet and upper suit
-      const zoom = 1.36;
+      const iw = astroImg.naturalWidth;  // 1376
+      const ih = astroImg.naturalHeight; // 768
+      
+      // Visor in source astronaut.jpg is located at:
+      // Center X: 695, Center Y: 248, Radius X: 62, Radius Y: 86
+      // Cinematic portrait framing: 1.62x zoom focused on astronaut chest & helmet
+      const zoom = 1.62;
       const sw = iw / zoom;
       const sh = ih / zoom;
-      const sx = (iw - sw) * 0.50;
-      const sy = (ih - sh) * 0.17; // Focus higher on helmet
+      const sx = 695 - sw * 0.50; // Center visor horizontally
+      const sy = 248 - sh * 0.33; // Visor positioned at ~33% height (natural head level)
+
       ctx.drawImage(astroImg, sx, sy, sw, sh, 0, 0, width, height);
+
+      // Compute exact canvas visor coordinates matching the rendered background
+      this.currentVisor = {
+        vx: (695 - sx) * (width / sw),
+        vy: (248 - sy) * (height / sh),
+        vrx: 62 * (width / sw),
+        vry: 86 * (height / sh)
+      };
     } else {
       // Space starry background fallback
       const grad = ctx.createRadialGradient(width * 0.5, height * 0.3, 50, width * 0.5, height * 0.5, width * 0.7);
@@ -367,134 +391,196 @@ class VideoBackgroundProcessor {
       grad.addColorStop(1, '#05070B');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
+
+      this.currentVisor = {
+        vx: width * 0.50,
+        vy: height * 0.33,
+        vrx: width * 0.075,
+        vry: height * 0.18
+      };
     }
   }
 
-  // Render astronaut helmet visor with Auto-Framed Face + Multi-layered Glass Jar Cover
-  renderAstronautVisor(ctx, imageSource, width, height) {
-    // Zoomed Visor Geometry:
-    // With 1.36x zoom, helmet visor is significantly larger and perfectly centered
-    const vx = width * 0.502;
-    const vy = height * 0.305;
-    const vrx = width * 0.122; // ~156px radius (312px wide) vs previous 112px!
-    const vry = height * 0.228; // ~164px radius (328px tall) vs previous 126px!
+  // Render astronaut helmet visor: Only face visible, with curved glass shield & HUD
+  renderAstronautVisor(ctx, imageSource, width, height, maskSource = null) {
+    const visor = this.currentVisor || {
+      vx: width * 0.50,
+      vy: height * 0.33,
+      vrx: width * 0.075,
+      vry: height * 0.18
+    };
+    const { vx, vy, vrx, vry } = visor;
 
     const pCtx = this.personCtx;
     pCtx.save();
     pCtx.clearRect(0, 0, width, height);
 
-    // 1. Clip to helmet visor oval
+    // 1. Clip exclusively to the helmet visor aperture
     pCtx.beginPath();
     pCtx.ellipse(vx, vy, vrx, vry, 0, 0, Math.PI * 2);
     pCtx.clip();
 
-    // 2. Auto-framing: Calculate camera crop based on tracked face position
+    // 2. Helmet Interior Cavity: Deep space-black padded neck ring & lining
+    const innerCavity = pCtx.createRadialGradient(vx, vy, vrx * 0.2, vx, vy, Math.max(vrx, vry));
+    innerCavity.addColorStop(0, '#0E1522');
+    innerCavity.addColorStop(0.7, '#080B12');
+    innerCavity.addColorStop(1.0, '#020305');
+    pCtx.fillStyle = innerCavity;
+    pCtx.fillRect(vx - vrx * 1.2, vy - vry * 1.2, vrx * 2.4, vry * 2.4);
+
+    // 3. User Face Placement (Centered & ONLY Cover Face)
     const camW = imageSource.videoWidth || imageSource.width || 1280;
     const camH = imageSource.videoHeight || imageSource.height || 720;
 
-    // Use smoothed face coordinates to center face in visor
     const faceX = this.faceTracker.x;
     const faceY = this.faceTracker.y;
-    const faceScale = this.faceTracker.scale;
+    const faceScale = Math.max(0.85, this.faceTracker.scale);
 
-    // Source crop box around face
-    const cropW = Math.min(camW, (camW * 0.44) / faceScale);
-    const cropH = Math.min(camH, (camH * 0.58) / faceScale);
+    // Tight head crop (zoom in on head/face to fit inside helmet visor)
+    const cropW = Math.min(camW, (camW * 0.36) / faceScale);
+    const cropH = Math.min(camH, (camH * 0.44) / faceScale);
     const cropX = Math.max(0, Math.min(camW - cropW, faceX * camW - cropW * 0.5));
-    const cropY = Math.max(0, Math.min(camH - cropH, faceY * camH - cropH * 0.44));
+    const cropY = Math.max(0, Math.min(camH - cropH, faceY * camH - cropH * 0.46));
 
-    // Draw user face smoothly framed in the visor
-    pCtx.drawImage(
-      imageSource,
-      cropX, cropY, cropW, cropH,
-      vx - vrx * 1.05, vy - vry * 1.05, vrx * 2.1, vry * 2.1
-    );
+    // Save context for mirrored face drawing
+    pCtx.save();
+    pCtx.translate(vx, vy);
+    pCtx.scale(-1, 1); // Natural mirror orientation for user's face
+    pCtx.translate(-vx, -vy);
 
+    if (maskSource) {
+      // Use segmentation mask to extract ONLY person (no room / wall background)
+      // Draw segmented face
+      pCtx.drawImage(
+        imageSource,
+        cropX, cropY, cropW, cropH,
+        vx - vrx * 1.05, vy - vry * 1.02, vrx * 2.1, vry * 2.04
+      );
+
+      // Fade out torso & clothes below chin into the dark helmet neck collar
+      pCtx.globalCompositeOperation = 'destination-in';
+      const neckFade = pCtx.createLinearGradient(vx, vy - vry * 0.9, vx, vy + vry * 0.95);
+      neckFade.addColorStop(0.0, 'rgba(0,0,0,1)');
+      neckFade.addColorStop(0.70, 'rgba(0,0,0,1)');
+      neckFade.addColorStop(0.92, 'rgba(0,0,0,0.65)');
+      neckFade.addColorStop(1.0, 'rgba(0,0,0,0.0)');
+      pCtx.fillStyle = neckFade;
+      pCtx.fillRect(vx - vrx * 1.2, vy - vry * 1.2, vrx * 2.4, vry * 2.4);
+    } else {
+      // Fallback: Tight oval vignette around face only
+      pCtx.drawImage(
+        imageSource,
+        cropX, cropY, cropW, cropH,
+        vx - vrx * 1.05, vy - vry * 1.02, vrx * 2.1, vry * 2.04
+      );
+
+      pCtx.globalCompositeOperation = 'destination-in';
+      const softFaceVignette = pCtx.createRadialGradient(
+        vx, vy - vry * 0.05, vrx * 0.55,
+        vx, vy, Math.max(vrx, vry) * 0.98
+      );
+      softFaceVignette.addColorStop(0.0, 'rgba(0,0,0,1)');
+      softFaceVignette.addColorStop(0.72, 'rgba(0,0,0,0.95)');
+      softFaceVignette.addColorStop(1.0, 'rgba(0,0,0,0.0)');
+      pCtx.fillStyle = softFaceVignette;
+      pCtx.fillRect(vx - vrx * 1.2, vy - vry * 1.2, vrx * 2.4, vry * 2.4);
+    }
+    pCtx.restore();
     pCtx.restore();
 
-    // Composite face onto main canvas
+    // Composite face inside helmet onto main canvas
     ctx.drawImage(this.personCanvas, 0, 0);
 
-    // 3. MULTI-LAYERED CURVED GLASS JAR VISOR COVER:
+    // ============================================================
+    // 4. REALISTIC MULTI-LAYERED CURVED GLASS HELMET VISOR SHIELD
+    // ============================================================
     ctx.save();
-
-    // Visor clipping path for glass layers
     ctx.beginPath();
     ctx.ellipse(vx, vy, vrx, vry, 0, 0, Math.PI * 2);
     ctx.clip();
 
-    // Layer A: Spherical Glass Curvature Shadow / Depth Vignette
-    const vignetteGrad = ctx.createRadialGradient(
-      vx, vy - vry * 0.15, vrx * 0.45,
+    // Glass Layer 1: Spherical Convex Depth & Edge Vignette
+    const glassDepth = ctx.createRadialGradient(
+      vx - vrx * 0.15, vy - vry * 0.20, vrx * 0.35,
       vx, vy, Math.max(vrx, vry)
     );
-    vignetteGrad.addColorStop(0, 'rgba(0, 10, 20, 0.0)');
-    vignetteGrad.addColorStop(0.65, 'rgba(0, 15, 30, 0.12)');
-    vignetteGrad.addColorStop(0.9, 'rgba(5, 10, 25, 0.45)');
-    vignetteGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.82)');
-    ctx.fillStyle = vignetteGrad;
+    glassDepth.addColorStop(0, 'rgba(0, 10, 24, 0.0)');
+    glassDepth.addColorStop(0.65, 'rgba(2, 12, 28, 0.14)');
+    glassDepth.addColorStop(0.88, 'rgba(4, 16, 36, 0.38)');
+    glassDepth.addColorStop(1.0, 'rgba(1, 6, 16, 0.76)');
+    ctx.fillStyle = glassDepth;
     ctx.fill();
 
-    // Layer B: Subtle Gold / Cyan Astronaut Protective Sheen
-    const sheenGrad = ctx.createLinearGradient(vx - vrx, vy - vry, vx + vrx, vy + vry);
-    sheenGrad.addColorStop(0, 'rgba(218, 165, 32, 0.12)'); // subtle Apollo gold tint
-    sheenGrad.addColorStop(0.5, 'rgba(80, 200, 255, 0.04)');
-    sheenGrad.addColorStop(1, 'rgba(255, 215, 0, 0.08)');
-    ctx.fillStyle = sheenGrad;
+    // Glass Layer 2: Protective Apollo Gold & Celestial Blue Reflective Sheen
+    const shieldSheen = ctx.createLinearGradient(vx - vrx, vy - vry, vx + vrx, vy + vry);
+    shieldSheen.addColorStop(0.0, 'rgba(235, 185, 45, 0.20)');  // Apollo gold coating
+    shieldSheen.addColorStop(0.45, 'rgba(255, 220, 100, 0.08)');
+    shieldSheen.addColorStop(0.70, 'rgba(70, 190, 255, 0.06)'); // Earth reflection
+    shieldSheen.addColorStop(1.0, 'rgba(220, 175, 40, 0.14)');
+    ctx.fillStyle = shieldSheen;
     ctx.fill();
 
-    // Layer C: Primary Curved Specular Glare Arc (Sun / Celestial Reflection)
+    // Glass Layer 3: Primary Curved Specular Sunlight Glare Arc
     ctx.save();
     ctx.beginPath();
-    ctx.ellipse(vx - vrx * 0.28, vy - vry * 0.35, vrx * 0.65, vry * 0.45, -0.35, 0, Math.PI * 2);
-    const sunGlare = ctx.createLinearGradient(
-      vx - vrx * 0.6, vy - vry * 0.7,
+    ctx.ellipse(vx - vrx * 0.32, vy - vry * 0.40, vrx * 0.62, vry * 0.42, -0.32, 0, Math.PI * 2);
+    const sunGlareArc = ctx.createLinearGradient(
+      vx - vrx * 0.70, vy - vry * 0.75,
       vx, vy
     );
-    sunGlare.addColorStop(0, 'rgba(255, 255, 255, 0.48)');
-    sunGlare.addColorStop(0.3, 'rgba(220, 245, 255, 0.22)');
-    sunGlare.addColorStop(0.7, 'rgba(180, 225, 255, 0.04)');
-    sunGlare.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = sunGlare;
+    sunGlareArc.addColorStop(0.0, 'rgba(255, 255, 255, 0.68)');
+    sunGlareArc.addColorStop(0.25, 'rgba(255, 255, 255, 0.32)');
+    sunGlareArc.addColorStop(0.65, 'rgba(210, 240, 255, 0.06)');
+    sunGlareArc.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+    ctx.fillStyle = sunGlareArc;
     ctx.fill();
     ctx.restore();
 
-    // Layer D: Secondary Earthlight Rim Reflection (Lower-Right Curved Glow)
+    // Glass Layer 4: Secondary Horizon / Earthlight Reflection (Bottom-Right Rim)
     ctx.save();
     ctx.beginPath();
-    ctx.ellipse(vx + vrx * 0.35, vy + vry * 0.45, vrx * 0.55, vry * 0.35, 0.4, 0, Math.PI * 2);
+    ctx.ellipse(vx + vrx * 0.36, vy + vry * 0.44, vrx * 0.52, vry * 0.34, 0.36, 0, Math.PI * 2);
     const earthGlow = ctx.createLinearGradient(
-      vx + vrx * 0.6, vy + vry * 0.7,
+      vx + vrx * 0.65, vy + vry * 0.70,
       vx, vy
     );
-    earthGlow.addColorStop(0, 'rgba(80, 190, 255, 0.30)');
-    earthGlow.addColorStop(0.5, 'rgba(80, 190, 255, 0.08)');
-    earthGlow.addColorStop(1, 'rgba(80, 190, 255, 0)');
+    earthGlow.addColorStop(0.0, 'rgba(80, 210, 255, 0.36)');
+    earthGlow.addColorStop(0.50, 'rgba(80, 200, 255, 0.10)');
+    earthGlow.addColorStop(1.0, 'rgba(80, 190, 255, 0.0)');
     ctx.fillStyle = earthGlow;
     ctx.fill();
     ctx.restore();
 
-    // Layer E: Futuristic Visor HUD Telemetry
-    ctx.font = '600 10px ui-monospace, SFMono-Regular, Menlo, monospace';
-    ctx.fillStyle = 'rgba(0, 240, 255, 0.65)';
-    ctx.shadowColor = 'rgba(0, 240, 255, 0.8)';
-    ctx.shadowBlur = 4;
-    ctx.fillText('● O₂: 98.4%', vx - vrx * 0.65, vy + vry * 0.78);
-    ctx.fillText('SEAL: LOCK', vx + vrx * 0.15, vy + vry * 0.78);
+    // Glass Layer 5: Futuristic Visor HUD Telemetry (100% Upright & Crisp)
+    ctx.save();
+    ctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillStyle = '#00F0FF';
+    ctx.shadowColor = 'rgba(0, 240, 255, 0.9)';
+    ctx.shadowBlur = 5;
+
+    // Left HUD indicators
+    ctx.fillText('● EVA ACTIVE', vx - vrx * 0.72, vy - vry * 0.66);
+    ctx.fillText('O₂ 98.4%', vx - vrx * 0.72, vy + vry * 0.76);
+
+    // Right HUD telemetry
+    ctx.fillText('P 4.3 PSI', vx + vrx * 0.18, vy + vry * 0.76);
+    ctx.fillText('NOMINAL', vx + vrx * 0.18, vy - vry * 0.66);
     ctx.restore();
 
-    // 4. Heavy Helmet Gasket Rim & Metallic Bezel (Outside Visor)
+    ctx.restore();
+
+    // 5. Visor Gasket & Metallic Locking Rim
     ctx.save();
     ctx.beginPath();
     ctx.ellipse(vx, vy, vrx, vry, 0, 0, Math.PI * 2);
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = '#101418'; // Dark rubberized helmet gasket
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#12161D'; // Dark rubberized helmet seal gasket
     ctx.stroke();
 
     ctx.beginPath();
     ctx.ellipse(vx, vy, vrx + 2, vry + 2, 0, 0, Math.PI * 2);
-    ctx.lineWidth = 1.8;
-    ctx.strokeStyle = 'rgba(218, 165, 32, 0.60)'; // Fine Apollo gold metallic seal
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(218, 165, 32, 0.75)'; // Fine gold metallic bezel
     ctx.stroke();
     ctx.restore();
   }

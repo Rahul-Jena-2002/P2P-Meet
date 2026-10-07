@@ -12,6 +12,7 @@ import P2PGrid from './P2PGrid';
 import P2PControls from './P2PControls';
 import P2PChatDrawer from './P2PChatDrawer';
 import P2PParticipantsDrawer from './P2PParticipantsDrawer';
+import P2PWhiteboard from './P2PWhiteboard';
 import { soundSynth } from '../lib/soundEffects';
 
 export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
@@ -26,6 +27,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
 
   const [peers, setPeers] = useState({});
   const [messages, setMessages] = useState([]);
+  const [currentUserName, setCurrentUserName] = useState(meetingInfo.name);
   const [activePanel, setActivePanel] = useState(null); // 'chat' | 'participants' | 'watch'
   const [viewMode, setViewMode] = useState('gallery'); // 'gallery' | 'speaker'
   const [reactions, setReactions] = useState([]);
@@ -68,8 +70,16 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     setControlsVisible(v => !v);
   };
 
+  const spawnReaction = (emoji) => {
+    const id = Date.now() + Math.random();
+    const left = Math.floor(Math.random() * 80) + 10;
+    setReactions(r => [...r, { id, emoji, left }]);
+    setTimeout(() => {
+      setReactions(r => r.filter(item => item.id !== id));
+    }, 2800);
+  };
+
   useEffect(() => {
-    resetHideTimer();
     const handleActivity = () => resetHideTimer();
     window.addEventListener('mousemove', handleActivity);
     window.addEventListener('keydown', handleActivity);
@@ -102,6 +112,101 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     currentTime: 0
   });
 
+  // Network quality & adaptive bitrate state
+  const [networkStats, setNetworkStats] = useState({ quality: 'excellent', rtt: 35, lossRate: 0, scaleFactor: 1.0 });
+
+  // Authentic Zoom feature states
+  const [raisedHands, setRaisedHands] = useState([]); // user IDs with hands raised
+  const [whiteboardActive, setWhiteboardActive] = useState(false);
+  const [incomingWhiteboardStroke, setIncomingWhiteboardStroke] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [securitySettings, setSecuritySettings] = useState({
+    lockMeeting: false,
+    allowScreenShare: true,
+    allowChat: true,
+    allowRename: true,
+    allowUnmute: true
+  });
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+
+  // Multi-Speaker Active Voice Tracking (Detects simultaneous speakers across local mic & all remote peers)
+  const [speakingUserIds, setSpeakingUserIds] = useState([]);
+  const remoteAnalysersRef = useRef(new Map()); // peerId -> { analyser, source, ctx }
+
+  useEffect(() => {
+    // Synchronize remote stream audio analysers
+    const peerEntries = Object.entries(peers);
+    const activePeerIds = new Set(peerEntries.map(([id]) => id));
+
+    // Cleanup disconnected peers
+    for (const [id, node] of remoteAnalysersRef.current.entries()) {
+      if (!activePeerIds.has(id)) {
+        try {
+          node.source?.disconnect();
+          node.ctx?.close().catch(() => {});
+        } catch (_) {}
+        remoteAnalysersRef.current.delete(id);
+      }
+    }
+
+    // Attach analysers for peers with audio tracks
+    peerEntries.forEach(([peerId, peer]) => {
+      if (peer.stream && peer.isAudioOn !== false) {
+        const audioTracks = peer.stream.getAudioTracks();
+        if (audioTracks.length > 0 && !remoteAnalysersRef.current.has(peerId)) {
+          try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+              const ctx = new AudioContext();
+              const source = ctx.createMediaStreamSource(peer.stream);
+              const analyser = ctx.createAnalyser();
+              analyser.fftSize = 64;
+              source.connect(analyser); // Analyser only, no feedback destination
+              remoteAnalysersRef.current.set(peerId, { analyser, source, ctx });
+            }
+          } catch (e) {
+            console.warn('[Audio] Failed to bind remote analyser:', e);
+          }
+        }
+      }
+    });
+  }, [peers]);
+
+  // Periodic multi-speaker volume check
+  useEffect(() => {
+    const dataBuffer = new Uint8Array(32);
+    const interval = setInterval(() => {
+      const activeSpeakers = [];
+
+      // 1. Local user speaking?
+      if (audioEnabled && audioLevel > 18) {
+        activeSpeakers.push(meetingInfo.userId);
+      }
+
+      // 2. Any remote peers speaking simultaneously?
+      for (const [peerId, { analyser }] of remoteAnalysersRef.current.entries()) {
+        try {
+          analyser.getByteFrequencyData(dataBuffer);
+          let sum = 0;
+          for (let i = 0; i < dataBuffer.length; i++) {
+            sum += dataBuffer[i];
+          }
+          const avg = sum / dataBuffer.length;
+          if (avg > 14) {
+            activeSpeakers.push(peerId);
+          }
+        } catch (_) {}
+      }
+
+      setSpeakingUserIds(activeSpeakers);
+    }, 120);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [audioEnabled, audioLevel, meetingInfo.userId]);
+
   const meshRef = useRef(null);
 
   useEffect(() => {
@@ -110,17 +215,22 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
       userId: meetingInfo.userId,
       userName: meetingInfo.name,
       stream: localStream,
+      onNetworkStats: (stats) => {
+        setNetworkStats(stats);
+      },
       onPeerJoin: (peerId, name) => {
         setPeers(prev => ({
           ...prev,
           [peerId]: {
+            ...(prev[peerId] || {}),
             id: peerId,
-            name: name || 'Participant',
-            stream: null,
-            isHost: false,
-            isAudioOn: true,
-            isVideoOn: true,
-            isScreenSharing: false
+            name: name || prev[peerId]?.name || 'Participant',
+            stream: prev[peerId]?.stream || null,
+            screenStream: prev[peerId]?.screenStream || null,
+            isHost: peerId.startsWith('host-') || prev[peerId]?.isHost || false,
+            isAudioOn: prev[peerId]?.isAudioOn ?? true,
+            isVideoOn: prev[peerId]?.isVideoOn ?? true,
+            isScreenSharing: prev[peerId]?.isScreenSharing ?? false
           }
         }));
         // Notify new joiner of current state
@@ -128,12 +238,16 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           type: 'PEER_MEDIA_STATE',
           userId: meetingInfo.userId,
           userName: meetingInfo.name,
+          isHost: meetingInfo.isHost,
           isScreenSharing: screenSharing,
+          screenTrackId: screenStream?.getVideoTracks()[0]?.id || null,
+          cameraTrackId: localStream?.getVideoTracks()[0]?.id || null,
           isVideoOn: videoEnabled,
           isAudioOn: audioEnabled
         });
       },
       onPeerLeave: (peerId) => {
+        const isHostLeaving = peerId.startsWith('host-') || peers[peerId]?.isHost;
         setPeers(prev => {
           const updated = { ...prev };
           delete updated[peerId];
@@ -149,6 +263,14 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             requesterName: null
           });
         }
+        // If the host left, end the meeting automatically for all participants
+        if (isHostLeaving && !meetingInfo.isHost) {
+          try {
+            sessionStorage.removeItem('p2pmeet_session');
+          } catch (_) {}
+          alert('The host has left or disconnected. The meeting has ended.');
+          onLeave();
+        }
       },
       onStream: (peerId, remoteStream, name) => {
         setPeers(prev => ({
@@ -158,6 +280,17 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             id: peerId,
             name: name || prev[peerId]?.name || 'Participant',
             stream: remoteStream
+          }
+        }));
+      },
+      onScreenStream: (peerId, remoteScreenStream) => {
+        setPeers(prev => ({
+          ...prev,
+          [peerId]: {
+            ...(prev[peerId] || {}),
+            id: peerId,
+            screenStream: remoteScreenStream,
+            isScreenSharing: !!remoteScreenStream
           }
         }));
       },
@@ -171,17 +304,25 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           spawnReaction(emoji);
           soundSynth.playEmojiSound(emoji);
         } else if (type === 'PEER_MEDIA_STATE') {
-          setPeers(prev => ({
-            ...prev,
-            [data.userId]: {
-              ...(prev[data.userId] || {}),
-              id: data.userId,
-              name: data.userName || prev[data.userId]?.name,
-              isScreenSharing: !!data.isScreenSharing,
-              isVideoOn: data.isVideoOn !== false,
-              isAudioOn: data.isAudioOn !== false
+          const targetId = data.userId || data.senderId;
+          if (targetId) {
+            if (data.screenTrackId) {
+              meshRef.current?.setPeerScreenTrack?.(targetId, data.screenTrackId);
             }
-          }));
+            setPeers(prev => ({
+              ...prev,
+              [targetId]: {
+                ...(prev[targetId] || {}),
+                id: targetId,
+                name: data.userName || data.senderName || prev[targetId]?.name || 'Participant',
+                isHost: data.isHost !== undefined ? data.isHost : (targetId.startsWith('host-') || prev[targetId]?.isHost || false),
+                isScreenSharing: !!data.isScreenSharing,
+                screenStream: data.isScreenSharing ? prev[targetId]?.screenStream : null,
+                isVideoOn: data.isVideoOn !== false,
+                isAudioOn: data.isAudioOn !== false
+              }
+            }));
+          }
         } else if (type === 'REMOTE_REQ') {
           setRemoteControlState(s => ({
             ...s,
@@ -220,6 +361,36 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           setWatchTogetherState(prev => ({ ...prev, ...data.sync }));
         } else if (type === 'WATCH_STOP') {
           setWatchTogetherState({ active: false, url: '', isPlaying: false, currentTime: 0 });
+        } else if (type === 'HAND_RAISE') {
+          const targetId = data.userId;
+          if (data.raised) {
+            setRaisedHands(prev => prev.includes(targetId) ? prev : [...prev, targetId]);
+          } else {
+            setRaisedHands(prev => prev.filter(id => id !== targetId));
+          }
+        } else if (type === 'HAND_LOWER') {
+          setRaisedHands(prev => prev.filter(id => id !== data.userId));
+        } else if (type === 'MUTE_ALL') {
+          if (!meetingInfo.isHost) {
+            toggleAudio();
+            alert('The host has muted all participants.');
+          }
+        } else if (type === 'SECURITY_UPDATE') {
+          setSecuritySettings(prev => ({ ...prev, ...data.settings }));
+        } else if (type === 'WHITEBOARD_STROKE') {
+          setIncomingWhiteboardStroke(data.stroke);
+          setWhiteboardActive(true);
+        } else if (type === 'RENAME_USER') {
+          setPeers(prev => ({
+            ...prev,
+            [data.userId]: { ...prev[data.userId], name: data.newName }
+          }));
+        } else if (type === 'MEETING_ENDED') {
+          try {
+            sessionStorage.removeItem('p2pmeet_session');
+          } catch (_) {}
+          alert('The host has ended the meeting for all participants.');
+          onLeave();
         }
       }
     });
@@ -235,26 +406,22 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   // Update stream and broadcast state when screen share or camera changes
   useEffect(() => {
     if (meshRef.current) {
-      meshRef.current.replaceStream(screenStream || localStream);
+      meshRef.current.replaceStream({
+        localStream,
+        screenStream: screenSharing ? screenStream : null
+      });
       meshRef.current.broadcast({
         type: 'PEER_MEDIA_STATE',
         userId: meetingInfo.userId,
-        userName: meetingInfo.name,
+        userName: currentUserName,
         isScreenSharing: screenSharing,
+        screenTrackId: screenStream?.getVideoTracks()[0]?.id || null,
+        cameraTrackId: localStream?.getVideoTracks()[0]?.id || null,
         isVideoOn: videoEnabled,
         isAudioOn: audioEnabled
       });
     }
-  }, [localStream, screenStream, screenSharing, videoEnabled, audioEnabled]);
-
-  const spawnReaction = (emoji) => {
-    const id = Date.now() + Math.random();
-    const left = Math.floor(Math.random() * 80) + 10;
-    setReactions(r => [...r, { id, emoji, left }]);
-    setTimeout(() => {
-      setReactions(r => r.filter(item => item.id !== id));
-    }, 2800);
-  };
+  }, [localStream, screenStream, screenSharing, videoEnabled, audioEnabled, currentUserName]);
 
   const handleSendReaction = (emoji) => {
     spawnReaction(emoji);
@@ -389,16 +556,135 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     });
   };
 
+  // Authentic Zoom Feature Handlers
+  const handleToggleRaiseHand = () => {
+    const isUp = raisedHands.includes(meetingInfo.userId);
+    const next = !isUp;
+    setRaisedHands(prev => next ? [...prev, meetingInfo.userId] : prev.filter(id => id !== meetingInfo.userId));
+    meshRef.current?.broadcast({
+      type: 'HAND_RAISE',
+      userId: meetingInfo.userId,
+      raised: next
+    });
+  };
+
+  const handleLowerHand = (targetId) => {
+    setRaisedHands(prev => prev.filter(id => id !== targetId));
+    meshRef.current?.broadcast({
+      type: 'HAND_LOWER',
+      userId: targetId
+    });
+  };
+
+  const handleMuteAll = () => {
+    meshRef.current?.broadcast({
+      type: 'MUTE_ALL'
+    });
+  };
+
+  const handleRenameUser = (targetId, newName) => {
+    if (targetId === meetingInfo.userId) {
+      setCurrentUserName(newName);
+    } else {
+      setPeers(prev => ({
+        ...prev,
+        [targetId]: { ...prev[targetId], name: newName }
+      }));
+    }
+    meshRef.current?.broadcast({
+      type: 'RENAME_USER',
+      userId: targetId,
+      newName
+    });
+  };
+
+  const handleUpdateSecurity = (newSettings) => {
+    const updated = { ...securitySettings, ...newSettings };
+    setSecuritySettings(updated);
+    meshRef.current?.broadcast({
+      type: 'SECURITY_UPDATE',
+      settings: updated
+    });
+  };
+
+  const handleToggleRecording = () => {
+    if (isRecording) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      setIsRecording(false);
+    } else {
+      try {
+        const streamToRecord = screenStream || localStream;
+        if (!streamToRecord) {
+          alert('No active camera or screen stream to record.');
+          return;
+        }
+        const recorder = new MediaRecorder(streamToRecord, { mimeType: 'video/webm' });
+        recordedChunksRef.current = [];
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+        };
+        recorder.onstop = () => {
+          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `zoom-meeting-record-${Date.now()}.webm`;
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+        recorder.start(1000);
+        mediaRecorderRef.current = recorder;
+        setIsRecording(true);
+      } catch (e) {
+        console.warn('Recording error:', e);
+        alert('Could not start recording: ' + e.message);
+      }
+    }
+  };
+
+  const handleBroadcastWhiteboardStroke = (stroke) => {
+    meshRef.current?.broadcast({
+      type: 'WHITEBOARD_STROKE',
+      stroke
+    });
+  };
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (meetingInfo.isHost) {
+        meshRef.current?.broadcast({
+          type: 'MEETING_ENDED'
+        });
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [meetingInfo.isHost]);
+
+  const handleLeaveMeeting = (endForAll = false) => {
+    if (meetingInfo.isHost || endForAll) {
+      meshRef.current?.broadcast({
+        type: 'MEETING_ENDED'
+      });
+    }
+    try {
+      sessionStorage.removeItem('p2pmeet_session');
+    } catch (_) {}
+    onLeave();
+  };
+
   const localUserObj = {
     id: meetingInfo.userId,
-    name: meetingInfo.name,
+    name: currentUserName,
     isHost: meetingInfo.isHost
   };
 
   const participantList = [
     {
       id: meetingInfo.userId,
-      name: `${meetingInfo.name} (You)`,
+      name: `${currentUserName} (You)`,
       isHost: meetingInfo.isHost,
       isAudioOn: audioEnabled,
       isVideoOn: videoEnabled
@@ -412,16 +698,10 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     }))
   ];
 
-  useEffect(() => {
-    if (meshRef.current && localStream) {
-      meshRef.current.replaceStream(localStream);
-    }
-  }, [localStream]);
-
   return (
-    <div className="relative w-screen h-[100dvh] max-h-[100dvh] bg-[#1C1C1C] text-[#F5E8D8] overflow-hidden flex select-none" style={{ height: '100dvh' }}>
+    <div className="relative w-screen h-[100dvh] max-h-[100dvh] bg-[#18181B] text-white overflow-hidden flex select-none" style={{ height: '100dvh' }}>
       {/* 1. Main Video Stage & Floating Overlay Area (resizes flexibly when drawers open) */}
-      <div onClick={handleStageClick} className="flex-1 h-full w-full relative overflow-hidden flex flex-col">
+      <div onClick={handleStageClick} className="flex-1 h-full w-full relative overflow-hidden flex flex-col bg-[#141416]">
         {/* Fullscreen Video Canvas */}
         <div className="w-full h-full relative">
           <P2PGrid
@@ -435,7 +715,9 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             viewMode={viewMode}
             isMobile={isMobile}
             isMobileLandscape={isMobileLandscape}
-            speakingUserId={audioLevel > 20 ? meetingInfo.userId : null}
+            speakingUserId={speakingUserIds[0] || null}
+            speakingUserIds={speakingUserIds}
+            raisedHands={raisedHands}
             remoteControlState={remoteControlState}
             onRequestRemoteControl={handleRequestRemoteControl}
             onGrantRemoteControl={handleGrantRemoteControl}
@@ -449,17 +731,31 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             onWatchTogetherSync={handleWatchTogetherSync}
             onStopWatchTogether={handleStopWatchTogether}
           />
+
+          {/* Interactive Zoom Whiteboard Overlay */}
+          {whiteboardActive && (
+            <P2PWhiteboard
+              onClose={() => setWhiteboardActive(false)}
+              onBroadcastStroke={handleBroadcastWhiteboardStroke}
+              incomingStroke={incomingWhiteboardStroke}
+            />
+          )}
         </div>
 
         {/* 2. Floating Top Header (stays scoped to video stage area) */}
         <P2PHeader
           title={meetingInfo.title}
           roomCode={meetingInfo.code}
+          hostName={meetingInfo.name}
           viewMode={viewMode}
-          onToggleViewMode={() => setViewMode(v => v === 'gallery' ? 'speaker' : 'gallery')}
+          onToggleViewMode={(mode) => setViewMode(v => mode || (v === 'gallery' ? 'speaker' : 'gallery'))}
+          isRecording={isRecording}
+          onStopRecording={handleToggleRecording}
+          onToggleWhiteboard={() => setWhiteboardActive(v => !v)}
           isVisible={controlsVisible || !!activePanel}
           isMobile={isMobile}
           isMobileLandscape={isMobileLandscape}
+          networkStats={networkStats}
         />
 
         {/* Mouse proximity trigger for bottom dock */}
@@ -476,7 +772,15 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           activePanel={activePanel}
           onTogglePanel={(panel) => setActivePanel(p => p === panel ? null : panel)}
           onSendReaction={handleSendReaction}
-          onLeaveMeeting={onLeave}
+          onLeaveMeeting={handleLeaveMeeting}
+          isHandRaised={raisedHands.includes(meetingInfo.userId)}
+          onToggleRaiseHand={handleToggleRaiseHand}
+          isRecording={isRecording}
+          onToggleRecording={handleToggleRecording}
+          onToggleWhiteboard={() => setWhiteboardActive(v => !v)}
+          whiteboardActive={whiteboardActive}
+          securitySettings={securitySettings}
+          onUpdateSecurity={handleUpdateSecurity}
           onStartWatchTogether={handleStartWatchTogether}
           onStopWatchTogether={handleStopWatchTogether}
           watchTogetherActive={watchTogetherState.active}
@@ -486,7 +790,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
         />
       </div>
 
-      {/* 4. Overlays with Auto Floating Video (Chat & Participants) */}
+      {/* 4. Docked Side Panels (Chat & Participants) */}
       {activePanel === 'chat' && (
         <P2PChatDrawer
           messages={messages}
@@ -502,13 +806,27 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
       {activePanel === 'participants' && (
         <P2PParticipantsDrawer
           participants={participantList}
+          currentUserId={meetingInfo.userId}
           isHost={meetingInfo.isHost}
           roomCode={meetingInfo.code}
+          raisedHands={raisedHands}
+          onLowerHand={handleLowerHand}
+          onMuteAll={handleMuteAll}
+          onRenameUser={handleRenameUser}
           onClose={() => setActivePanel(null)}
         />
       )}
 
-      {/* 5. Floating Reaction Animations */}
+      {/* 5. Interactive Excalidraw & Eraser.io Collaborative Whiteboard */}
+      {whiteboardActive && (
+        <P2PWhiteboard
+          onClose={() => setWhiteboardActive(false)}
+          onBroadcastStroke={handleBroadcastWhiteboardStroke}
+          incomingStroke={incomingWhiteboardStroke}
+        />
+      )}
+
+      {/* 6. Floating Reaction Animations */}
       <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
         {reactions.map((r) => (
           <div

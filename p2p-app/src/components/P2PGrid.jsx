@@ -18,6 +18,8 @@ export default function P2PGrid({
   isScreenSharing,
   viewMode, // 'gallery' | 'speaker'
   speakingUserId,
+  speakingUserIds = [], // Multi-speaker support
+  raisedHands = [], // Hand raised user IDs
   remoteControlState, // { isControlling, isBeingControlled, controllerName, requestPending, requesterName }
   onRequestRemoteControl,
   onGrantRemoteControl,
@@ -34,6 +36,7 @@ export default function P2PGrid({
   isMobileLandscape: propIsMobileLandscape
 }) {
   const [pinnedId, setPinnedId] = useState(null);
+  const [gridOffset, setGridOffset] = useState(0);
   const [showGrantMenu, setShowGrantMenu] = useState(false);
   const [mobileSwapPip, setMobileSwapPip] = useState(false);
   const [pipMinimized, setPipMinimized] = useState(false);
@@ -62,30 +65,116 @@ export default function P2PGrid({
   const isMobileLandscape = propIsMobileLandscape ?? localIsLandscape;
 
   const peerList = Object.values(peers);
-  const totalCount = 1 + peerList.length;
 
-  // Active or pinned item for presentation mode
-  const isSomeoneSharing = isScreenSharing || peerList.some(p => p.isScreenSharing);
-  
-  // Who is sharing?
-  const sharingPeer = isScreenSharing
-    ? {
-        id: localUser.id,
-        name: `${localUser.name} (Screen)`,
-        stream: screenStream,
-        isLocal: true,
-        isHost: localUser.isHost,
-        isAudioOn: true,
-        isVideoOn: true, // Screen share video is ALWAYS active!
-        isScreenSharing: true
-      }
-    : peerList.find(p => p.isScreenSharing);
+  // Multi-Speaker Active Voice Helper
+  const isUserSpeaking = (id) => {
+    if (!id) return false;
+    if (Array.isArray(speakingUserIds) && speakingUserIds.includes(id)) return true;
+    if (speakingUserId === id) return true;
+    return false;
+  };
 
-  const heroTile = sharingPeer || (pinnedId
-    ? (pinnedId === localUser.id
-        ? { id: localUser.id, name: localUser.name, stream: localStream, isLocal: true, isHost: localUser.isHost, isAudioOn, isVideoOn, isScreenSharing: false }
-        : peers[pinnedId])
-    : (viewMode === 'speaker' && peerList.length > 0 ? peerList[0] : null));
+  // Distinct local tiles for camera and screen
+  const localCameraTile = {
+    id: localUser.id,
+    peerId: localUser.id,
+    name: localUser.name,
+    stream: localStream,
+    isLocal: true,
+    isHost: localUser.isHost,
+    isAudioOn,
+    isVideoOn,
+    isScreenSharing: false,
+    isSpeaking: isUserSpeaking(localUser.id),
+    isHandRaised: raisedHands.includes(localUser.id)
+  };
+
+  const localScreenTile = screenStream ? {
+    id: `${localUser.id}-screen`,
+    peerId: localUser.id,
+    name: `${localUser.name} (Screen)`,
+    stream: screenStream,
+    isLocal: true,
+    isHost: localUser.isHost,
+    isAudioOn: true,
+    isVideoOn: true,
+    isScreenSharing: true,
+    isSpeaking: false,
+    isHandRaised: false
+  } : null;
+
+  // Remote camera tiles
+  const remoteCameraTiles = peerList.map(p => ({
+    id: p.id,
+    peerId: p.id,
+    name: p.name,
+    stream: p.stream,
+    isLocal: false,
+    isHost: p.isHost,
+    isAudioOn: p.isAudioOn,
+    isVideoOn: p.isVideoOn,
+    isScreenSharing: false,
+    isSpeaking: isUserSpeaking(p.id),
+    isHandRaised: raisedHands.includes(p.id)
+  }));
+
+  // Remote screen tiles (if peer is sharing screen via dual transceivers or fallback)
+  const remoteScreenTiles = peerList
+    .filter(p => p.isScreenSharing || p.screenStream)
+    .map(p => ({
+      id: `${p.id}-screen`,
+      peerId: p.id,
+      name: `${p.name} (Screen)`,
+      stream: p.screenStream || p.stream,
+      isLocal: false,
+      isHost: p.isHost,
+      isAudioOn: true,
+      isVideoOn: true,
+      isScreenSharing: true,
+      isSpeaking: false,
+      isHandRaised: false
+    }));
+
+  const allTiles = [
+    localCameraTile,
+    ...(localScreenTile ? [localScreenTile] : []),
+    ...remoteScreenTiles,
+    ...remoteCameraTiles
+  ];
+
+  const sharingTile = (isScreenSharing && localScreenTile)
+    ? localScreenTile
+    : (remoteScreenTiles[0] || null);
+
+  // 1. PIN has HIGHEST priority (Zoom model: user pin overrides default sharing/speaker view)
+  // 1. PIN has HIGHEST priority (Zoom model: user pin overrides default sharing/speaker view)
+  let heroTile = null;
+  if (pinnedId) {
+    heroTile = allTiles.find(t => t.id === pinnedId) || peers[pinnedId] || null;
+  }
+
+  // If pinned source disappears, automatically clear the pin and return to normal layout
+  React.useEffect(() => {
+    if (pinnedId && !allTiles.some(t => t.id === pinnedId)) {
+      setPinnedId(null);
+    }
+  }, [pinnedId, allTiles]);
+
+  // 2. If nothing pinned, active screen share becomes the hero presentation
+  if (!heroTile && sharingTile) {
+    heroTile = sharingTile;
+  }
+
+  // 3. If in speaker mode and no share/pin, highlight the active speaker or first peer
+  if (!heroTile && viewMode === 'speaker') {
+    const speakerPeer = remoteCameraTiles.find(p => isUserSpeaking(p.id));
+    heroTile = speakerPeer || (remoteCameraTiles.length > 0 ? remoteCameraTiles[0] : null);
+  }
+
+  // Side tiles in presentation layout (up to 8 other sources as secondary cards)
+  const sideTiles = allTiles.filter(t => t.id !== heroTile?.id).slice(0, 8);
+
+  const totalCount = allTiles.length;
 
   // Handle Remote Mouse Interaction on Screen Share (RemoteDesk + Zoom style)
   const handleMouseMove = (e) => {
@@ -110,8 +199,12 @@ export default function P2PGrid({
   if (isMobile) {
     // 1. Mobile Screen Share / Presentation Mode: 100% Fullscreen Presentation Edge-to-Edge
     if (heroTile || watchTogetherState?.active) {
-      const pipStream = heroTile?.isLocal ? (peerList[0]?.stream || null) : (screenStream || localStream);
-      const pipName = heroTile?.isLocal ? (peerList[0]?.name || 'Peer') : localUser.name;
+      const pipStream = heroTile?.isLocal
+        ? (remoteCameraTiles[0]?.stream || null)
+        : (heroTile?.isScreenSharing ? (peers[heroTile.peerId]?.stream || localStream) : (screenStream || localStream));
+      const pipName = heroTile?.isLocal
+        ? (remoteCameraTiles[0]?.name || 'Peer')
+        : (heroTile?.isScreenSharing ? (peers[heroTile.peerId]?.name || localUser.name) : localUser.name);
 
       return (
         <div className={`absolute inset-0 w-full h-full bg-black overflow-hidden flex flex-col ${
@@ -203,7 +296,9 @@ export default function P2PGrid({
               isHost={mainUser.isHost}
               isAudioOn={mainUser.isAudioOn}
               isVideoOn={mainUser.isVideoOn}
-              isSpeaking={speakingUserId === mainUser.id}
+              isSpeaking={isUserSpeaking(mainUser.id)}
+              isPinned={pinnedId === mainUser.id}
+              onPinToggle={() => setPinnedId(pinnedId === mainUser.id ? null : mainUser.id)}
             />
 
             {/* Floating PiP Corner Tile (Tap to swap!) */}
@@ -223,7 +318,9 @@ export default function P2PGrid({
                 isHost={pipUser.isHost}
                 isAudioOn={pipUser.isAudioOn}
                 isVideoOn={pipUser.isVideoOn}
-                isSpeaking={speakingUserId === pipUser.id}
+                isSpeaking={isUserSpeaking(pipUser.id)}
+                isPinned={pinnedId === pipUser.id}
+                onPinToggle={() => setPinnedId(pinnedId === pipUser.id ? null : pipUser.id)}
               />
               <div className="absolute top-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[9px] text-white backdrop-blur-sm pointer-events-none">
                 Swap ⇋
@@ -254,7 +351,9 @@ export default function P2PGrid({
                     isHost={p.isHost}
                     isAudioOn={p.isAudioOn}
                     isVideoOn={p.isVideoOn}
-                    isSpeaking={speakingUserId === p.id}
+                    isSpeaking={isUserSpeaking(p.id)}
+                    isPinned={pinnedId === p.id}
+                    onPinToggle={() => setPinnedId(pinnedId === p.id ? null : p.id)}
                   />
                 </div>
               ))}
@@ -264,7 +363,7 @@ export default function P2PGrid({
       }
 
       // Portrait Mode: Active speaker large on top, clean carousel below
-      const activePeer = peerList.find(p => p.id === speakingUserId) || peerList[0];
+      const activePeer = peerList.find(p => isUserSpeaking(p.id)) || peerList[0];
       const otherPeers = [
         { id: localUser.id, name: `${localUser.name} (You)`, stream: localStream, isLocal: true, isAudioOn, isVideoOn },
         ...peerList.filter(p => p.id !== activePeer.id)
@@ -280,7 +379,9 @@ export default function P2PGrid({
               isHost={activePeer.isHost}
               isAudioOn={activePeer.isAudioOn}
               isVideoOn={activePeer.isVideoOn}
-              isSpeaking={speakingUserId === activePeer.id}
+              isSpeaking={isUserSpeaking(activePeer.id)}
+              isPinned={pinnedId === activePeer.id}
+              onPinToggle={() => setPinnedId(pinnedId === activePeer.id ? null : activePeer.id)}
             />
           </div>
 
@@ -295,7 +396,9 @@ export default function P2PGrid({
                   isHost={p.isHost}
                   isAudioOn={p.isAudioOn}
                   isVideoOn={p.isVideoOn}
-                  isSpeaking={speakingUserId === p.id}
+                  isSpeaking={isUserSpeaking(p.id)}
+                  isPinned={pinnedId === p.id}
+                  onPinToggle={() => setPinnedId(pinnedId === p.id ? null : p.id)}
                 />
               </div>
             ))}
@@ -338,11 +441,19 @@ export default function P2PGrid({
             <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between pointer-events-none">
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#1C1C1C]/85 backdrop-blur-md border border-[#F5E8D8]/10 text-xs font-semibold text-[#F5E8D8] pointer-events-auto shadow-lg">
                 <Monitor className="w-3.5 h-3.5 text-[#DAA520]" />
-                <span>Viewing: {heroTile.name}</span>
+                <span>{pinnedId ? `Pinned Focus: ${heroTile.name}` : `Viewing: ${heroTile.name}`}</span>
                 {heroTile.isLocal && (
                   <span className="text-[10px] bg-[#DAA520]/20 text-[#DAA520] border border-[#DAA520]/30 px-1.5 py-0.5 rounded font-bold">
-                    You are sharing
+                    {heroTile.isScreenSharing ? 'Your Screen' : 'You (Spotlight)'}
                   </span>
+                )}
+                {pinnedId && (
+                  <button
+                    onClick={() => setPinnedId(null)}
+                    className="ml-2 px-2 py-0.5 rounded-lg bg-[#FF4500]/25 hover:bg-[#FF4500] text-[#FF6F61] hover:text-white border border-[#FF4500]/40 text-[10px] font-bold transition flex items-center gap-1 shadow-sm"
+                  >
+                    Unpin ✕
+                  </button>
                 )}
               </div>
 
@@ -407,6 +518,7 @@ export default function P2PGrid({
                                 onClick={() => {
                                   onGrantRemoteControlToPeer?.(p.id, p.name);
                                   setShowGrantMenu(false);
+                                daylight: true;
                                 }}
                                 className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/[0.06] text-[#F5E8D8] transition"
                               >
@@ -461,7 +573,7 @@ export default function P2PGrid({
           {watchTogetherState?.active ? (
             <div className="w-full h-full flex flex-col items-center justify-center bg-[#1C1C1C] relative">
               <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between pointer-events-none">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1C1C1C]/85 backdrop-blur-md border border-[#F5E8D8]/10 text-xs font-semibold text-[#F5E8D8] pointer-events-auto shadow-lg">
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#1C1C1C]/85 backdrop-blur-md border border-[#F5E8D8]/10 text-xs font-semibold text-[#F5E8D8] pointer-events-auto shadow-lg">
                   <Clapperboard className="w-3.5 h-3.5 text-[#DAA520]" />
                   <span>Watch Party (Synchronized Co-Streaming)</span>
                 </div>
@@ -484,7 +596,7 @@ export default function P2PGrid({
               />
             </div>
           ) : (
-            /* Main Shared Screen Presentation Tile */
+            /* Main Shared Screen Presentation or Pinned Tile */
             <div
               onMouseMove={handleMouseMove}
               onClick={handleClick}
@@ -496,10 +608,11 @@ export default function P2PGrid({
                 isLocal={heroTile.isLocal}
                 isHost={heroTile.isHost}
                 isAudioOn={heroTile.isAudioOn}
-                isVideoOn={true}
-                isScreenSharing={true}
-                isSpeaking={speakingUserId === heroTile.id}
-                isPinned={true}
+                isVideoOn={heroTile.isVideoOn ?? true}
+                isScreenSharing={heroTile.isScreenSharing}
+                isSpeaking={isUserSpeaking(heroTile.id)}
+                isPinned={!!pinnedId}
+                isHandRaised={raisedHands.includes(heroTile.id)}
                 onPinToggle={() => setPinnedId(null)}
               />
 
@@ -528,35 +641,22 @@ export default function P2PGrid({
           )}
         </div>
 
-        {/* PARTICIPANT STRIP: Horizontal scroll on mobile, vertical sidebar on desktop */}
+        {/* PARTICIPANT STRIP: Multi-camera & Screen thumbnail filmstrip */}
         <div className="w-full h-28 md:w-56 lg:w-64 md:h-full flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto overflow-y-hidden md:overflow-x-hidden shrink-0 py-1 md:py-0 pr-1">
-          {/* Local User (showing webcam stream or avatar, NOT duplicating screen share) */}
-          <div className="w-36 h-full md:w-full md:h-36 shrink-0">
-            <P2PVideoTile
-              name={localUser.name}
-              stream={localStream}
-              isLocal={true}
-              isHost={localUser.isHost}
-              isAudioOn={isAudioOn}
-              isVideoOn={isVideoOn}
-              isScreenSharing={false}
-              isSpeaking={speakingUserId === localUser.id}
-              onPinToggle={() => setPinnedId(localUser.id)}
-            />
-          </div>
-
-          {/* Remote Peers */}
-          {peerList.map((p) => (
-            <div key={p.id} className="w-36 h-full md:w-full md:h-36 shrink-0">
+          {sideTiles.map((tile) => (
+            <div key={tile.id} className="w-36 h-full md:w-full md:h-36 shrink-0">
               <P2PVideoTile
-                name={p.name}
-                stream={p.stream}
-                isHost={p.isHost}
-                isAudioOn={p.isAudioOn}
-                isVideoOn={p.isVideoOn ?? true}
-                isScreenSharing={false}
-                isSpeaking={speakingUserId === p.id}
-                onPinToggle={() => setPinnedId(p.id)}
+                name={tile.name}
+                stream={tile.stream}
+                isLocal={tile.isLocal}
+                isHost={tile.isHost}
+                isAudioOn={tile.isAudioOn}
+                isVideoOn={tile.isVideoOn ?? true}
+                isScreenSharing={tile.isScreenSharing}
+                isSpeaking={isUserSpeaking(tile.id)}
+                isPinned={false}
+                isHandRaised={raisedHands.includes(tile.id)}
+                onPinToggle={() => setPinnedId(tile.id)}
               />
             </div>
           ))}
@@ -565,48 +665,64 @@ export default function P2PGrid({
     );
   }
 
-  // 2. P2P GALLERY GRID: Full-Screen Edge-to-Edge with Header & Dock breathing room
+  // 2. P2P GALLERY GRID: Full-Screen Edge-to-Edge with 3x3 Adaptive 9-Card Grid
+  const maxGridCards = 9;
+  const visibleGridTiles = allTiles.slice(gridOffset, gridOffset + maxGridCards);
+  const hasPrev = gridOffset > 0;
+  const hasNext = gridOffset + maxGridCards < allTiles.length;
+
   return (
     <div className="absolute inset-0 w-full h-full p-2 sm:p-3 pt-14 pb-20 sm:pt-16 sm:pb-24 flex items-center justify-center">
+      {hasPrev && (
+        <button
+          onClick={() => setGridOffset(Math.max(0, gridOffset - maxGridCards))}
+          title="Previous sources"
+          className="absolute left-3 z-30 p-3 rounded-full bg-[#1C1C1C]/80 hover:bg-black border border-white/20 text-[#F5E8D8] backdrop-blur-md transition shadow-2xl active:scale-95"
+        >
+          ‹
+        </button>
+      )}
+
       <div
         className={`w-full h-full grid gap-2 sm:gap-3 transition-all duration-300 ${
-          totalCount === 1
+          visibleGridTiles.length === 1
             ? 'grid-cols-1 grid-rows-1'
-            : totalCount === 2
+            : visibleGridTiles.length === 2
             ? 'grid-cols-1 grid-rows-2 sm:grid-cols-2 sm:grid-rows-1'
-            : totalCount <= 4
+            : visibleGridTiles.length <= 4
             ? 'grid-cols-2 grid-rows-2'
-            : 'grid-cols-2 sm:grid-cols-3'
+            : visibleGridTiles.length <= 6
+            ? 'grid-cols-2 sm:grid-cols-3 grid-rows-2'
+            : 'grid-cols-3 grid-rows-3'
         }`}
       >
-        {/* Local user tile */}
-        <P2PVideoTile
-          name={localUser.name}
-          stream={screenStream || localStream}
-          isLocal={true}
-          isHost={localUser.isHost}
-          isAudioOn={isAudioOn}
-          isVideoOn={isVideoOn}
-          isScreenSharing={isScreenSharing}
-          isSpeaking={speakingUserId === localUser.id}
-          onPinToggle={() => setPinnedId(localUser.id)}
-        />
-
-        {/* Remote peers tiles */}
-        {peerList.map((peer) => (
+        {visibleGridTiles.map((tile) => (
           <P2PVideoTile
-            key={peer.id}
-            name={peer.name}
-            stream={peer.stream}
-            isHost={peer.isHost}
-            isAudioOn={peer.isAudioOn}
-            isVideoOn={peer.isVideoOn}
-            isScreenSharing={peer.isScreenSharing}
-            isSpeaking={speakingUserId === peer.id}
-            onPinToggle={() => setPinnedId(peer.id)}
+            key={tile.id}
+            name={tile.name}
+            stream={tile.stream}
+            isLocal={tile.isLocal}
+            isHost={tile.isHost}
+            isAudioOn={tile.isAudioOn}
+            isVideoOn={tile.isVideoOn ?? true}
+            isScreenSharing={tile.isScreenSharing}
+            isSpeaking={tile.isSpeaking}
+            isPinned={pinnedId === tile.id}
+            isHandRaised={tile.isHandRaised}
+            onPinToggle={() => setPinnedId(pinnedId === tile.id ? null : tile.id)}
           />
         ))}
       </div>
+
+      {hasNext && (
+        <button
+          onClick={() => setGridOffset(gridOffset + maxGridCards)}
+          title="More sources"
+          className="absolute right-3 z-30 p-3 rounded-full bg-[#1C1C1C]/80 hover:bg-black border border-white/20 text-[#F5E8D8] backdrop-blur-md transition shadow-2xl active:scale-95"
+        >
+          ›
+        </button>
+      )}
     </div>
   );
 }

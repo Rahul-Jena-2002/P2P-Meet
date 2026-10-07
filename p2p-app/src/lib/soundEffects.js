@@ -87,6 +87,62 @@ class SoundPlayer {
     });
   }
 
+  // Realistic synthesized double dog bark ("Woof! Woof!") using Web Audio
+  playDogBarkSynth() {
+    const ctx = this.getAudioContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    // Two rapid dog barks: first higher, second slightly lower
+    const barks = [
+      { start: now, freqStart: 460, freqEnd: 240, duration: 0.11, vol: 0.35 },
+      { start: now + 0.15, freqStart: 420, freqEnd: 210, duration: 0.13, vol: 0.4 }
+    ];
+
+    barks.forEach(b => {
+      // Body oscillator (pitch drop creates characteristic "woof" formant)
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(b.freqStart, b.start);
+      osc.frequency.exponentialRampToValueAtTime(b.freqEnd, b.start + b.duration);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1400, b.start);
+      filter.frequency.exponentialRampToValueAtTime(600, b.start + b.duration);
+
+      gain.gain.setValueAtTime(0.001, b.start);
+      gain.gain.linearRampToValueAtTime(b.vol, b.start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, b.start + b.duration);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(b.start);
+      osc.stop(b.start + b.duration + 0.02);
+
+      // Throat formant harmonic
+      const harm = ctx.createOscillator();
+      const harmGain = ctx.createGain();
+      harm.type = 'sawtooth';
+      harm.frequency.setValueAtTime(b.freqStart * 0.75, b.start);
+      harm.frequency.exponentialRampToValueAtTime(b.freqEnd * 0.75, b.start + b.duration);
+
+      harmGain.gain.setValueAtTime(0.001, b.start);
+      harmGain.gain.linearRampToValueAtTime(b.vol * 0.3, b.start + 0.015);
+      harmGain.gain.exponentialRampToValueAtTime(0.001, b.start + b.duration);
+
+      harm.connect(harmGain);
+      harmGain.connect(gain);
+
+      harm.start(b.start);
+      harm.stop(b.start + b.duration + 0.02);
+    });
+  }
+
   playEmojiSound(emoji) {
     if (!this.enabled) return;
 
@@ -124,8 +180,15 @@ class SoundPlayer {
       return;
     }
 
-    // 5. Animals & Nature
-    if (['🐶', '🐱', '🦁', '🐼', '🦊', '🐸', '🐵', '🦄', '🐝', '🦉'].includes(emoji)) {
+    // 5. Dog Bark (Pixabay style bark effect!)
+    if (['🐶', '🐕', '🦮', '🐩', '🐾'].includes(emoji)) {
+      this.play('dog-bark.mp3');
+      this.playDogBarkSynth();
+      return;
+    }
+
+    // 6. Animals & Nature
+    if (['🐱', '🦁', '🐼', '🦊', '🐸', '🐵', '🦄', '🐝', '🦉'].includes(emoji)) {
       this.play('animal.mp3');
       return;
     }
