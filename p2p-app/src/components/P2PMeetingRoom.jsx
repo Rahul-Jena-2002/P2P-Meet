@@ -777,15 +777,6 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             onWatchTogetherSync={handleWatchTogetherSync}
             onStopWatchTogether={handleStopWatchTogether}
           />
-
-          {/* Interactive Zoom Whiteboard Overlay */}
-          {whiteboardActive && (
-            <P2PWhiteboard
-              onClose={() => setWhiteboardActive(false)}
-              onBroadcastStroke={handleBroadcastWhiteboardStroke}
-              incomingStroke={incomingWhiteboardStroke}
-            />
-          )}
         </div>
 
         {/* 2. Floating Top Header (stays scoped to video stage area) */}

@@ -7,7 +7,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { X, Sparkles, Share2, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Sparkles, Maximize2, Minimize2, Edit3 } from 'lucide-react';
 import '@excalidraw/excalidraw/index.css';
 
 // Dynamically import Excalidraw to ensure no SSR errors in Next.js
@@ -33,6 +33,15 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
   const isRemoteUpdateRef = useRef(false);
   const debounceTimerRef = useRef(null);
   const containerRef = useRef(null);
+
+  // Set default tool to freedraw (pen) once API is ready
+  useEffect(() => {
+    if (excalidrawAPI) {
+      try {
+        excalidrawAPI.setActiveTool({ type: 'freedraw' });
+      } catch (_) {}
+    }
+  }, [excalidrawAPI]);
 
   // Sync incoming elements from remote peers
   useEffect(() => {
@@ -60,7 +69,7 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
     if (isRemoteUpdateRef.current) return;
     if (!onBroadcastStroke) return;
 
-    // Debounce broadcast by 60ms to prevent flooding P2P data channel while dragging
+    // Debounce broadcast by 80ms to prevent flooding P2P data channel while dragging
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(() => {
       try {
@@ -71,7 +80,7 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
       } catch (err) {
         console.warn('[Excalidraw] Broadcast error:', err);
       }
-    }, 60);
+    }, 80);
   }, [onBroadcastStroke]);
 
   const toggleFullscreen = () => {
@@ -88,13 +97,13 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-50 flex flex-col bg-[#121214] text-white select-none animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex flex-col bg-[#121214] text-white animate-in fade-in duration-150 pointer-events-auto"
     >
       {/* Top Header Bar */}
       <header className="h-12 bg-[#1C1C20] border-b border-white/10 px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-2.5">
           <div className="w-6 h-6 rounded-lg bg-[#0E72ED]/20 border border-[#0E72ED]/40 flex items-center justify-center text-[#0E72ED]">
-            <Sparkles className="w-3.5 h-3.5" />
+            <Edit3 className="w-3.5 h-3.5" />
           </div>
           <div>
             <h3 className="font-bold text-xs tracking-wide text-white">Excalidraw Whiteboard</h3>
@@ -106,6 +115,18 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
         </div>
 
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => {
+              if (excalidrawAPI) {
+                excalidrawAPI.setActiveTool({ type: 'freedraw' });
+              }
+            }}
+            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 transition"
+            title="Switch to Draw Pen"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>Draw</span>
+          </button>
           <button
             onClick={toggleFullscreen}
             className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition"
@@ -124,7 +145,7 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
       </header>
 
       {/* Main Excalidraw Canvas Area */}
-      <div className="flex-1 w-full h-[calc(100%-48px)] relative overflow-hidden">
+      <div className="flex-1 w-full h-[calc(100%-48px)] relative overflow-hidden pointer-events-auto">
         <Excalidraw
           excalidrawAPI={(api) => setExcalidrawAPI(api)}
           onChange={handleChange}
@@ -132,10 +153,20 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
             appState: {
               theme: 'dark',
               viewBackgroundColor: '#121214',
-              currentItemFontFamily: 1
+              currentItemFontFamily: 1,
+              activeTool: { type: 'freedraw' },
+              currentItemStrokeColor: '#10B981',
+              currentItemRoughness: 1
             }
           }}
           theme="dark"
+          viewModeEnabled={false}
+          zenModeEnabled={false}
+          UIOptions={{
+            canvasActions: {
+              loadScene: false
+            }
+          }}
         />
       </div>
     </div>
