@@ -36,6 +36,7 @@ export default function P2PControls({
     devices,
     selectedCam,
     selectedMic,
+    selectedSpeaker,
     audioLevel,
     videoFilter = 'none',
     setVideoFilter,
@@ -43,11 +44,14 @@ export default function P2PControls({
     toggleVideo,
     switchCamera,
     switchMicrophone,
+    switchAudioOutput,
+    testAudioOutput,
     startScreenShare,
     stopScreenShare
   } = useMedia();
 
   const [showAudioMenu, setShowAudioMenu] = useState(false);
+  const [testingSpeaker, setTestingSpeaker] = useState(false);
   const [showVideoMenu, setShowVideoMenu] = useState(false);
   const [videoMenuTab, setVideoMenuTab] = useState('effects'); // 'devices' | 'effects'
   const [showReactionsMenu, setShowReactionsMenu] = useState(false);
@@ -293,24 +297,100 @@ export default function P2PControls({
             <ChevronUp className="w-3.5 h-3.5" />
           </button>
 
-          {/* Audio Device Dropdown */}
+          {/* Audio Device Dropdown (Input & Output) */}
           {showAudioMenu && (
-            <div className="absolute bottom-16 left-0 w-64 rounded-2xl p2p-dropdown p-3 text-xs text-[#F5E8D8] z-50 animate-in fade-in slide-in-from-bottom-2 shadow-2xl">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#F5E8D8]/50 px-2 block mb-1">
-                Select Microphone
-              </span>
-              {devices.audio.map((d) => (
+            <div className="absolute bottom-16 left-0 w-72 sm:w-80 rounded-2xl p2p-dropdown p-3.5 text-xs text-[#F5E8D8] z-50 animate-in fade-in slide-in-from-bottom-2 shadow-2xl border border-white/10 backdrop-blur-xl bg-[#1C1C1C]/95">
+              {/* SECTION 1: MICROPHONE (INPUT) */}
+              <div className="flex items-center justify-between px-1 mb-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#F5E8D8]/50 flex items-center gap-1.5">
+                  <Mic className="w-3 h-3 text-[#FF6F61]" />
+                  Select Microphone (Input)
+                </span>
+                {/* Live audio level indicator */}
+                <div className="flex items-center gap-1">
+                  <div className="w-12 h-1.5 bg-black/40 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-400 to-[#FF6F61] transition-all duration-75"
+                      style={{ width: `${Math.min(100, audioLevel * 1.5)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-0.5 max-h-32 overflow-y-auto pr-1">
+                {devices.audio.length > 0 ? (
+                  devices.audio.map((d) => (
+                    <button
+                      key={d.deviceId}
+                      onClick={() => { switchMicrophone(d.deviceId); }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition ${
+                        selectedMic === d.deviceId ? 'bg-[#FF6F61] text-[#1C1C1C] font-semibold shadow-sm' : 'hover:bg-white/[0.06] text-[#F5E8D8]/90'
+                      }`}
+                    >
+                      <span className="truncate pr-2">{d.label || `Microphone ${d.deviceId.substring(0, 5)}`}</span>
+                      {selectedMic === d.deviceId && <Check className="w-3.5 h-3.5 shrink-0" />}
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-2.5 py-1 text-[11px] text-[#F5E8D8]/40">Default Microphone</div>
+                )}
+              </div>
+
+              {/* SEPARATOR */}
+              <div className="my-2.5 border-t border-white/[0.08]" />
+
+              {/* SECTION 2: SOUND OUTPUT (SPEAKER / HEADPHONES) */}
+              <div className="flex items-center justify-between px-1 mb-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#F5E8D8]/50 flex items-center gap-1.5">
+                  <Volume2 className="w-3 h-3 text-[#DAA520]" />
+                  Sound Output (Speaker)
+                </span>
+                <span className="text-[9px] text-[#F5E8D8]/40">Playback</span>
+              </div>
+
+              <div className="space-y-0.5 max-h-32 overflow-y-auto pr-1">
+                {devices.audioOutput && devices.audioOutput.length > 0 ? (
+                  devices.audioOutput.map((d) => (
+                    <button
+                      key={d.deviceId}
+                      onClick={() => { switchAudioOutput(d.deviceId); }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition ${
+                        selectedSpeaker === d.deviceId ? 'bg-[#DAA520] text-[#1C1C1C] font-semibold shadow-sm' : 'hover:bg-white/[0.06] text-[#F5E8D8]/90'
+                      }`}
+                    >
+                      <span className="truncate pr-2">{d.label || `Speaker ${d.deviceId.substring(0, 5)}`}</span>
+                      {selectedSpeaker === d.deviceId && <Check className="w-3.5 h-3.5 shrink-0" />}
+                    </button>
+                  ))
+                ) : (
+                  <button
+                    onClick={() => switchAudioOutput('default')}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between bg-white/[0.04] text-[#F5E8D8]/90"
+                  >
+                    <span className="truncate">Default System Audio Output</span>
+                    <Check className="w-3.5 h-3.5 text-[#DAA520] shrink-0" />
+                  </button>
+                )}
+              </div>
+
+              {/* Test Speaker Chime Button */}
+              <div className="mt-2.5 pt-2 border-t border-white/[0.08]">
                 <button
-                  key={d.deviceId}
-                  onClick={() => { switchMicrophone(d.deviceId); setShowAudioMenu(false); }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition ${
-                    selectedMic === d.deviceId ? 'bg-[#FF6F61] text-[#1C1C1C] font-semibold' : 'hover:bg-white/[0.06]'
+                  onClick={() => {
+                    setTestingSpeaker(true);
+                    testAudioOutput(selectedSpeaker);
+                    setTimeout(() => setTestingSpeaker(false), 1400);
+                  }}
+                  className={`w-full py-1.5 px-3 rounded-xl flex items-center justify-center gap-2 font-medium text-[11px] transition ${
+                    testingSpeaker
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-white/[0.06] hover:bg-white/[0.10] text-[#F5E8D8] border border-white/[0.08]'
                   }`}
                 >
-                  <span className="truncate">{d.label || `Microphone ${d.deviceId.substring(0, 5)}`}</span>
-                  {selectedMic === d.deviceId && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  <Volume2 className={`w-3.5 h-3.5 ${testingSpeaker ? 'animate-bounce text-emerald-400' : 'text-[#DAA520]'}`} />
+                  {testingSpeaker ? 'Playing Test Sound...' : 'Test Speaker Output'}
                 </button>
-              ))}
+              </div>
             </div>
           )}
         </div>

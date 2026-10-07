@@ -22,9 +22,13 @@ export default function P2PVideoTile({
 }) {
   const videoRef = useRef(null);
   let videoFilter = 'none';
+  let selectedSpeaker = '';
   try {
     const media = useMedia();
-    if (media) videoFilter = media.videoFilter || 'none';
+    if (media) {
+      videoFilter = media.videoFilter || 'none';
+      selectedSpeaker = media.selectedSpeaker || '';
+    }
   } catch (e) {}
 
   const getVideoFilterStyle = () => {
@@ -51,12 +55,15 @@ export default function P2PVideoTile({
       if (el.srcObject !== stream) {
         el.srcObject = stream;
       }
+      if (!isLocal && typeof el.setSinkId === 'function' && selectedSpeaker) {
+        el.setSinkId(selectedSpeaker).catch(e => console.warn('setSinkId error:', e));
+      }
       el.onloadedmetadata = () => {
         el.play().catch(e => console.warn('Video play error:', e));
       };
       el.play().catch(e => console.warn('Video play error:', e));
     }
-  }, [stream, isVideoOn, isScreenSharing]);
+  }, [stream, isVideoOn, isScreenSharing, isLocal, selectedSpeaker]);
 
   const initials = name
     ? name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()

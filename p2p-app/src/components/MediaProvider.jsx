@@ -15,9 +15,10 @@ export function MediaProvider({ children }) {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [screenSharing, setScreenSharing] = useState(false);
-  const [devices, setDevices] = useState({ video: [], audio: [] });
+  const [devices, setDevices] = useState({ video: [], audio: [], audioOutput: [] });
   const [selectedCam, setSelectedCam] = useState('');
   const [selectedMic, setSelectedMic] = useState('');
+  const [selectedSpeaker, setSelectedSpeaker] = useState('');
   const [audioLevel, setAudioLevel] = useState(0); // 0 to 100 for mic meter
   const [videoFilter, setVideoFilterState] = useState('none');
   const [mediaError, setMediaError] = useState(null);
@@ -56,7 +57,8 @@ export function MediaProvider({ children }) {
       stream.getAudioTracks().forEach(t => { t.enabled = audioEnabled; });
       stream.getVideoTracks().forEach(t => { t.enabled = videoEnabled; });
 
-      if (videoFilter !== 'none') {
+      const aiFilters = ['blur', 'blur-light', 'blur-heavy', 'studio', 'rocket', 'nature', 'moon', 'astronaut'];
+      if (aiFilters.includes(videoFilter)) {
         videoProcessor.start(stream, videoFilter, (updated) => {
           setLocalStream(updated);
         }).then((processed) => {
@@ -66,14 +68,23 @@ export function MediaProvider({ children }) {
         setLocalStream(stream);
       }
 
-      // Enumerate available hardware devices
+      // Enumerate available hardware devices (cameras, microphones, and audio output speakers)
       try {
         const deviceList = await navigator.mediaDevices.enumerateDevices();
         const videoDevs = deviceList.filter(d => d.kind === 'videoinput');
         const audioDevs = deviceList.filter(d => d.kind === 'audioinput');
-        setDevices({ video: videoDevs, audio: audioDevs });
+        const audioOutDevs = deviceList.filter(d => d.kind === 'audiooutput');
+        setDevices({ video: videoDevs, audio: audioDevs, audioOutput: audioOutDevs });
+
         if (!selectedCam && videoDevs.length > 0) setSelectedCam(videoDevs[0].deviceId);
         if (!selectedMic && audioDevs.length > 0) setSelectedMic(audioDevs[0].deviceId);
+
+        // Retrieve and restore saved speaker device
+        if (audioOutDevs.length > 0) {
+          const savedSpeaker = typeof localStorage !== 'undefined' ? localStorage.getItem('p2pmeet_selected_speaker') : null;
+          const match = audioOutDevs.find(d => d.deviceId === savedSpeaker);
+          setSelectedSpeaker(match ? match.deviceId : audioOutDevs[0].deviceId);
+        }
       } catch (err) {
         console.warn('Could not enumerate devices:', err);
       }
@@ -91,7 +102,7 @@ export function MediaProvider({ children }) {
       setAudioEnabled(false);
       return null;
     }
-  }, [audioEnabled, videoEnabled, selectedCam, selectedMic]);
+  }, [audioEnabled, videoEnabled, selectedCam, selectedMic, videoFilter]);
 
   // Audio level analyzer loop
   const setupAudioAnalyzer = (stream) => {
@@ -170,6 +181,55 @@ export function MediaProvider({ children }) {
     await initMedia(selectedCam, deviceId);
   }, [initMedia, selectedCam]);
 
+  // Switch sound output / speaker destination (setSinkId)
+  const switchAudioOutput = useCallback(async (deviceId) => {
+    setSelectedSpeaker(deviceId);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('p2pmeet_selected_speaker', deviceId);
+    }
+    // Route all existing non-muted media elements to selected output
+    if (typeof document !== 'undefined') {
+      const mediaElements = document.querySelectorAll('audio, video');
+      mediaElements.forEach(el => {
+        if (!el.muted && typeof el.setSinkId === 'function') {
+          el.setSinkId(deviceId).catch(err => {
+            console.warn('setSinkId error:', err);
+          });
+        }
+      });
+    }
+  }, []);
+
+  // Play a pleasant test chime to verify selected sound output device
+  const testAudioOutput = useCallback(async (deviceId = selectedSpeaker) => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      if (typeof ctx.setSinkId === 'function' && deviceId) {
+        await ctx.setSinkId(deviceId).catch(() => {});
+      }
+      const now = ctx.currentTime;
+      // High-clarity 3-note chime (F5 -> A5 -> C6)
+      [698.46, 880.00, 1046.50].forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+        gain.gain.setValueAtTime(0, now + idx * 0.12);
+        gain.gain.linearRampToValueAtTime(0.22, now + idx * 0.12 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.28);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + idx * 0.12);
+        osc.stop(now + idx * 0.12 + 0.3);
+      });
+      setTimeout(() => ctx.close().catch(() => {}), 1500);
+    } catch (e) {
+      console.warn('Test audio output error:', e);
+    }
+  }, [selectedSpeaker]);
+
   const startScreenShare = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -199,7 +259,9 @@ export function MediaProvider({ children }) {
 
   const setVideoFilter = useCallback(async (filter) => {
     setVideoFilterState(filter);
-    if (filter === 'none') {
+    const aiFilters = ['blur', 'blur-light', 'blur-heavy', 'studio', 'rocket', 'nature', 'moon', 'astronaut'];
+
+    if (!aiFilters.includes(filter)) {
       videoProcessor.stopProcessing();
       if (rawStreamRef.current) {
         setLocalStream(rawStreamRef.current);
@@ -224,6 +286,7 @@ export function MediaProvider({ children }) {
       devices,
       selectedCam,
       selectedMic,
+      selectedSpeaker,
       audioLevel,
       videoFilter,
       setVideoFilter,
@@ -232,6 +295,8 @@ export function MediaProvider({ children }) {
       toggleVideo,
       switchCamera,
       switchMicrophone,
+      switchAudioOutput,
+      testAudioOutput,
       startScreenShare,
       stopScreenShare,
       initMedia

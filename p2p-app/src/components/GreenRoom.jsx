@@ -21,11 +21,14 @@ export default function GreenRoom({ onJoinMeeting }) {
     devices,
     selectedCam,
     selectedMic,
+    selectedSpeaker,
     mediaError,
     toggleAudio,
     toggleVideo,
     switchCamera,
     switchMicrophone,
+    switchAudioOutput,
+    testAudioOutput,
     initMedia
   } = useMedia();
 
@@ -203,6 +206,31 @@ export default function GreenRoom({ onJoinMeeting }) {
                   {devices.audio.map(d => (
                     <option key={d.deviceId} value={d.deviceId}>{d.label || 'Default Microphone'}</option>
                   ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] uppercase font-bold text-[#F5E8D8]/50 tracking-wider">Speaker (Sound Output)</label>
+                  <button
+                    type="button"
+                    onClick={() => testAudioOutput(selectedSpeaker)}
+                    className="text-[10px] text-[#DAA520] hover:underline"
+                  >
+                    Test Sound
+                  </button>
+                </div>
+                <select
+                  value={selectedSpeaker}
+                  onChange={(e) => switchAudioOutput(e.target.value)}
+                  className="w-full bg-[#1C1C1C] px-3 py-1.5 rounded-lg border border-[#F5E8D8]/15 text-[#F5E8D8] focus:outline-none focus:border-[#DAA520]"
+                >
+                  {devices.audioOutput && devices.audioOutput.length > 0 ? (
+                    devices.audioOutput.map(d => (
+                      <option key={d.deviceId} value={d.deviceId}>{d.label || 'Default Speaker'}</option>
+                    ))
+                  ) : (
+                    <option value="default">Default System Audio Output</option>
+                  )}
                 </select>
               </div>
             </div>
