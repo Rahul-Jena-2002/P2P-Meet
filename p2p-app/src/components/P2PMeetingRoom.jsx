@@ -127,6 +127,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     allowRename: true,
     allowUnmute: true
   });
+  const [userRoles, setUserRoles] = useState({}); // userId -> 'host' | 'co-host' | 'participant'
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
 
@@ -233,6 +234,13 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             isScreenSharing: prev[peerId]?.isScreenSharing ?? false
           }
         }));
+        if (securitySettings.lockMeeting && meetingInfo.isHost) {
+          meshRef.current?.broadcast({
+            type: 'ROOM_LOCKED_NOTICE',
+            targetId: peerId
+          });
+          return;
+        }
         // Notify new joiner of current state
         meshRef.current?.broadcast({
           type: 'PEER_MEDIA_STATE',
@@ -385,6 +393,14 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             ...prev,
             [data.userId]: { ...prev[data.userId], name: data.newName }
           }));
+        } else if (type === 'ROLE_UPDATE') {
+          setUserRoles(prev => ({ ...prev, [data.targetId]: data.newRole }));
+        } else if (type === 'KICK_USER' && data.targetId === meetingInfo.userId) {
+          alert('You have been removed from the meeting by the host.');
+          handleLeaveMeeting(false);
+        } else if (type === 'ROOM_LOCKED_NOTICE' && data.targetId === meetingInfo.userId) {
+          alert('This meeting has been locked by the host.');
+          handleLeaveMeeting(false);
         } else if (type === 'MEETING_ENDED') {
           try {
             sessionStorage.removeItem('p2pmeet_session');
@@ -675,27 +691,57 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     onLeave();
   };
 
+  const handleChangeRole = (targetId, newRole) => {
+    setUserRoles(prev => ({ ...prev, [targetId]: newRole }));
+    meshRef.current?.broadcast({
+      type: 'ROLE_UPDATE',
+      targetId,
+      newRole
+    });
+  };
+
+  const handleRemoveUser = (targetId) => {
+    meshRef.current?.broadcast({
+      type: 'KICK_USER',
+      targetId
+    });
+    setPeers(prev => {
+      const copy = { ...prev };
+      delete copy[targetId];
+      return copy;
+    });
+  };
+
+  const myRole = userRoles[meetingInfo.userId] || (meetingInfo.isHost ? 'host' : 'participant');
+  const isCurrentUserHost = myRole === 'host' || myRole === 'co-host';
+
   const localUserObj = {
     id: meetingInfo.userId,
     name: currentUserName,
-    isHost: meetingInfo.isHost
+    isHost: myRole === 'host',
+    role: myRole
   };
 
   const participantList = [
     {
       id: meetingInfo.userId,
       name: `${currentUserName} (You)`,
-      isHost: meetingInfo.isHost,
+      isHost: myRole === 'host',
+      role: myRole,
       isAudioOn: audioEnabled,
       isVideoOn: videoEnabled
     },
-    ...Object.values(peers).map(p => ({
-      id: p.id,
-      name: p.name,
-      isHost: p.isHost,
-      isAudioOn: p.isAudioOn,
-      isVideoOn: p.isVideoOn
-    }))
+    ...Object.values(peers).map(p => {
+      const role = userRoles[p.id] || (p.isHost ? 'host' : 'participant');
+      return {
+        id: p.id,
+        name: p.name,
+        isHost: role === 'host',
+        role,
+        isAudioOn: p.isAudioOn,
+        isVideoOn: p.isVideoOn
+      };
+    })
   ];
 
   return (
@@ -747,6 +793,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           title={meetingInfo.title}
           roomCode={meetingInfo.code}
           hostName={meetingInfo.name}
+          isHost={isCurrentUserHost}
+          onLeave={() => handleLeaveMeeting(isCurrentUserHost)}
           viewMode={viewMode}
           onToggleViewMode={(mode) => setViewMode(v => mode || (v === 'gallery' ? 'speaker' : 'gallery'))}
           isRecording={isRecording}
@@ -767,7 +815,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
         {/* 3. Floating Bottom Controls Dock (centered within video stage area) */}
         <P2PControls
           roomCode={meetingInfo.code}
-          isHost={meetingInfo.isHost}
+          isHost={isCurrentUserHost}
           participantCount={participantList.length}
           activePanel={activePanel}
           onTogglePanel={(panel) => setActivePanel(p => p === panel ? null : panel)}
@@ -807,12 +855,14 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
         <P2PParticipantsDrawer
           participants={participantList}
           currentUserId={meetingInfo.userId}
-          isHost={meetingInfo.isHost}
+          isHost={isCurrentUserHost}
           roomCode={meetingInfo.code}
           raisedHands={raisedHands}
           onLowerHand={handleLowerHand}
           onMuteAll={handleMuteAll}
           onRenameUser={handleRenameUser}
+          onChangeRole={handleChangeRole}
+          onRemoveUser={handleRemoveUser}
           onClose={() => setActivePanel(null)}
         />
       )}

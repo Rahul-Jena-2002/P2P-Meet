@@ -40,5 +40,7 @@ zoom-app/
 frontend/
 p2p-app/.next/
 p2p-app/out/
+out/
+.wrangler/
 test_audio.js
 

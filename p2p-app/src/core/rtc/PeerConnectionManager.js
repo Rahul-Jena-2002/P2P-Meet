@@ -18,7 +18,7 @@ export const DEFAULT_RTC_CONFIG = {
       credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
     }] : []),
   ],
-  iceCandidatePoolSize: 10,
+  iceCandidatePoolSize: 0,
 };
 
 export class PeerConnectionManager {
@@ -256,6 +256,9 @@ export class PeerConnectionManager {
     }
 
     if (stream && !stream.getTracks().includes(track)) stream.addTrack(track);
+    if (track && track.kind === 'video') {
+      try { track.contentHint = 'motion'; } catch (_) {}
+    }
     try {
       const sender = peer.pc.addTrack(track, ...(stream ? [stream] : []));
       if (!peer.senders) peer.senders = {};

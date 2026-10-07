@@ -20,6 +20,8 @@ export default function P2PParticipantsDrawer({
   onLowerHand,
   onMuteAll,
   onRenameUser,
+  onChangeRole,
+  onRemoveUser,
   onClose
 }) {
   const [search, setSearch] = useState('');
@@ -27,6 +29,7 @@ export default function P2PParticipantsDrawer({
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState('');
   const [showMuteAllModal, setShowMuteAllModal] = useState(false);
+  const [actionMenuPeerId, setActionMenuPeerId] = useState(null);
 
   const handleInvite = () => {
     navigator.clipboard.writeText(`${window.location.origin}?code=${roomCode}`);
@@ -130,18 +133,22 @@ export default function P2PParticipantsDrawer({
                     <div className="flex items-center gap-1.5 truncate">
                       <span className="text-xs font-medium text-white truncate">{p.name}</span>
                       {isMe && <span className="text-[10px] text-white/50">(Me)</span>}
-                      {p.isHost && (
+                      {p.role === 'host' || p.isHost ? (
                         <span className="text-[9px] uppercase font-bold text-amber-400 bg-amber-400/15 border border-amber-400/25 px-1 py-0.2 rounded">
                           Host
                         </span>
-                      )}
+                      ) : p.role === 'co-host' ? (
+                        <span className="text-[9px] uppercase font-bold text-sky-400 bg-sky-400/15 border border-sky-400/25 px-1 py-0.2 rounded">
+                          Co-Host
+                        </span>
+                      ) : null}
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Status Icons & Action Buttons */}
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0 relative">
                 {/* Hand Raised Badge */}
                 {isHandUp && (
                   <button
@@ -176,6 +183,59 @@ export default function P2PParticipantsDrawer({
                   >
                     <Edit2 className="w-3 h-3" />
                   </button>
+                )}
+
+                {/* Host Action Dropdown Trigger (More Options) */}
+                {isHost && !isMe && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setActionMenuPeerId(actionMenuPeerId === p.id ? null : p.id)}
+                      className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white transition"
+                      title="Participant Options"
+                    >
+                      <MoreVertical className="w-3.5 h-3.5" />
+                    </button>
+
+                    {actionMenuPeerId === p.id && (
+                      <div className="absolute right-0 top-7 w-44 rounded-xl bg-[#232326] border border-white/15 p-1.5 text-xs shadow-2xl text-white z-50 animate-in fade-in zoom-in-95 duration-100">
+                        <button
+                          onClick={() => {
+                            onChangeRole?.(p.id, 'host');
+                            setActionMenuPeerId(null);
+                          }}
+                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/10 text-amber-300 font-medium transition flex items-center justify-between"
+                        >
+                          <span>Make Host</span>
+                          <span className="text-[10px] text-white/40">👑</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const newRole = p.role === 'co-host' ? 'participant' : 'co-host';
+                            onChangeRole?.(p.id, newRole);
+                            setActionMenuPeerId(null);
+                          }}
+                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/10 text-sky-300 font-medium transition flex items-center justify-between"
+                        >
+                          <span>{p.role === 'co-host' ? 'Remove Co-Host' : 'Make Co-Host'}</span>
+                          <span className="text-[10px] text-white/40">⭐</span>
+                        </button>
+
+                        <div className="h-[1px] bg-white/10 my-1" />
+
+                        <button
+                          onClick={() => {
+                            onRemoveUser?.(p.id);
+                            setActionMenuPeerId(null);
+                          }}
+                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-red-500/20 text-red-400 font-medium transition flex items-center justify-between"
+                        >
+                          <span>Remove</span>
+                          <span className="text-[10px] text-red-400">✕</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

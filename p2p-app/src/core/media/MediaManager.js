@@ -80,14 +80,21 @@ export class MediaManager {
     try {
       const constraints = {
         video: camId ? { deviceId: { exact: camId } } : { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-        audio: micId ? { deviceId: { exact: micId } } : true,
+        audio: micId
+          ? { deviceId: { exact: micId } }
+          : {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+              latency: 0
+            },
       };
       stream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: true
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, latency: 0 }
         });
       } catch {
         try {

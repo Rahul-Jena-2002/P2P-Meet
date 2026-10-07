@@ -15,6 +15,8 @@ export default function P2PHeader({
   title = 'Zoom Meeting',
   roomCode,
   hostName = 'Host',
+  isHost = false,
+  onLeave,
   viewMode = 'gallery',
   onToggleViewMode,
   isRecording = false,
@@ -182,8 +184,18 @@ export default function P2PHeader({
         <span>{formatTimer(secondsElapsed)}</span>
       </div>
 
-      {/* 3. RIGHT: Authentic Zoom "View ⊞" Dropdown + Fullscreen */}
+      {/* 3. RIGHT: Authentic Zoom "View ⊞" Dropdown + Mobile Leave Button + Fullscreen */}
       <div className="flex items-center gap-2 relative">
+        {/* Mobile Red Leave/End Button (Zoom Mobile layout) */}
+        {onLeave && (
+          <button
+            onClick={onLeave}
+            className="md:hidden px-3 py-1 rounded-md bg-[#E02828] hover:bg-[#C91A1A] text-white font-bold text-xs shadow-md transition"
+          >
+            {isHost ? 'End' : 'Leave'}
+          </button>
+        )}
+
         <div className="relative">
           <button
             id="zoom-view-btn"

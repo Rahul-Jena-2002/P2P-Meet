@@ -101,16 +101,16 @@ export default function P2PControls({
 
   return (
     <>
-      <footer className={`absolute bottom-0 left-0 right-0 h-16 sm:h-18 bg-[#18181B] border-t border-white/10 z-40 flex items-center justify-between px-2 sm:px-6 select-none shadow-2xl transition-transform duration-200 ${
+      <footer className={`absolute bottom-0 left-0 right-0 h-16 sm:h-18 bg-[#18181B] border-t border-white/10 z-40 flex items-center justify-between px-1.5 sm:px-6 select-none shadow-2xl transition-transform duration-200 overflow-x-auto scrollbar-none gap-1 sm:gap-2 ${
         isVisible ? 'translate-y-0' : 'translate-y-full pointer-events-none'
       }`}>
         {/* 1. LEFT CONTROLS: MUTE / UNMUTE & START / STOP VIDEO (Zoom style) */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
           {/* MUTE / UNMUTE BUTTON WITH CHEVRON */}
           <div ref={audioMenuRef} className="relative flex items-center">
             <button
               onClick={toggleAudio}
-              className={`flex flex-col items-center justify-center min-w-[50px] sm:min-w-[62px] h-13 px-2 rounded-lg transition hover:bg-white/10 ${
+              className={`flex flex-col items-center justify-center min-w-[46px] sm:min-w-[62px] h-13 px-1.5 sm:px-2 rounded-lg transition hover:bg-white/10 ${
                 !audioEnabled ? 'text-red-400' : 'text-white'
               }`}
               title={audioEnabled ? 'Mute Microphone' : 'Unmute Microphone'}
@@ -482,7 +482,7 @@ export default function P2PControls({
         </div>
 
         {/* 3. RIGHT CONTROLS: ZOOM RED END / LEAVE BUTTON */}
-        <div className="flex items-center">
+        <div className="flex items-center shrink-0">
           <button
             onClick={() => setShowLeaveModal(true)}
             className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-[#E02828] hover:bg-[#C91A1A] text-white font-bold text-xs sm:text-sm shadow-md transition"
