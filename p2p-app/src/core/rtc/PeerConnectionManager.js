@@ -39,6 +39,8 @@ export class PeerConnectionManager {
     this.localScreenStream = null; // screen stream
     this.senderTransformFactory = options.senderTransformFactory || null;
     this.receiverTransformFactory = options.receiverTransformFactory || null;
+    this.natClassifier = options.natClassifier || null;
+    this.natType = 'unknown';
   }
 
   on(event, handler) {
@@ -65,6 +67,15 @@ export class PeerConnectionManager {
 
   getPeer(peerId) {
     return this.peers.get(peerId);
+  }
+
+  async classifyNat() {
+    if (this.natClassifier) {
+      const res = await this.natClassifier.classify();
+      this.natType = res.natType;
+      return res;
+    }
+    return { natType: this.natType };
   }
 
   createPeer(peerId, isInitiator = false, isPolite = undefined) {
