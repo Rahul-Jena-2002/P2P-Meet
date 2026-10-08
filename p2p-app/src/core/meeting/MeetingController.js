@@ -8,11 +8,10 @@
 import { SignalingClient } from '../signaling/SignalingClient.js';
 import { PeerConnectionManager } from '../rtc/PeerConnectionManager.js';
 import { MediaManager } from '../media/MediaManager.js';
-import { TrackManager } from '../media/TrackManager.js';
 import { QualityController } from '../quality/QualityController.js';
 import { DataChannelManager } from '../data/DataChannelManager.js';
-import { TopologyManager, MeshStrategy } from '../topology/TopologyManager.js';
-import { SubscriptionManager } from '../topology/SubscriptionManager.js';
+import { TopologyManager } from '../topology/TopologyManager.js';
+import { TrackManager } from '../media/TrackManager.js';
 
 export class MeetingController {
   constructor({
@@ -23,8 +22,6 @@ export class MeetingController {
     signaling = null,
     rtc = null,
     media = null,
-    trackManager = null,
-    subscriptionManager = null,
     onPeerJoin = null,
     onPeerLeave = null,
     onStream = null,
@@ -45,22 +42,19 @@ export class MeetingController {
 
     this.rtc = rtc || new PeerConnectionManager({ myId: this.userId });
     this.media = media || new MediaManager();
-    this.trackManager = trackManager || new TrackManager({ userId: this.userId, rtc: this.rtc });
-    this.subscriptionManager = subscriptionManager || new SubscriptionManager({ localUserId: this.userId, maxVisibleCards: 9 });
 
     this.quality = new QualityController({
       getPeers: () => this.rtc?.peers ? Array.from(this.rtc.peers.values()) : []
     });
 
     this.dataChannels = new DataChannelManager();
-
+    this.trackManager = new TrackManager({ userId: this.userId, rtc: this.rtc });
     this.topology = new TopologyManager({
       localUserId: this.userId,
-      rtc: this.rtc,
-      strategy: new MeshStrategy()
+      rtc: this.rtc
     });
 
-    this.participants = new Map(); // userId -> { userId, userName, stream, isMuted, isVideoOff }
+    this.participants = new Map(); // userId -> { userId, userName, stream, screenStream, screenAudioStream }
     this.listeners = new Map();
 
     if (onPeerJoin) this.on('peerJoined', ({ userId, userName }) => onPeerJoin(userId, userName));
@@ -105,9 +99,12 @@ export class MeetingController {
 
   setupSignalingBridges() {
     this.signaling.on('peer-joined', async ({ userId, userName }) => {
-      this.participants.set(userId, { userId, userName, stream: null, screenStream: null });
+      this.participants.set(userId, { userId, userName, stream: null, screenStream: null, screenAudioStream: null });
       this.emit('peerJoined', { userId, userName });
       this.emit('participantsChanged', this.getParticipants());
+      try {
+        this.topology?.evaluatePeer?.({ id: userId, name: userName });
+      } catch (_) {}
 
       try {
         const offer = await this.rtc.createOffer(userId);
@@ -122,7 +119,10 @@ export class MeetingController {
       const { type, offer, answer, candidate } = signalData;
 
       if (!this.participants.has(senderId)) {
-        this.participants.set(senderId, { userId: senderId, userName: senderName || senderId, stream: null, screenStream: null });
+        this.participants.set(senderId, { userId: senderId, userName: senderName || senderId, stream: null, screenStream: null, screenAudioStream: null });
+        try {
+          this.topology?.evaluatePeer?.({ id: senderId, name: senderName || senderId });
+        } catch (_) {}
         this.emit('participantsChanged', this.getParticipants());
       }
 
@@ -143,8 +143,8 @@ export class MeetingController {
     });
 
     this.signaling.on('peer-left', ({ userId }) => {
+      this.topology?.removePeer?.(userId);
       this.rtc.removePeer(userId);
-      this.trackManager?.unregisterPeerSources?.(userId);
       this.participants.delete(userId);
       this.emit('participantsChanged', this.getParticipants());
       this.emit('peerLeft', { userId });
@@ -161,7 +161,6 @@ export class MeetingController {
     });
 
     this.rtc.on('track', ({ peerId, track, stream }) => {
-      this.trackManager?.registerRemoteTrack?.({ peerId, track, stream, isScreen: false });
       const participant = this.participants.get(peerId);
       if (participant) {
         participant.stream = stream;
@@ -171,16 +170,35 @@ export class MeetingController {
     });
 
     this.rtc.on('screenTrack', ({ peerId, track, stream }) => {
-      if (track) {
-        this.trackManager?.registerRemoteTrack?.({ peerId, track, stream, isScreen: true });
-      } else {
-        this.trackManager?.unregisterRemoteSource?.(`${peerId}:screen`);
-      }
       const participant = this.participants.get(peerId);
       if (participant) {
         participant.screenStream = stream;
         this.emit('participantScreenStream', { peerId, stream, track });
         this.emit('participantsChanged', this.getParticipants());
+      }
+    });
+
+    this.rtc.on('screenAudioTrack', ({ peerId, track, stream }) => {
+      const participant = this.participants.get(peerId);
+      if (participant) {
+        participant.screenAudioStream = stream;
+        participant.screenAudioTrack = track;
+        this.emit('participantScreenAudioStream', { peerId, stream, track });
+        this.emit('participantsChanged', this.getParticipants());
+      }
+    });
+
+    this.rtc.on('peerCreated', ({ peerId }) => {
+      const peer = this.rtc.getPeer(peerId);
+      if (peer?.dataChannel) {
+        this.dataChannels.attachChannel(peerId, peer.dataChannel);
+      }
+    });
+
+    this.rtc.on('dataChannelOpen', ({ peerId }) => {
+      const peer = this.rtc.getPeer(peerId);
+      if (peer?.dataChannel) {
+        this.dataChannels.attachChannel(peerId, peer.dataChannel);
       }
     });
 
@@ -199,24 +217,26 @@ export class MeetingController {
 
   leave() {
     this.quality?.stop?.();
-    this.dataChannels?.destroy?.();
     this.signaling.disconnect();
     this.rtc.destroy();
     this.media.stop();
     this.cleanupAudioMixer();
+    this.dataChannels?.destroy?.();
     this.trackManager?.destroy?.();
     this.participants.clear();
     this.emit('participantsChanged', []);
     this.emit('left');
   }
 
+  // -----------------------------------------------------------------------
+  // Audio Mixer — mic + system audio blending for screen share with audio
+  // -----------------------------------------------------------------------
   mixAudioTracks(micTrack, screenAudioTrack) {
     if (!screenAudioTrack) return micTrack;
-    if (!micTrack) return screenAudioTrack;
     if (typeof window === 'undefined') return micTrack;
 
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return micTrack;
+    if (!AudioContextClass) return micTrack || screenAudioTrack;
 
     try {
       if (!this.audioMixerCtx || this.audioMixerCtx.state === 'closed') {
@@ -228,23 +248,33 @@ export class MeetingController {
 
       const destination = this.audioMixerCtx.createMediaStreamDestination();
 
+      // Mic gain node — allows mute/unmute without replacing the send track
+      this.micGainNode = this.audioMixerCtx.createGain();
+      this.micGainNode.gain.value = micTrack ? 1.0 : 0.0;
+
       if (micTrack) {
-        const micStream = new MediaStream([micTrack]);
-        const micSource = this.audioMixerCtx.createMediaStreamSource(micStream);
-        micSource.connect(destination);
+        const micSource = this.audioMixerCtx.createMediaStreamSource(new MediaStream([micTrack]));
+        micSource.connect(this.micGainNode);
       }
+      this.micGainNode.connect(destination);
 
-      if (screenAudioTrack) {
-        const screenStream = new MediaStream([screenAudioTrack]);
-        const screenSource = this.audioMixerCtx.createMediaStreamSource(screenStream);
-        screenSource.connect(destination);
-      }
+      const screenSource = this.audioMixerCtx.createMediaStreamSource(new MediaStream([screenAudioTrack]));
+      screenSource.connect(destination);
 
-      const mixedTrack = destination.stream?.getAudioTracks?.()[0];
-      return mixedTrack || micTrack;
+      return destination.stream?.getAudioTracks?.()[0] || micTrack;
     } catch (e) {
       console.warn('[MeetingController] Failed to mix mic and screen audio:', e);
       return screenAudioTrack || micTrack;
+    }
+  }
+
+  /**
+   * Control mic gain in the audio mixer when screen share + system audio is active.
+   * @param {boolean} muted
+   */
+  setMixerMicMuted(muted) {
+    if (this.micGainNode) {
+      this.micGainNode.gain.setTargetAtTime(muted ? 0.0 : 1.0, this.audioMixerCtx?.currentTime || 0, 0.01);
     }
   }
 
@@ -278,56 +308,30 @@ export class MeetingController {
     this.signaling.sendDirect?.(targetId, payload);
   }
 
+  /**
+   * Replace local media tracks on all peer connections.
+   * Accepts either a { localStream, screenStream } object (used by P2PMeetingRoom)
+   * or a plain MediaStream (legacy path).
+   */
   async replaceStream(newStream, isScreenSharing = false, fallbackAudioStream = null) {
     if (newStream && typeof newStream === 'object' && ('localStream' in newStream || 'screenStream' in newStream)) {
-      await this.trackManager?.updateFromStreams?.(newStream);
       const videoTrack = newStream.localStream?.getVideoTracks?.()[0] || null;
-      let audioTrack = newStream.localStream?.getAudioTracks?.()[0] || null;
+      const audioTrack = newStream.localStream?.getAudioTracks?.()[0] || null;
       const screenTrack = newStream.screenStream?.getVideoTracks?.()[0] || null;
       const screenAudioTrack = newStream.screenStream?.getAudioTracks?.()[0] || null;
 
-      if (screenAudioTrack) {
-        audioTrack = this.mixAudioTracks(audioTrack, screenAudioTrack);
-      } else {
-        this.cleanupAudioMixer();
-      }
-
-      return this.rtc.replaceTracks?.({ audioTrack, videoTrack, screenTrack });
+      return this.rtc.replaceTracks?.({ audioTrack, videoTrack, screenTrack, screenAudioTrack });
     }
 
+    // Legacy plain-stream path
     const videoTrack = newStream?.getVideoTracks?.()[0] || null;
     const audioTrack = fallbackAudioStream?.getAudioTracks?.()[0] || newStream?.getAudioTracks?.()[0] || null;
     const screenTrack = isScreenSharing ? videoTrack : null;
-    if (this.trackManager) {
-      await this.trackManager.setLocalAudioTrack(audioTrack);
-      await this.trackManager.setLocalCameraTrack(isScreenSharing ? null : videoTrack);
-      await this.trackManager.setLocalScreenTrack(isScreenSharing ? videoTrack : null);
-    }
-    await this.rtc.replaceTracks?.({ audioTrack, videoTrack, screenTrack, isScreenSharing });
-  }
-
-  getSources() {
-    return this.trackManager ? this.trackManager.getAllSources() : [];
-  }
-
-  getSource(sourceId) {
-    return this.trackManager ? this.trackManager.getSource(sourceId) : null;
+    return this.rtc.replaceTracks?.({ audioTrack, videoTrack, screenTrack, isScreenSharing });
   }
 
   setPeerScreenTrack(peerId, screenTrackId) {
     this.rtc?.setPeerScreenTrack?.(peerId, screenTrackId);
-  }
-
-  setPinnedSource(sourceId) {
-    this.subscriptionManager?.setPinnedSource(sourceId);
-  }
-
-  evaluateSubscriptions(offset = 0) {
-    return this.subscriptionManager?.evaluateSubscriptions(this.getSources(), offset) || [];
-  }
-
-  getSubscriptions() {
-    return this.subscriptionManager?.getActiveSubscriptions() || [];
   }
 
   destroy() {

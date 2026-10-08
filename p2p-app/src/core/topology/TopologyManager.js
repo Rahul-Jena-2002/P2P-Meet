@@ -93,7 +93,7 @@ export class TopologyManager {
       this.activePeers.size + 1
     );
 
-    if (should && this.rtc) {
+    if (should && typeof this.rtc?.createPeer === 'function') {
       this.rtc.createPeer(peerInfo.id);
     }
   }
