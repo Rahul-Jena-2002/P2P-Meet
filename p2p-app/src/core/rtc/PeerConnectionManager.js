@@ -180,6 +180,9 @@ export class PeerConnectionManager {
     try {
       peer.makingOffer = true;
       const offer = await peer.pc.createOffer();
+      if (offer && offer.sdp) {
+        offer.sdp = PeerConnectionManager.mungeSdpForHighFidelityAudio(offer.sdp);
+      }
       await peer.pc.setLocalDescription(offer);
       return peer.pc.localDescription || offer;
     } finally {
@@ -207,6 +210,9 @@ export class PeerConnectionManager {
     await peer.pc.setRemoteDescription(offer);
     await this.drainPendingCandidates(peer);
     const answer = await peer.pc.createAnswer();
+    if (answer && answer.sdp) {
+      answer.sdp = PeerConnectionManager.mungeSdpForHighFidelityAudio(answer.sdp);
+    }
     await peer.pc.setLocalDescription(answer);
     return peer.pc.localDescription || answer;
   }
@@ -381,5 +387,31 @@ export class PeerConnectionManager {
     this.localStream = null;
     this.localScreenStream = null;
     this.listeners.clear();
+  }
+
+  static mungeSdpForHighFidelityAudio(sdp) {
+    if (!sdp || typeof sdp !== 'string') return sdp;
+
+    // Locate the Opus payload type (typically 111)
+    const opusMatch = sdp.match(/a=rtpmap:(\d+)\s+opus\/48000\/2/i);
+    if (!opusMatch) return sdp;
+
+    const pt = opusMatch[1];
+    const fmtpRegex = new RegExp(`^a=fmtp:${pt}\\s+(.*)$`, 'm');
+    const paramsToAdd = 'stereo=1;sprop-stereo=1;maxaveragebitrate=510000;cbr=1';
+
+    if (fmtpRegex.test(sdp)) {
+      return sdp.replace(fmtpRegex, (match, existingParams) => {
+        let updated = existingParams.trim();
+        if (!/stereo=1/.test(updated)) updated += ';stereo=1';
+        if (!/sprop-stereo=1/.test(updated)) updated += ';sprop-stereo=1';
+        if (!/maxaveragebitrate=/.test(updated)) updated += ';maxaveragebitrate=510000';
+        if (!/cbr=1/.test(updated)) updated += ';cbr=1';
+        return `a=fmtp:${pt} ${updated}`;
+      });
+    } else {
+      const rtpmapRegex = new RegExp(`(a=rtpmap:${pt}\\s+opus\\/48000\\/2\\r?\\n)`, 'i');
+      return sdp.replace(rtpmapRegex, `$1a=fmtp:${pt} ${paramsToAdd}\r\n`);
+    }
   }
 }

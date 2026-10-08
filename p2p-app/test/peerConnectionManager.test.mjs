@@ -233,10 +233,24 @@ test('setPeerScreenTrack identifies screen track and emits screenTrack event', a
   });
 
   manager.setPeerScreenTrack('peer-remote', 'remote-screen-1');
-  assert.ok(receivedScreenEvent);
   assert.equal(receivedScreenEvent.peerId, 'peer-remote');
   assert.equal(receivedScreenEvent.track.id, 'remote-screen-1');
   assert.equal(peer.remoteScreenStream.tracks.length, 1);
   assert.equal(peer.remoteStream.tracks.length, 1); // camera remained
+});
+
+test('mungeSdpForHighFidelityAudio injects stereo=1, sprop-stereo=1, and maxaveragebitrate=510000 into Opus fmtp', () => {
+  const mockSdp = `v=0\r\no=- 12345 2 IN IP4 127.0.0.1\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=rtpmap:111 opus/48000/2\r\na=fmtp:111 minptime=10;useinbandfec=1\r\n`;
+  const munged = PeerConnectionManager.mungeSdpForHighFidelityAudio(mockSdp);
+  assert.match(munged, /stereo=1/);
+  assert.match(munged, /sprop-stereo=1/);
+  assert.match(munged, /maxaveragebitrate=510000/);
+  assert.match(munged, /cbr=1/);
+});
+
+test('mungeSdpForHighFidelityAudio handles SDP without existing fmtp line for opus', () => {
+  const mockSdp = `v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=rtpmap:111 opus/48000/2\r\n`;
+  const munged = PeerConnectionManager.mungeSdpForHighFidelityAudio(mockSdp);
+  assert.match(munged, /a=fmtp:111.*stereo=1.*maxaveragebitrate=510000/);
 });
 
