@@ -60,11 +60,10 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   const resetHideTimer = () => {
     setControlsVisible(true);
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    // On mobile devices, NEVER auto-hide controls after 7s to prevent vanishing dock
-    if (!activePanel && !isMobile) {
+    if (!activePanel) {
       hideTimeoutRef.current = setTimeout(() => {
         setControlsVisible(false);
-      }, 7000);
+      }, 3000);
     }
   };
 
@@ -829,6 +828,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             watchTogetherState={watchTogetherState}
             onWatchTogetherSync={handleWatchTogetherSync}
             onStopWatchTogether={handleStopWatchTogether}
+            controlsVisible={controlsVisible || !!activePanel}
           />
         </div>
 
@@ -893,6 +893,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           onSendMessage={handleSendMessage}
           activeVideoStream={screenStream || Object.values(peers)[0]?.stream || localStream}
           activeSpeakerName={screenStream ? `${meetingInfo.name}'s Screen` : (Object.values(peers)[0]?.name || `${meetingInfo.name} (You)`)}
+          onSwitchPanel={(panel) => setActivePanel(panel)}
           onClose={() => setActivePanel(null)}
         />
       )}
@@ -909,6 +910,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           onRenameUser={handleRenameUser}
           onChangeRole={handleChangeRole}
           onRemoveUser={handleRemoveUser}
+          onSwitchPanel={(panel) => setActivePanel(panel)}
           onClose={() => setActivePanel(null)}
         />
       )}

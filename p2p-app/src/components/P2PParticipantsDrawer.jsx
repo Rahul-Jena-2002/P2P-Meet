@@ -8,7 +8,8 @@
 import React, { useState } from 'react';
 import {
   X, Mic, MicOff, Video, VideoOff, Shield, UserPlus,
-  VolumeX, Check, Search, Hand, MoreVertical, Edit2, Lock
+  VolumeX, Check, Search, Hand, MoreVertical, Edit2, Lock,
+  Users, MessageSquare
 } from 'lucide-react';
 
 export default function P2PParticipantsDrawer({
@@ -22,6 +23,7 @@ export default function P2PParticipantsDrawer({
   onRenameUser,
   onChangeRole,
   onRemoveUser,
+  onSwitchPanel,
   onClose
 }) {
   const [search, setSearch] = useState('');
@@ -65,15 +67,28 @@ export default function P2PParticipantsDrawer({
   };
 
   return (
-    <aside className="w-full sm:w-80 md:w-88 h-full bg-[#161324] border-l border-[rgba(196,181,253,0.14)] flex flex-col z-30 select-none shadow-2xl animate-in slide-in-from-right duration-200">
-      {/* Header */}
-      <div className="h-12 px-4 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-[#161324]">
-        <h3 className="text-xs font-bold text-[#F8F7FC] tracking-wide">
-          Participants ({participants.length})
-        </h3>
+    <aside className="relative w-full sm:w-88 md:w-96 h-full bg-[#161324] border-l border-[#FF6B35]/40 flex flex-col z-30 select-none shadow-2xl shrink-0 animate-in slide-in-from-right duration-150">
+      {/* Header with Clean Separated Context Tabs */}
+      <div className="h-12 px-3 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-[#161324] shrink-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs px-2.5 py-1 rounded-full bg-[#FF6B35]/20 text-[#FFA14A] font-bold border border-[#FF6B35]/40 flex items-center gap-1">
+            <Users className="w-3.5 h-3.5" />
+            <span>People ({participants.length})</span>
+          </span>
+          {onSwitchPanel && (
+            <button
+              onClick={() => onSwitchPanel('chat')}
+              className="text-xs px-2.5 py-1 rounded-full text-[#C4B5FD]/70 hover:text-[#F8F7FC] hover:bg-white/10 transition cursor-pointer flex items-center gap-1"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Chat</span>
+            </button>
+          )}
+        </div>
         <button
           onClick={onClose}
-          className="p-1 rounded-lg text-[#C4B5FD]/60 hover:text-[#F8F7FC] hover:bg-[rgba(196,181,253,0.10)] transition"
+          className="p-1 rounded-lg text-[#C4B5FD]/60 hover:text-[#F8F7FC] hover:bg-[rgba(196,181,253,0.10)] transition cursor-pointer"
+          title="Close Sidebar"
         >
           <X className="w-4 h-4" />
         </button>

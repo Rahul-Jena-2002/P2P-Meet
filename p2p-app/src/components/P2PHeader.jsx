@@ -86,30 +86,28 @@ export default function P2PHeader({
   };
 
   return (
-    <header className={`absolute top-0 left-0 right-0 h-12 px-4 z-30 flex items-center justify-between select-none bg-[#161324]/85 backdrop-blur-2xl border-b border-[rgba(196,181,253,0.14)] shadow-lg transition-opacity duration-200 ${
-      isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+    <header className={`fixed sm:absolute top-3 sm:top-5 left-3 sm:left-6 right-3 sm:right-6 z-30 flex items-center justify-between select-none pointer-events-none transition-all duration-300 ${
+      isVisible ? 'opacity-100' : 'opacity-0'
     }`}>
       {/* 1. LEFT: Iconic Security Shield (Meeting Info) + Recording Badge */}
       <div className="flex items-center gap-2 relative">
         <button
           id="zoom-info-btn"
           onClick={() => setShowInfoModal(v => !v)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition text-xs font-medium border ${
+          className={`pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition text-xs font-semibold border border-[#FF6B35]/70 backdrop-blur-xl cursor-pointer ${
             showInfoModal
-              ? 'bg-[#221C35] text-[#FF6B35] border-[#FF6B35]/40 shadow-md'
-              : 'bg-[#0D0B14]/70 hover:bg-[#221C35] text-[#C4B5FD] hover:text-[#F8F7FC] border-[rgba(196,181,253,0.16)]'
+              ? 'bg-[#FF6B35] text-[#0D0B14]'
+              : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
           }`}
           title="Meeting Information (E2EE Direct Security)"
         >
-          <ShieldCheck className="w-4 h-4 text-[#C4B5FD]" />
+          <ShieldCheck className="w-4 h-4 text-[#FF6B35]" />
           <span className="hidden sm:inline font-semibold text-[#F8F7FC]">{title}</span>
         </button>
 
         {/* Network Topology Badge */}
-        <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold border ${
-          topologyMode === 'relay-tree'
-            ? 'bg-[rgba(196,181,253,0.12)] text-[#C4B5FD] border-[rgba(196,181,253,0.25)]'
-            : 'bg-[rgba(255,107,53,0.12)] text-[#FFA14A] border-[rgba(255,107,53,0.25)]'
+        <div className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border border-[#FF6B35]/70 bg-[#0D0B14]/50 backdrop-blur-xl pointer-events-auto ${
+          topologyMode === 'relay-tree' ? 'text-[#C4B5FD]' : 'text-[#FFA14A]'
         }`} title={topologyMode === 'relay-tree' ? 'Decentralized Relay SFU tree' : 'Zero latency Full Mesh connection'}>
           <span className={`w-1.5 h-1.5 rounded-full ${topologyMode === 'relay-tree' ? 'bg-[#C4B5FD]' : 'bg-[#FF6B35]'} animate-pulse`} />
           <span>{topologyMode === 'relay-tree' ? (isSupernode ? 'Supernode Host' : 'Relay Tree') : 'Direct Mesh'}</span>
@@ -117,13 +115,13 @@ export default function P2PHeader({
 
         {/* Recording Indicator */}
         {isRecording && (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] text-xs font-bold shadow-lg shadow-[#FF6B35]/25 animate-pulse">
+          <div className="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FF6B35]/80 backdrop-blur-xl border border-[#FF6B35] text-[#0D0B14] text-xs font-bold animate-pulse">
             <span className="w-2 h-2 rounded-full bg-[#0D0B14] animate-ping" />
             <span>● Recording</span>
             {onStopRecording && (
               <button
                 onClick={onStopRecording}
-                className="ml-1 px-1.5 py-0.5 rounded-md bg-[#0D0B14]/30 hover:bg-[#0D0B14]/60 text-[10px] text-[#0D0B14] font-bold"
+                className="ml-1 px-1.5 py-0.5 rounded-full bg-[#0D0B14]/30 hover:bg-[#0D0B14]/60 text-[10px] text-[#0D0B14] font-bold"
                 title="Stop Recording"
               >
                 Stop
@@ -136,7 +134,7 @@ export default function P2PHeader({
         {showInfoModal && (
           <div
             ref={modalRef}
-            className="absolute top-13 left-0 w-80 sm:w-96 rounded-2xl bg-[#161324] border border-[rgba(196,181,253,0.20)] p-4 text-xs shadow-2xl text-[#F8F7FC] z-50 animate-in fade-in zoom-in-95 duration-150"
+            className="absolute top-12 left-0 w-80 sm:w-96 rounded-2xl bg-[#161324]/90 border border-[#FF6B35]/70 p-4 text-xs shadow-2xl shadow-black/90 text-[#F8F7FC] z-50 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150 pointer-events-auto"
           >
             <div className="flex items-center justify-between pb-3 border-b border-[rgba(196,181,253,0.14)] mb-3">
               <div className="flex items-center gap-2">
@@ -204,10 +202,10 @@ export default function P2PHeader({
       </div>
 
       {/* 2. CENTER: Meeting Clock Duration with Orange Live Indicator */}
-      <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-[#0D0B14]/85 border border-[rgba(196,181,253,0.16)] text-xs font-mono text-[#F8F7FC] backdrop-blur-md shadow-inner">
+      <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#0D0B14]/50 border border-[#FF6B35]/70 text-xs font-mono text-[#F8F7FC] backdrop-blur-xl pointer-events-auto">
         <span className="w-2 h-2 rounded-full bg-[#FF6B35] animate-pulse" />
-        <Clock className="w-3.5 h-3.5 text-[#C4B5FD]/60" />
-        <span>{formatTimer(secondsElapsed)}</span>
+        <Clock className="w-3.5 h-3.5 text-[#FFA14A]" />
+        <span className="font-bold">{formatTimer(secondsElapsed)}</span>
       </div>
 
       {/* 3. RIGHT: "View ⊞" Dropdown + Mobile Leave Button + Fullscreen */}
@@ -216,27 +214,27 @@ export default function P2PHeader({
         {onLeave && (
           <button
             onClick={onLeave}
-            className="md:hidden px-3 py-1 rounded-xl bg-[#FF6B35] hover:bg-[#FF854D] text-[#0D0B14] font-bold text-xs shadow-md shadow-[#FF6B35]/25 transition"
+            className="md:hidden pointer-events-auto px-3.5 py-1.5 rounded-full bg-[#FF6B35] hover:bg-[#FF854D] text-[#0D0B14] font-bold text-xs border border-[#FF6B35] transition cursor-pointer"
           >
             {isHost ? 'End' : 'Leave'}
           </button>
         )}
 
-        <div className="relative">
+        <div className="relative pointer-events-auto">
           <button
             id="zoom-view-btn"
             onClick={() => setShowViewDropdown(v => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0D0B14]/70 hover:bg-[#221C35] border border-[rgba(196,181,253,0.16)] text-[#F8F7FC] text-xs font-semibold transition"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 border border-[#FF6B35]/70 text-[#F8F7FC] text-xs font-semibold backdrop-blur-xl transition cursor-pointer"
           >
-            <LayoutGrid className="w-3.5 h-3.5 text-[#C4B5FD]" />
+            <LayoutGrid className="w-3.5 h-3.5 text-[#FF6B35]" />
             <span>View</span>
-            <ChevronDown className="w-3 h-3 text-[#C4B5FD]/70" />
+            <ChevronDown className="w-3 h-3 text-[#FF6B35]" />
           </button>
 
           {showViewDropdown && (
             <div
               ref={viewMenuRef}
-              className="absolute right-0 top-10 w-48 rounded-2xl bg-[#221C35] border border-[rgba(196,181,253,0.18)] p-1.5 text-xs shadow-2xl text-[#F8F7FC] z-50 animate-in fade-in zoom-in-95 duration-100"
+              className="absolute right-0 top-12 w-48 rounded-2xl bg-[#161324]/90 border border-[#FF6B35]/70 p-1.5 text-xs shadow-2xl shadow-black/90 text-[#F8F7FC] z-50 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100"
             >
               <button
                 onClick={() => { onToggleViewMode?.('speaker'); setShowViewDropdown(false); }}

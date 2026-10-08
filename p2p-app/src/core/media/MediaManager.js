@@ -235,7 +235,7 @@ export class MediaManager {
 
     const constraints = {
       video: {
-        cursor: 'always',
+        cursor: 'never',
         displaySurface: surface,
         frameRate: { ideal: 60, max: 60 },
         width: { ideal: 1920 },
@@ -253,7 +253,7 @@ export class MediaManager {
       console.warn('[MediaManager] Primary display constraints failed, trying standard fallback:', err);
       try {
         stream = await nav.mediaDevices.getDisplayMedia({
-          video: { cursor: 'always' },
+          video: { cursor: 'never' },
           audio: audioConstraints,
           systemAudio: 'include'
         });

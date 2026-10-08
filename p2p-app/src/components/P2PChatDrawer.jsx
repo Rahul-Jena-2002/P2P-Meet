@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Users, Paperclip, Download, FileText, ArrowDownToLine, ShieldCheck, FileQuestion } from 'lucide-react';
+import { X, Send, Users, Paperclip, Download, FileText, ArrowDownToLine, ShieldCheck, FileQuestion, MessageSquare } from 'lucide-react';
 
 export default function P2PChatDrawer({
   messages,
@@ -16,6 +16,7 @@ export default function P2PChatDrawer({
   participants = [],
   activeVideoStream,
   activeSpeakerName,
+  onSwitchPanel,
   onClose
 }) {
   const [text, setText] = useState('');
@@ -87,60 +88,32 @@ export default function P2PChatDrawer({
   const otherParticipants = participants.filter(p => p.id !== currentUserId);
 
   return (
-    <aside className="fixed inset-0 sm:relative sm:inset-auto w-full sm:w-96 h-full p2p-panel sm:border-l border-[rgba(196,181,253,0.14)] flex flex-col z-50 sm:z-40 animate-in slide-in-from-right duration-200 select-text bg-[#161324] text-[#F8F7FC] shadow-2xl">
-      {/* Header */}
-      <div className="p-4 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-[#161324]">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onClose}
-            className="sm:hidden p-1.5 -ml-1.5 rounded-lg text-[#C4B5FD]/70 hover:text-white"
-            title="Back to Meeting"
-          >
-            ←
-          </button>
-          <h3 className="text-sm font-bold text-[#F8F7FC] tracking-wide">Meeting Chat & Files</h3>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[rgba(196,181,253,0.14)] text-[#C4B5FD] border border-[rgba(196,181,253,0.25)] font-bold">
-            P2P
+    <aside className="relative w-full sm:w-88 md:w-96 h-full border-l border-[#FF6B35]/40 flex flex-col z-30 select-text bg-[#161324] text-[#F8F7FC] shadow-2xl shrink-0 animate-in slide-in-from-right duration-150">
+      {/* Header with Clean Separated Context Tabs */}
+      <div className="h-12 px-3 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-[#161324] shrink-0">
+        <div className="flex items-center gap-1.5">
+          {onSwitchPanel && (
+            <button
+              onClick={() => onSwitchPanel('participants')}
+              className="text-xs px-2.5 py-1 rounded-full text-[#C4B5FD]/70 hover:text-[#F8F7FC] hover:bg-white/10 transition cursor-pointer flex items-center gap-1"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>People ({participants.length})</span>
+            </button>
+          )}
+          <span className="text-xs px-2.5 py-1 rounded-full bg-[#FF6B35]/20 text-[#FFA14A] font-bold border border-[#FF6B35]/40 flex items-center gap-1">
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Chat</span>
           </span>
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 rounded-xl text-[#C4B5FD]/60 hover:text-[#F8F7FC] hover:bg-[rgba(196,181,253,0.10)] transition"
-          title="Close Chat"
+          className="p-1.5 rounded-xl text-[#C4B5FD]/60 hover:text-[#F8F7FC] hover:bg-[rgba(196,181,253,0.10)] transition cursor-pointer"
+          title="Close Sidebar"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
-
-      {/* Auto Floating Mini Video PiP (Tap to return to full video) */}
-      {activeVideoStream && (
-        <div
-          onClick={onClose}
-          className="mx-3 my-2.5 p-2 rounded-2xl bg-[#221C35] border border-[rgba(196,181,253,0.20)] shadow-xl flex items-center gap-3 cursor-pointer hover:border-[#FF6B35] transition group select-none active:scale-98"
-          title="Tap to return to meeting video"
-        >
-          <div className="relative w-20 h-13 rounded-xl overflow-hidden bg-[#0D0B14] shrink-0 border border-[rgba(196,181,253,0.15)] shadow-inner">
-            <video
-              ref={pipVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition" />
-          </div>
-          <div className="flex-1 min-w-0 pr-1">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#F8F7FC] truncate">
-              <span className="w-2 h-2 rounded-full bg-[#FF6B35] animate-pulse shrink-0" />
-              <span>{activeSpeakerName || 'Meeting in progress'}</span>
-            </div>
-            <p className="text-[11px] text-[#C4B5FD] font-semibold mt-0.5 flex items-center gap-1">
-              <span>Tap to return to video</span>
-              <span className="group-hover:translate-x-0.5 transition-transform text-[#FF6B35]">↗</span>
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Recipient & Action Bar */}
       <div className="px-4 py-2 border-b border-[rgba(196,181,253,0.14)] bg-[#0D0B14]/40 flex items-center justify-between text-xs text-[#C4B5FD]/70">

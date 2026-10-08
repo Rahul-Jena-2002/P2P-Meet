@@ -1,17 +1,16 @@
 'use client';
 /*
  * OpenMeet - Open-source, self-hostable video meeting platform
- * Authentic Zoom Bottom Control Toolbar & Features
+ * Authentic Zoom Floating Pill Control Dock
  * Copyright (C) 2026 OpenMeet Contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Mic, MicOff, Video, VideoOff, ChevronUp, Users,
-  MessageSquare, Smile, PhoneOff, Check, Shield,
-  Share2, Radio, Circle, Hand, Palette, Clapperboard,
-  Sliders, Volume2, Sparkles, X, Lock, Unlock, Eye, EyeOff, Monitor, Layers,
-  GraduationCap, Info
+  MessageSquare, Smile, Check, Shield,
+  Share2, Circle, Hand, Palette,
+  Volume2, Sparkles, Lock
 } from 'lucide-react';
 import { useMedia } from './MediaProvider';
 import { soundSynth } from '../lib/soundEffects';
@@ -101,52 +100,66 @@ export default function P2PControls({
     { id: 'noir', label: 'Noir (B&W)', icon: '🎞️' }
   ];
 
+  const isAnyMenuOpen = showAudioMenu || showVideoMenu || showSecurityMenu || showReactionsMenu;
+
   return (
     <>
-      <footer className={`absolute bottom-0 left-0 right-0 h-16 sm:h-18 bg-[#161324]/92 backdrop-blur-2xl border-t border-[rgba(196,181,253,0.14)] z-40 flex items-center justify-between px-2 sm:px-6 select-none shadow-2xl transition-transform duration-200 overflow-x-auto scrollbar-none gap-1 sm:gap-2 ${
-        isVisible ? 'translate-y-0' : 'translate-y-full pointer-events-none'
-      }`}>
-        {/* 1. LEFT CONTROLS: MUTE / UNMUTE & START / STOP VIDEO */}
-        <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
-          {/* MUTE / UNMUTE BUTTON WITH CHEVRON */}
-          <div ref={audioMenuRef} className="relative flex items-center">
+      {/* Floating Pill Dock Container */}
+      <footer
+        className={`fixed sm:absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[98vw] select-none transition-all duration-300 pointer-events-auto ${
+          isVisible || isAnyMenuOpen
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-12 opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="p2p-dock rounded-full px-2 sm:px-3 py-1.5 sm:py-2 flex items-center gap-1 sm:gap-2 shadow-2xl shadow-black/90 border border-[#FF6B35]/70 backdrop-blur-2xl">
+          
+          {/* 1. MUTE / UNMUTE CAPSULE WITH POPUP CHEVRON */}
+          <div ref={audioMenuRef} className="relative flex items-center bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 rounded-full pl-2 pr-1 py-0.5 border border-[#FF6B35]/70 backdrop-blur-xl transition">
             <button
+              type="button"
               onClick={toggleAudio}
-              className={`flex flex-col items-center justify-center min-w-[46px] sm:min-w-[62px] h-13 px-1.5 sm:px-2 rounded-xl transition hover:bg-[rgba(196,181,253,0.08)] ${
+              className={`flex items-center gap-1.5 py-1 px-1.5 rounded-full transition cursor-pointer ${
                 !audioEnabled ? 'text-[#FF6B35]' : 'text-[#F8F7FC]'
               }`}
               title={audioEnabled ? 'Mute Microphone' : 'Unmute Microphone'}
             >
-              <div className="relative">
-                {audioEnabled ? <Mic className="w-5 h-5 text-[#F8F7FC]" /> : <MicOff className="w-5 h-5 text-[#FF6B35]" />}
-                {/* Real-time audio wave indicator on mic icon */}
+              <div className="relative flex items-center justify-center">
+                {audioEnabled ? <Mic className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#F8F7FC]" /> : <MicOff className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#FF6B35]" />}
                 {audioEnabled && audioLevel > 15 && (
                   <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#FF6B35] animate-ping" />
                 )}
               </div>
-              <span className="text-[10px] sm:text-[11px] font-medium tracking-tight mt-0.5">
+              <span className="text-[11px] font-semibold hidden md:inline">
                 {audioEnabled ? 'Mute' : 'Unmute'}
               </span>
             </button>
 
             <button
-              onClick={() => setShowAudioMenu(v => !v)}
-              className="h-13 px-1 rounded-lg text-[#C4B5FD]/70 hover:text-[#F8F7FC] hover:bg-[rgba(196,181,253,0.08)] transition"
-              title="Select Microphone & Speaker"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAudioMenu(v => !v);
+                setShowVideoMenu(false);
+                setShowSecurityMenu(false);
+                setShowReactionsMenu(false);
+              }}
+              className="w-6 h-7 rounded-full text-[#C4B5FD]/70 hover:text-[#F8F7FC] hover:bg-white/10 transition flex items-center justify-center cursor-pointer ml-0.5"
+              title="Microphone & Speaker Options"
             >
-              <ChevronUp className="w-3.5 h-3.5" />
+              <ChevronUp className={`w-3.5 h-3.5 transition-transform duration-200 ${showAudioMenu ? 'rotate-180 text-[#FF6B35]' : ''}`} />
             </button>
 
-            {/* Audio Settings Popover */}
+            {/* Audio Settings Popover - Floats above the pill dock */}
             {showAudioMenu && (
-              <div className="absolute bottom-16 left-0 w-72 rounded-2xl bg-[#221C35] border border-[rgba(196,181,253,0.18)] p-2 text-xs shadow-2xl text-[#F8F7FC] z-50 animate-in fade-in zoom-in-95 duration-100">
+              <div className="absolute bottom-full mb-3 left-0 sm:left-1/2 sm:-translate-x-1/2 w-72 rounded-2xl p2p-dropdown border border-white/10 p-2.5 text-xs shadow-2xl text-[#F8F7FC] z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-2xl">
                 <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#C4B5FD]">Select a Microphone</div>
                 {devices.audio.length > 0 ? (
                   devices.audio.map(d => (
                     <button
                       key={d.deviceId}
                       onClick={() => { switchMicrophone(d.deviceId); setShowAudioMenu(false); }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition ${
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition cursor-pointer ${
                         selectedMic === d.deviceId ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold' : 'hover:bg-[rgba(196,181,253,0.10)] text-[#F8F7FC]/80'
                       }`}
                     >
@@ -164,7 +177,7 @@ export default function P2PControls({
                 <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#C4B5FD]">Audio Processing</div>
                 <button
                   onClick={() => { toggleVoiceFocus?.(); }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition ${
+                  className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition cursor-pointer ${
                     voiceFocusEnabled ? 'bg-[rgba(196,181,253,0.15)] text-[#C4B5FD]' : 'hover:bg-[rgba(196,181,253,0.10)] text-[#F8F7FC]/80'
                   }`}
                   title="Voice Focus uses noise suppression, echo cancellation, and auto gain control"
@@ -188,7 +201,7 @@ export default function P2PControls({
                     <button
                       key={d.deviceId}
                       onClick={() => { switchAudioOutput(d.deviceId); setShowAudioMenu(false); }}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition ${
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition cursor-pointer ${
                         selectedSpeaker === d.deviceId ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold' : 'hover:bg-[rgba(196,181,253,0.10)] text-[#F8F7FC]/80'
                       }`}
                     >
@@ -204,7 +217,7 @@ export default function P2PControls({
 
                 <button
                   onClick={() => { testAudioOutput?.(); }}
-                  className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] text-[#FFA14A] font-medium flex items-center gap-2 transition"
+                  className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] text-[#FFA14A] font-medium flex items-center gap-2 transition cursor-pointer"
                 >
                   <Volume2 className="w-3.5 h-3.5" />
                   <span>Test Speaker & Chime</span>
@@ -213,36 +226,46 @@ export default function P2PControls({
             )}
           </div>
 
-          {/* START / STOP VIDEO BUTTON WITH CHEVRON */}
-          <div ref={videoMenuRef} className="relative flex items-center">
+          {/* 2. START / STOP VIDEO CAPSULE WITH POPUP CHEVRON */}
+          <div ref={videoMenuRef} className="relative flex items-center bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 rounded-full pl-2 pr-1 py-0.5 border border-[#FF6B35]/70 backdrop-blur-xl transition">
             <button
+              type="button"
               onClick={toggleVideo}
-              className={`flex flex-col items-center justify-center min-w-[54px] sm:min-w-[66px] h-13 px-2 rounded-xl transition hover:bg-[rgba(196,181,253,0.08)] ${
+              className={`flex items-center gap-1.5 py-1 px-1.5 rounded-full transition cursor-pointer ${
                 !videoEnabled ? 'text-[#FF6B35]' : 'text-[#F8F7FC]'
               }`}
               title={videoEnabled ? 'Stop Video' : 'Start Video'}
             >
-              {videoEnabled ? <Video className="w-5 h-5 text-[#F8F7FC]" /> : <VideoOff className="w-5 h-5 text-[#FF6B35]" />}
-              <span className="text-[10px] sm:text-[11px] font-medium tracking-tight mt-0.5">
+              <div className="flex items-center justify-center">
+                {videoEnabled ? <Video className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#F8F7FC]" /> : <VideoOff className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-[#FF6B35]" />}
+              </div>
+              <span className="text-[11px] font-semibold hidden md:inline">
                 {videoEnabled ? 'Stop Video' : 'Start Video'}
               </span>
             </button>
 
             <button
-              onClick={() => setShowVideoMenu(v => !v)}
-              className="h-13 px-1 rounded-lg text-[#C4B5FD]/70 hover:text-[#F8F7FC] hover:bg-[rgba(196,181,253,0.08)] transition"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowVideoMenu(v => !v);
+                setShowAudioMenu(false);
+                setShowSecurityMenu(false);
+                setShowReactionsMenu(false);
+              }}
+              className="w-6 h-7 rounded-full text-[#C4B5FD]/70 hover:text-[#F8F7FC] hover:bg-white/10 transition flex items-center justify-center cursor-pointer ml-0.5"
               title="Camera & Virtual Backgrounds"
             >
-              <ChevronUp className="w-3.5 h-3.5" />
+              <ChevronUp className={`w-3.5 h-3.5 transition-transform duration-200 ${showVideoMenu ? 'rotate-180 text-[#FF6B35]' : ''}`} />
             </button>
 
-            {/* Video Settings Popover */}
+            {/* Video Settings Popover - Floats above the pill dock */}
             {showVideoMenu && (
-              <div className="absolute bottom-16 left-0 w-80 rounded-2xl bg-[#221C35] border border-[rgba(196,181,253,0.18)] p-2.5 text-xs shadow-2xl text-[#F8F7FC] z-50 animate-in fade-in zoom-in-95 duration-100">
+              <div className="absolute bottom-full mb-3 left-0 sm:left-1/2 sm:-translate-x-1/2 w-80 rounded-2xl p2p-dropdown border border-[#FF6B35]/70 p-2.5 text-xs shadow-2xl text-[#F8F7FC] z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-2xl">
                 <div className="flex items-center gap-1 bg-[#0D0B14] p-1 rounded-xl mb-2 border border-[rgba(196,181,253,0.12)]">
                   <button
                     onClick={() => setVideoMenuTab('effects')}
-                    className={`flex-1 py-1 rounded-lg text-[11px] font-semibold transition ${
+                    className={`flex-1 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
                       videoMenuTab === 'effects' ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold' : 'text-[#C4B5FD]/70 hover:text-[#F8F7FC]'
                     }`}
                   >
@@ -250,7 +273,7 @@ export default function P2PControls({
                   </button>
                   <button
                     onClick={() => setVideoMenuTab('devices')}
-                    className={`flex-1 py-1 rounded-lg text-[11px] font-semibold transition ${
+                    className={`flex-1 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
                       videoMenuTab === 'devices' ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold' : 'text-[#C4B5FD]/70 hover:text-[#F8F7FC]'
                     }`}
                   >
@@ -266,7 +289,7 @@ export default function P2PControls({
                         <button
                           key={d.deviceId}
                           onClick={() => { switchCamera(d.deviceId); setShowVideoMenu(false); }}
-                          className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition ${
+                          className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition cursor-pointer ${
                             selectedCam === d.deviceId ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold' : 'hover:bg-[rgba(196,181,253,0.10)] text-[#F8F7FC]/80'
                           }`}
                         >
@@ -286,7 +309,7 @@ export default function P2PControls({
                         <button
                           key={f.id}
                           onClick={() => { setVideoFilter(f.id); setShowVideoMenu(false); }}
-                          className={`p-2 rounded-xl border text-left flex items-center gap-2 transition ${
+                          className={`p-2 rounded-xl border text-left flex items-center gap-2 transition cursor-pointer ${
                             videoFilter === f.id
                               ? 'bg-[rgba(196,181,253,0.18)] border-[#FF6B35] text-[#F8F7FC] font-semibold'
                               : 'bg-[#0D0B14]/60 hover:bg-[#0D0B14] border-[rgba(196,181,253,0.12)] text-[#F8F7FC]/80'
@@ -302,30 +325,38 @@ export default function P2PControls({
               </div>
             )}
           </div>
-        </div>
 
-        {/* 2. CENTER CONTROLS: SECURITY, PARTICIPANTS, CHAT, SHARE SCREEN, WHITEBOARD, RECORD, REACTIONS */}
-        <div className="flex items-center gap-1 sm:gap-2">
-          {/* SECURITY MENU (Host Feature) */}
+          {/* Divider */}
+          <div className="h-6 w-[1px] bg-[rgba(196,181,253,0.16)] mx-0.5 hidden sm:block shrink-0" />
+
+          {/* 3. CENTER CONTROLS: SECURITY, PARTICIPANTS, CHAT, SHARE SCREEN, WHITEBOARD, RECORD, REACTIONS */}
+          
+          {/* SECURITY MENU (Host only) */}
           {isHost && (
             <div ref={securityMenuRef} className="relative hidden md:block">
               <button
-                onClick={() => setShowSecurityMenu(v => !v)}
-                className={`flex flex-col items-center justify-center min-w-[56px] h-13 px-2 rounded-xl transition hover:bg-[rgba(196,181,253,0.08)] ${
-                  showSecurityMenu ? 'bg-[rgba(196,181,253,0.18)] text-[#C4B5FD]' : 'text-[#F8F7FC]/85 hover:text-[#F8F7FC]'
+                type="button"
+                onClick={() => {
+                  setShowSecurityMenu(v => !v);
+                  setShowAudioMenu(false);
+                  setShowVideoMenu(false);
+                  setShowReactionsMenu(false);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#FF6B35]/70 transition cursor-pointer ${
+                  showSecurityMenu ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
                 }`}
                 title="Security Options"
               >
-                <Shield className="w-5 h-5 text-[#C4B5FD]" />
-                <span className="text-[11px] font-medium tracking-tight mt-0.5">Security</span>
+                <Shield className="w-4 h-4 text-[#FF6B35]" />
+                <span className="text-[11px] font-semibold hidden lg:inline">Security</span>
               </button>
 
               {showSecurityMenu && (
-                <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-64 rounded-2xl bg-[#221C35] border border-[rgba(196,181,253,0.18)] p-2.5 text-xs shadow-2xl text-[#F8F7FC] z-50">
+                <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-64 rounded-2xl p2p-dropdown border border-[#FF6B35]/70 p-2.5 text-xs shadow-2xl text-[#F8F7FC] z-50 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
                   <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#C4B5FD]">Lock & Access</div>
                   <button
                     onClick={() => onUpdateSecurity?.({ lockMeeting: !securitySettings.lockMeeting })}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] flex items-center justify-between text-xs transition"
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] flex items-center justify-between text-xs transition cursor-pointer"
                   >
                     <span>Lock Meeting</span>
                     {securitySettings.lockMeeting ? <Check className="w-3.5 h-3.5 text-[#FF6B35]" /> : <Lock className="w-3 h-3 text-[#C4B5FD]/40" />}
@@ -336,7 +367,7 @@ export default function P2PControls({
                   <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#C4B5FD]">Allow Participants to:</div>
                   <button
                     onClick={() => onUpdateSecurity?.({ allowScreenShare: !securitySettings.allowScreenShare })}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] flex items-center justify-between text-xs transition"
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] flex items-center justify-between text-xs transition cursor-pointer"
                   >
                     <span>Share Screen</span>
                     {securitySettings.allowScreenShare && <Check className="w-3.5 h-3.5 text-[#FF6B35]" />}
@@ -344,7 +375,7 @@ export default function P2PControls({
 
                   <button
                     onClick={() => onUpdateSecurity?.({ allowChat: !securitySettings.allowChat })}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] flex items-center justify-between text-xs transition"
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] flex items-center justify-between text-xs transition cursor-pointer"
                   >
                     <span>Chat</span>
                     {securitySettings.allowChat && <Check className="w-3.5 h-3.5 text-[#FF6B35]" />}
@@ -352,7 +383,7 @@ export default function P2PControls({
 
                   <button
                     onClick={() => onUpdateSecurity?.({ allowRename: !securitySettings.allowRename })}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] flex items-center justify-between text-xs transition"
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] flex items-center justify-between text-xs transition cursor-pointer"
                   >
                     <span>Rename Themselves</span>
                     {securitySettings.allowRename && <Check className="w-3.5 h-3.5 text-[#FF6B35]" />}
@@ -360,7 +391,7 @@ export default function P2PControls({
 
                   <button
                     onClick={() => onUpdateSecurity?.({ allowUnmute: !securitySettings.allowUnmute })}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] flex items-center justify-between text-xs transition"
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] flex items-center justify-between text-xs transition cursor-pointer"
                   >
                     <span>Unmute Themselves</span>
                     {securitySettings.allowUnmute && <Check className="w-3.5 h-3.5 text-[#FF6B35]" />}
@@ -372,106 +403,110 @@ export default function P2PControls({
 
           {/* PARTICIPANTS BUTTON */}
           <button
+            type="button"
             onClick={() => onTogglePanel?.('participants')}
-            className={`flex flex-col items-center justify-center min-w-[56px] h-13 px-2 rounded-xl transition hover:bg-[rgba(196,181,253,0.08)] ${
-              activePanel === 'participants' ? 'bg-[rgba(196,181,253,0.18)] text-[#C4B5FD] border border-[rgba(196,181,253,0.3)]' : 'text-[#F8F7FC]/85 hover:text-[#F8F7FC]'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#FF6B35]/70 transition cursor-pointer ${
+              activePanel === 'participants' ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
             }`}
             title="Participants List"
           >
-            <div className="relative">
-              <Users className="w-5 h-5 text-[#F8F7FC]" />
-              <span className="absolute -top-1 -right-2 px-1 rounded-full bg-[#FF6B35] text-[9px] font-bold text-[#0D0B14]">
+            <div className="relative flex items-center justify-center">
+              <Users className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+              <span className="absolute -top-1 -right-2 px-1 rounded-full bg-[#FF6B35] text-[9px] font-bold text-[#0D0B14] leading-tight">
                 {participantCount}
               </span>
             </div>
-            <span className="text-[10px] sm:text-[11px] font-medium tracking-tight mt-0.5">Participants</span>
+            <span className="text-[11px] font-semibold hidden sm:inline ml-1">Participants</span>
           </button>
 
           {/* CHAT BUTTON */}
           <button
+            type="button"
             onClick={() => onTogglePanel?.('chat')}
-            className={`flex flex-col items-center justify-center min-w-[50px] sm:min-w-[56px] h-13 px-2 rounded-xl transition hover:bg-[rgba(196,181,253,0.08)] ${
-              activePanel === 'chat' ? 'bg-[rgba(196,181,253,0.18)] text-[#C4B5FD] border border-[rgba(196,181,253,0.3)]' : 'text-[#F8F7FC]/85 hover:text-[#F8F7FC]'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#FF6B35]/70 transition cursor-pointer ${
+              activePanel === 'chat' ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
             }`}
             title="Meeting Chat"
           >
-            <MessageSquare className="w-5 h-5 text-[#F8F7FC]" />
-            <span className="text-[10px] sm:text-[11px] font-medium tracking-tight mt-0.5">Chat</span>
+            <MessageSquare className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+            <span className="text-[11px] font-semibold hidden sm:inline">Chat</span>
           </button>
 
-          {/* SHARE SCREEN */}
-          <div className="relative flex items-center">
-            <button
-              onClick={() => {
-                if (screenSharing) {
-                  stopScreenShare();
-                } else {
-                  startScreenShare({ surface: 'monitor', isWatchParty: false });
-                }
-              }}
-              className={`flex flex-col items-center justify-center min-w-[64px] sm:min-w-[76px] h-13 px-2.5 rounded-xl transition shadow-lg ${
-                screenSharing
-                  ? 'bg-[#FF6B35] hover:bg-[#FF854D] text-[#0D0B14] font-bold'
-                  : 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold shadow-[#FF6B35]/25'
-              }`}
-              title={screenSharing ? 'Stop Screen Sharing' : 'Share Screen (Entire Desktop / OS Layer Default)'}
-            >
-              <Share2 className="w-5 h-5" />
-              <span className="text-[10px] sm:text-[11px] font-bold tracking-tight mt-0.5">
-                {screenSharing ? 'Stop Share' : 'Share Screen'}
-              </span>
-              {screenSharing && (
-                <span className="hidden sm:inline text-[8px] font-semibold text-[#0D0B14] bg-white/70 px-1 rounded mt-0.5">
-                  510kbps Hi-Fi
-                </span>
-              )}
-            </button>
-          </div>
+          {/* SHARE SCREEN (TRANSLUCENT PILL WITH THIN ORANGE BORDER - LESS CONTRASTY) */}
+          <button
+            type="button"
+            onClick={() => {
+              if (screenSharing) {
+                stopScreenShare();
+              } else {
+                startScreenShare({ surface: 'monitor', isWatchParty: false });
+              }
+            }}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-semibold text-xs border border-[#FF6B35]/70 transition cursor-pointer ${
+              screenSharing
+                ? 'bg-[#FF6B35]/25 hover:bg-[#FF6B35]/35 text-[#FFA14A]'
+                : 'bg-[#0D0B14]/50 hover:bg-[#FF6B35]/20 text-[#FFA14A] hover:text-[#F8F7FC]'
+            }`}
+            title={screenSharing ? 'Stop Screen Sharing' : 'Share Screen'}
+          >
+            <Share2 className="w-4 h-4 shrink-0 text-[#FF6B35]" />
+            <span className="text-[11px] font-semibold tracking-tight">
+              {screenSharing ? 'Stop Share' : 'Share Screen'}
+            </span>
+          </button>
 
           {/* WHITEBOARD BUTTON */}
           <button
+            type="button"
             onClick={onToggleWhiteboard}
-            className={`hidden md:flex flex-col items-center justify-center min-w-[62px] h-13 px-2 rounded-xl transition hover:bg-[rgba(196,181,253,0.08)] ${
-              whiteboardActive ? 'bg-[rgba(196,181,253,0.22)] text-[#C4B5FD] border border-[rgba(196,181,253,0.3)]' : 'text-[#F8F7FC]/85 hover:text-[#F8F7FC]'
+            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#FF6B35]/70 transition cursor-pointer ${
+              whiteboardActive ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
             }`}
             title="Open Interactive Whiteboard"
           >
-            <Palette className="w-5 h-5 text-[#F8F7FC]" />
-            <span className="text-[11px] font-medium tracking-tight mt-0.5">Whiteboard</span>
+            <Palette className="w-4 h-4" />
+            <span className="text-[11px] font-semibold">Whiteboard</span>
           </button>
 
           {/* RECORD BUTTON */}
           <button
+            type="button"
             onClick={onToggleRecording}
-            className={`hidden md:flex flex-col items-center justify-center min-w-[56px] h-13 px-2 rounded-xl transition hover:bg-[rgba(196,181,253,0.08)] ${
-              isRecording ? 'text-[#FF6B35] bg-[rgba(255,107,53,0.2)]' : 'text-[#F8F7FC]/85 hover:text-[#F8F7FC]'
+            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#FF6B35]/70 transition cursor-pointer ${
+              isRecording ? 'text-[#FF6B35] bg-[#0D0B14]' : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
             }`}
-            title={isRecording ? 'Stop Recording' : 'Record to Computer'}
+            title={isRecording ? 'Stop Recording' : 'Record Meeting'}
           >
-            <Circle className={`w-5 h-5 ${isRecording ? 'fill-[#FF6B35] text-[#FF6B35] animate-pulse' : 'text-[#F8F7FC]'}`} />
-            <span className="text-[11px] font-medium tracking-tight mt-0.5">
-              {isRecording ? 'Recording' : 'Record'}
+            <Circle className={`w-4 h-4 ${isRecording ? 'fill-[#FF6B35] text-[#FF6B35] animate-pulse' : 'text-[#FF6B35]'}`} />
+            <span className="text-[11px] font-semibold">
+              {isRecording ? 'Rec' : 'Record'}
             </span>
           </button>
 
           {/* REACTIONS & RAISE HAND */}
           <div ref={reactionsMenuRef} className="relative">
             <button
-              onClick={() => setShowReactionsMenu(v => !v)}
-              className={`flex flex-col items-center justify-center min-w-[54px] sm:min-w-[62px] h-13 px-2 rounded-xl transition hover:bg-[rgba(196,181,253,0.08)] ${
-                isHandRaised ? 'bg-[rgba(255,107,53,0.20)] text-[#FFA14A]' : 'text-[#F8F7FC]/85 hover:text-[#F8F7FC]'
+              type="button"
+              onClick={() => {
+                setShowReactionsMenu(v => !v);
+                setShowAudioMenu(false);
+                setShowVideoMenu(false);
+                setShowSecurityMenu(false);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#FF6B35]/70 transition cursor-pointer ${
+                isHandRaised ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
               }`}
               title="Send Reactions & Raise Hand"
             >
-              {isHandRaised ? <Hand className="w-5 h-5 text-[#FFA14A] animate-bounce" /> : <Smile className="w-5 h-5 text-[#F8F7FC]" />}
-              <span className="text-[10px] sm:text-[11px] font-medium tracking-tight mt-0.5">
-                {isHandRaised ? 'Hand Up' : 'Reactions'}
+              {isHandRaised ? <Hand className="w-4 h-4 text-[#0D0B14] animate-bounce" /> : <Smile className="w-4 h-4 text-[#FF6B35]" />}
+              <span className="text-[11px] font-semibold hidden sm:inline">
+                {isHandRaised ? 'Raised' : 'React'}
               </span>
             </button>
 
-            {/* Reactions Popover with Raise Hand */}
+            {/* Reactions Popover - Floats above the pill dock */}
             {showReactionsMenu && (
-              <div className="absolute bottom-16 right-0 sm:left-1/2 sm:-translate-x-1/2 w-64 rounded-2xl bg-[#221C35] border border-[rgba(196,181,253,0.18)] p-3 text-xs shadow-2xl text-[#F8F7FC] z-50">
+              <div className="absolute bottom-full mb-3 right-0 sm:left-1/2 sm:-translate-x-1/2 w-64 rounded-2xl p2p-dropdown border border-[#FF6B35]/70 p-3 text-xs shadow-2xl text-[#F8F7FC] z-50 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
                 <div className="flex items-center justify-between pb-2 border-b border-[rgba(196,181,253,0.14)] mb-2.5">
                   {quickReactions.map(emoji => (
                     <button
@@ -481,7 +516,7 @@ export default function P2PControls({
                         soundSynth.playEmojiSound(emoji);
                         setShowReactionsMenu(false);
                       }}
-                      className="text-xl p-1 rounded-xl hover:bg-[rgba(196,181,253,0.15)] hover:scale-125 transition transform"
+                      className="text-xl p-1 rounded-xl hover:bg-[rgba(196,181,253,0.15)] hover:scale-125 transition transform cursor-pointer"
                     >
                       {emoji}
                     </button>
@@ -493,10 +528,10 @@ export default function P2PControls({
                     onToggleRaiseHand?.();
                     setShowReactionsMenu(false);
                   }}
-                  className={`w-full py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold text-xs transition shadow ${
+                  className={`w-full py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold text-xs transition shadow cursor-pointer ${
                     isHandRaised
                       ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14]'
-                      : 'bg-[rgba(196,181,253,0.18)] hover:bg-[rgba(196,181,253,0.28)] text-[#C4B5FD]'
+                      : 'bg-[#FF6B35]/20 hover:bg-[#FF6B35]/30 text-[#FFA14A] border border-[#FF6B35]/40'
                   }`}
                 >
                   <Hand className="w-4 h-4" />
@@ -505,13 +540,15 @@ export default function P2PControls({
               </div>
             )}
           </div>
-        </div>
 
-        {/* 3. RIGHT CONTROLS: RED/ORANGE END / LEAVE BUTTON */}
-        <div className="flex items-center shrink-0">
+          {/* Divider */}
+          <div className="h-6 w-[1px] bg-[rgba(196,181,253,0.16)] mx-0.5 hidden sm:block shrink-0" />
+
+          {/* 4. LEAVE / END BUTTON (SUBTLE TRANSLUCENT ORANGE PILL) */}
           <button
+            type="button"
             onClick={() => setShowLeaveModal(true)}
-            className="px-3.5 sm:px-5 py-2 sm:py-2 rounded-xl bg-[#FF6B35] hover:bg-[#FF854D] text-[#0D0B14] font-bold text-xs sm:text-sm shadow-lg shadow-[#FF6B35]/25 transition"
+            className="px-4 py-1.5 rounded-full bg-[#FF6B35]/25 hover:bg-[#FF6B35]/40 border border-[#FF6B35]/70 text-[#FFA14A] hover:text-white font-bold text-xs transition cursor-pointer shrink-0"
           >
             {isHost ? 'End' : 'Leave'}
           </button>
@@ -538,27 +575,27 @@ export default function P2PControls({
                     setShowLeaveModal(false);
                     onLeaveMeeting?.(true); // true = end for all
                   }}
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold text-xs transition shadow-lg shadow-[#FF6B35]/25"
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold text-xs transition shadow-lg shadow-[#FF6B35]/25 cursor-pointer"
                 >
                   End Meeting for All
                 </button>
               )}
 
               {!isHost && (
-              <button
-                onClick={() => {
-                  setShowLeaveModal(false);
-                  onLeaveMeeting?.(false);
-                }}
-                className="w-full py-2.5 rounded-xl bg-[#FF6B35] hover:bg-[#FF854D] text-[#0D0B14] font-bold text-xs transition shadow-md shadow-[#FF6B35]/20"
-              >
-                Leave Meeting
-              </button>
+                <button
+                  onClick={() => {
+                    setShowLeaveModal(false);
+                    onLeaveMeeting?.(false);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-[#FF6B35] hover:bg-[#FFA14A] text-[#0D0B14] font-bold text-xs transition shadow-md shadow-[#FF6B35]/20 cursor-pointer"
+                >
+                  Leave Meeting
+                </button>
               )}
 
               <button
                 onClick={() => setShowLeaveModal(false)}
-                className="w-full py-2 text-[#C4B5FD]/50 hover:text-[#F8F7FC] text-xs transition mt-1"
+                className="w-full py-2 text-[#C4B5FD]/50 hover:text-[#F8F7FC] text-xs transition mt-1 cursor-pointer"
               >
                 Cancel
               </button>
