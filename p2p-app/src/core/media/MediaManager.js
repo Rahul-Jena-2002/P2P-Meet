@@ -21,6 +21,45 @@ export class MediaManager {
     this.listeners = new Map();
   }
 
+  /**
+   * 3-layer simulcast configuration:
+   * q = quarter (180p, 150kbps), h = half (360p, 500kbps), f = full (720p/1080p, 1.5Mbps)
+   */
+  getSimulcastEncodings() {
+    return [
+      { rid: 'q', scaleResolutionDownBy: 4.0, maxBitrate: 150000 },
+      { rid: 'h', scaleResolutionDownBy: 2.0, maxBitrate: 500000 },
+      { rid: 'f', scaleResolutionDownBy: 1.0, maxBitrate: 1500000 }
+    ];
+  }
+
+  /**
+   * Mic audio constraints: mono 48kHz with inband FEC and DSP processing.
+   */
+  getMicAudioConstraints() {
+    return {
+      channelCount: 1,
+      sampleRate: 48000,
+      echoCancellation: this.isVoiceFocusEnabled,
+      noiseSuppression: this.isVoiceFocusEnabled,
+      autoGainControl: this.isVoiceFocusEnabled
+    };
+  }
+
+  /**
+   * Screen audio constraints: stereo 48kHz VBR with DSP processing completely bypassed.
+   */
+  getScreenAudioConstraints() {
+    return {
+      channelCount: 2,
+      sampleRate: 48000,
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+      latency: 0
+    };
+  }
+
   on(event, handler) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());

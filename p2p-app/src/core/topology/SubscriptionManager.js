@@ -123,6 +123,22 @@ export class SubscriptionManager {
 
     this.activeSubscriptions = nextSubscriptions;
 
+    // Dispatch SUBSCRIBE(layer) control messages to upstream relays/senders
+    remoteSources.forEach((source) => {
+      const isVisible = visibleSourceIds.has(source.sourceId);
+      const sub = nextSubscriptions.get(source.sourceId);
+      let layer = 0;
+      if (isVisible) {
+        layer = sub?.quality === 'stage' ? 2 : 1;
+      }
+      this.emit('subscribeControl', {
+        type: 'SUBSCRIBE',
+        sourceId: source.sourceId,
+        publisherId: source.publisherId,
+        layer
+      });
+    });
+
     if (added.length > 0 || updated.length > 0 || removed.length > 0) {
       this.emit('subscriptionsChanged', {
         active: Array.from(this.activeSubscriptions.values()),
