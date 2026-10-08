@@ -6,8 +6,8 @@ spring:
     name: openmeet-backend
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/openmeet?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    username: ${SPRING_DATASOURCE_USERNAME:}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -18,12 +18,15 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: false
   flyway:
-    enabled: false # Using JPA ddl-auto for flexible development without migrations overhead
+    enabled: false
 
 openmeet:
   jwt:
-    secret: ${JWT_SECRET:4a7e9b2c8f1d3e5a7b9c1d3e5f7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a}
+    # Set via environment variable JWT_SECRET (must be >= 256 bits)
+    secret: ${JWT_SECRET:}
     ttl-ms: 3600000 # 1 hour
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080}
   stun:
     urls:
       - "stun:stun.l.google.com:19302"

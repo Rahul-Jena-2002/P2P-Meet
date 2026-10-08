@@ -29,6 +29,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class SignalingWebSocketHandler extends TextWebSocketHandler {
@@ -55,18 +56,37 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
         this.chatMessageRepository = chatMessageRepository;
     }
 
+    // Session ID -> [windowStartTimeMs, messageCount]
+    private final Map<String, long[]> rateLimitMap = new ConcurrentHashMap<>();
+    private static final int MAX_MSGS_PER_SEC = 60;
+
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        log.info("WebSocket connected: {}", session.getId());
+        log.info("WebSocket connection established: session={}", session.getId());
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+        // 1. Connection-level message rate limiting (Item 6)
+        long now = System.currentTimeMillis();
+        long[] tracker = rateLimitMap.computeIfAbsent(session.getId(), k -> new long[]{now, 0});
+        synchronized (tracker) {
+            if (now - tracker[0] > 1000) {
+                tracker[0] = now;
+                tracker[1] = 0;
+            }
+            tracker[1]++;
+            if (tracker[1] > MAX_MSGS_PER_SEC) {
+                sendError(session, "Rate limit exceeded. Please throttle requests.");
+                return;
+            }
+        }
+
         SignalEnvelope envelope;
         try {
             envelope = objectMapper.readValue(message.getPayload(), SignalEnvelope.class);
         } catch (Exception e) {
-            log.error("Invalid signaling message format: {}", e.getMessage());
+            log.warn("Invalid signaling message format from session {}: {}", session.getId(), e.getMessage());
             return;
         }
 
@@ -74,16 +94,27 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        String roomId = envelope.getRoomId();
+        // 2. Strict Session Authentication & Anti-Spoofing (Items 5 & 13)
+        // If message is not JOIN_ROOM, require that session has already been verified and joined.
+        if (envelope.getType() != SignalType.JOIN_ROOM) {
+            Map.Entry<String, String> mapping = roomManager.getSessionMapping(session);
+            if (mapping == null) {
+                sendError(session, "Unauthorized: Must successfully authenticate and join room first");
+                return;
+            }
+            // Overwrite senderId and roomId from verified session mapping (prevents IDOR & identity spoofing)
+            envelope.setRoomId(mapping.getKey());
+            envelope.setSenderId(mapping.getValue());
+        }
 
         switch (envelope.getType()) {
             case JOIN_ROOM -> handleJoinRoom(session, envelope);
             case OFFER, ANSWER, ICE_CANDIDATE -> handleDirectPeerSignal(envelope);
             case MEDIA_STATE -> handleMediaState(envelope);
             case CHAT_MESSAGE -> handleChatMessage(envelope);
-            case MUTE_PARTICIPANT -> handleMuteParticipant(envelope);
-            case KICK_PARTICIPANT -> handleKickParticipant(envelope);
-            case END_MEETING -> handleEndMeeting(envelope);
+            case MUTE_PARTICIPANT -> handleMuteParticipant(session, envelope);
+            case KICK_PARTICIPANT -> handleKickParticipant(session, envelope);
+            case END_MEETING -> handleEndMeeting(session, envelope);
             case CONTROL_REQUEST, CONTROL_APPROVED, CONTROL_DENIED, CONTROL_REVOKED, CONTROL_EVENT -> handleControlSignal(envelope);
             default -> log.warn("Unhandled signal type: {}", envelope.getType());
         }
@@ -91,6 +122,11 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
     private void handleJoinRoom(WebSocketSession session, SignalEnvelope envelope) {
         String roomId = envelope.getRoomId();
+        if (roomId == null || roomId.isBlank()) {
+            sendError(session, "Room code is required");
+            return;
+        }
+
         Map<String, Object> payload = envelope.getPayload();
         if (payload == null || !payload.containsKey("token")) {
             sendError(session, "Authentication token required to join room");
@@ -106,8 +142,30 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
+        // 3. Row-Level Security & Tenant Isolation (Item 14)
+        // Verify room exists in DB and token was issued specifically for this meeting
+        Optional<Meeting> meetingOpt = meetingRepository.findByCode(roomId.toUpperCase().trim());
+        if (meetingOpt.isEmpty()) {
+            sendError(session, "Meeting not found with code: " + roomId);
+            return;
+        }
+        Meeting meeting = meetingOpt.get();
+        if (meeting.getStatus() == MeetingStatus.ENDED) {
+            sendError(session, "Meeting has already ended");
+            return;
+        }
+
+        String tokenMeetingId = claims.get("meetingId", String.class);
+        if (tokenMeetingId == null || !tokenMeetingId.equals(meeting.getId().toString())) {
+            sendError(session, "Token does not match the requested meeting");
+            return;
+        }
+
         String participantId = claims.getSubject();
         String displayName = claims.get("displayName", String.class);
+        if (displayName != null && displayName.length() > 64) {
+            displayName = displayName.substring(0, 64);
+        }
         String roleStr = claims.get("role", String.class);
         ParticipantRole role = "HOST".equalsIgnoreCase(roleStr) ? ParticipantRole.HOST : ParticipantRole.PARTICIPANT;
 
@@ -138,7 +196,7 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
                 .payload(Map.of(
                         "peer", Map.of(
                                 "participantId", participantId,
-                                "displayName", displayName,
+                                "displayName", displayName != null ? displayName : "Peer",
                                 "role", role.name(),
                                 "audioEnabled", true,
                                 "videoEnabled", true,
@@ -150,29 +208,26 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
         // 3. Send past chat history if available
         try {
-            Optional<Meeting> meetingOpt = meetingRepository.findByCode(roomId.toUpperCase());
-            if (meetingOpt.isPresent()) {
-                List<ChatMessage> history = chatMessageRepository.findByMeetingIdOrderByCreatedAtAsc(meetingOpt.get().getId());
-                List<Map<String, Object>> msgList = history.stream().map(m -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("id", m.getId().toString());
-                    map.put("senderId", m.getSenderId());
-                    map.put("senderName", m.getSenderName());
-                    map.put("content", m.getContent());
-                    map.put("timestamp", m.getCreatedAt().toEpochMilli());
-                    return map;
-                }).toList();
+            List<ChatMessage> history = chatMessageRepository.findByMeetingIdOrderByCreatedAtAsc(meeting.getId());
+            List<Map<String, Object>> msgList = history.stream().map(m -> {
+                Map<String, Object> map = new HashMap<>();
+                map.put("id", m.getId().toString());
+                map.put("senderId", m.getSenderId());
+                map.put("senderName", m.getSenderName());
+                map.put("content", m.getContent());
+                map.put("timestamp", m.getCreatedAt().toEpochMilli());
+                return map;
+            }).toList();
 
-                SignalEnvelope historyEnv = SignalEnvelope.builder()
-                        .type(SignalType.CHAT_HISTORY)
-                        .roomId(roomId)
-                        .senderId("server")
-                        .targetId(participantId)
-                        .timestamp(System.currentTimeMillis())
-                        .payload(Map.of("messages", msgList))
-                        .build();
-                roomManager.sendToPeer(roomId, participantId, historyEnv);
-            }
+            SignalEnvelope historyEnv = SignalEnvelope.builder()
+                    .type(SignalType.CHAT_HISTORY)
+                    .roomId(roomId)
+                    .senderId("server")
+                    .targetId(participantId)
+                    .timestamp(System.currentTimeMillis())
+                    .payload(Map.of("messages", msgList))
+                    .build();
+            roomManager.sendToPeer(roomId, participantId, historyEnv);
         } catch (Exception e) {
             log.warn("Could not fetch chat history: {}", e.getMessage());
         }
@@ -205,17 +260,20 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
         Map<String, Object> payload = envelope.getPayload();
         if (payload != null && payload.containsKey("content")) {
             String content = (String) payload.get("content");
+            if (content == null || content.isBlank() || content.length() > 4000) {
+                return; // drop oversized or blank messages (XSS/DoS mitigation)
+            }
             PeerInfo peer = roomManager.getPeer(roomId, senderId);
             String senderName = peer != null ? peer.getDisplayName() : "Anonymous";
 
-            // Persist to DB asynchronously/safely
+            // Persist to DB safely
             try {
                 meetingRepository.findByCode(roomId.toUpperCase()).ifPresent(meeting -> {
                     ChatMessage chatMsg = ChatMessage.builder()
                             .meetingId(meeting.getId())
                             .senderId(senderId)
                             .senderName(senderName)
-                            .content(content)
+                            .content(content.trim())
                             .build();
                     chatMessageRepository.save(chatMsg);
                 });
@@ -229,51 +287,63 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private void handleMuteParticipant(SignalEnvelope envelope) {
+    private void handleMuteParticipant(WebSocketSession session, SignalEnvelope envelope) {
         String roomId = envelope.getRoomId();
         String senderId = envelope.getSenderId();
-        PeerInfo host = roomManager.getPeer(roomId, senderId);
-        if (host != null && host.getRole() == ParticipantRole.HOST) {
-            String targetId = envelope.getTargetId();
+        PeerInfo caller = roomManager.getPeer(roomId, senderId);
+        // Server-side host privilege enforcement (Item 13)
+        if (caller == null || caller.getRole() != ParticipantRole.HOST) {
+            sendError(session, "Forbidden: Only the host can mute participants");
+            return;
+        }
+        String targetId = envelope.getTargetId();
+        if (targetId != null) {
             roomManager.sendToPeer(roomId, targetId, envelope);
         }
     }
 
-    private void handleKickParticipant(SignalEnvelope envelope) {
+    private void handleKickParticipant(WebSocketSession session, SignalEnvelope envelope) {
         String roomId = envelope.getRoomId();
         String senderId = envelope.getSenderId();
-        PeerInfo host = roomManager.getPeer(roomId, senderId);
-        if (host != null && host.getRole() == ParticipantRole.HOST) {
-            String targetId = envelope.getTargetId();
-            PeerInfo target = roomManager.getPeer(roomId, targetId);
-            if (target != null) {
-                roomManager.sendToPeer(roomId, targetId, envelope);
-                try {
-                    if (target.getSession() != null && target.getSession().isOpen()) {
-                        target.getSession().close(new CloseStatus(4001, "Removed by host"));
-                    }
-                } catch (Exception e) {
-                    log.error("Error closing kicked peer session: {}", e.getMessage());
+        PeerInfo caller = roomManager.getPeer(roomId, senderId);
+        // Server-side host privilege enforcement (Item 13)
+        if (caller == null || caller.getRole() != ParticipantRole.HOST) {
+            sendError(session, "Forbidden: Only the host can remove participants");
+            return;
+        }
+        String targetId = envelope.getTargetId();
+        PeerInfo target = roomManager.getPeer(roomId, targetId);
+        if (target != null) {
+            roomManager.sendToPeer(roomId, targetId, envelope);
+            try {
+                if (target.getSession() != null && target.getSession().isOpen()) {
+                    target.getSession().close(new CloseStatus(4001, "Removed by host"));
                 }
+            } catch (Exception e) {
+                log.error("Error closing kicked peer session: {}", e.getMessage());
             }
         }
     }
 
-    private void handleEndMeeting(SignalEnvelope envelope) {
+    private void handleEndMeeting(WebSocketSession session, SignalEnvelope envelope) {
         String roomId = envelope.getRoomId();
         String senderId = envelope.getSenderId();
-        PeerInfo host = roomManager.getPeer(roomId, senderId);
-        if (host != null && host.getRole() == ParticipantRole.HOST) {
-            // Update meeting status in DB
-            meetingRepository.findByCode(roomId.toUpperCase()).ifPresent(meeting -> {
-                meeting.setStatus(MeetingStatus.ENDED);
-                meeting.setEndedAt(Instant.now());
-                meetingRepository.save(meeting);
-            });
-
-            // Broadcast END_MEETING to all
-            roomManager.broadcastToRoom(roomId, envelope);
+        PeerInfo caller = roomManager.getPeer(roomId, senderId);
+        // Server-side host privilege enforcement (Item 13)
+        if (caller == null || caller.getRole() != ParticipantRole.HOST) {
+            sendError(session, "Forbidden: Only the host can end the meeting");
+            return;
         }
+
+        // Update meeting status in DB
+        meetingRepository.findByCode(roomId.toUpperCase()).ifPresent(meeting -> {
+            meeting.setStatus(MeetingStatus.ENDED);
+            meeting.setEndedAt(Instant.now());
+            meetingRepository.save(meeting);
+        });
+
+        // Broadcast END_MEETING to all
+        roomManager.broadcastToRoom(roomId, envelope);
     }
 
     private void handleControlSignal(SignalEnvelope envelope) {
@@ -299,6 +369,7 @@ public class SignalingWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        rateLimitMap.remove(session.getId());
         String roomId = roomManager.getRoomIdForSession(session);
         PeerInfo removed = roomManager.removeSession(session);
         if (removed != null && roomId != null) {

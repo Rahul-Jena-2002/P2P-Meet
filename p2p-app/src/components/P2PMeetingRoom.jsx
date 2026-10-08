@@ -581,8 +581,29 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     });
   };
 
+  // Item 16: SSRF and unsafe protocol validation for co-streaming media URLs
+  const isValidMediaUrl = (urlStr) => {
+    if (!urlStr || typeof urlStr !== 'string') return false;
+    try {
+      const parsed = new URL(urlStr);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+      const hostname = parsed.hostname.toLowerCase();
+      const blockedHosts = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', '::1', '[::1]'];
+      if (blockedHosts.includes(hostname) || hostname.endsWith('.local') || hostname.endsWith('.internal') || hostname.startsWith('10.') || hostname.startsWith('192.168.')) {
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
   // Watch Together Co-Streaming Handlers
   const handleStartWatchTogether = (url) => {
+    if (!isValidMediaUrl(url)) {
+      console.warn('[Security] Blocked invalid or internal media URL for Watch Together:', url);
+      return;
+    }
     setWatchTogetherState({ active: true, url, isPlaying: true, currentTime: 0 });
     meshRef.current?.broadcast({
       type: 'WATCH_START',

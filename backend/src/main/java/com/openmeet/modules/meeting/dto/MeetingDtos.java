@@ -5,12 +5,20 @@
  */
 package com.openmeet.modules.meeting.dto;
 
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
 import java.util.UUID;
 
 public class MeetingDtos {
 
     public static class CreateRequest {
+        @Size(max = 100, message = "Title must not exceed 100 characters")
+        @Pattern(regexp = "^[^<>]*$", message = "Title must not contain HTML or script characters")
         private String title;
+
+        @Size(max = 64, message = "Host name must not exceed 64 characters")
+        @Pattern(regexp = "^[^<>]*$", message = "Host name must not contain HTML or script characters")
         private String hostName;
 
         public CreateRequest() {}
@@ -80,6 +88,8 @@ public class MeetingDtos {
     }
 
     public static class JoinRequest {
+        @Size(max = 64, message = "Display name must not exceed 64 characters")
+        @Pattern(regexp = "^[^<>]*$", message = "Display name must not contain HTML or script characters")
         private String displayName;
 
         public JoinRequest() {}

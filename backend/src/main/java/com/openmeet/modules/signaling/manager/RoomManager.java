@@ -104,6 +104,10 @@ public class RoomManager {
         return mapping != null ? mapping.getKey() : null;
     }
 
+    public Map.Entry<String, String> getSessionMapping(WebSocketSession session) {
+        return sessionMap.get(session.getId());
+    }
+
     public List<Map<String, Object>> getPeersSummary(String roomId) {
         ConcurrentHashMap<String, PeerInfo> roomPeers = rooms.get(roomId);
         if (roomPeers == null) return Collections.emptyList();

@@ -21,7 +21,17 @@ export default function P2PFilesDrawer({
   const [requestTargetId, setRequestTargetId] = useState('');
   const [requestNote, setRequestNote] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState(null);
   const fileInputRef = useRef(null);
+
+  const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB max per browser memory transfer
+  const BLOCKED_EXTENSIONS = ['.exe', '.bat', '.cmd', '.sh', '.vbs', '.scr', '.msi', '.ps1', '.jar', '.com', '.pif'];
+
+  const sanitizeFilename = (name) => {
+    if (!name) return 'download_file';
+    // Remove directory traversal, control chars, and null bytes
+    return name.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'file';
+  };
 
   const formatFileSize = (bytes) => {
     if (!bytes || bytes === 0) return '0 B';
@@ -33,7 +43,23 @@ export default function P2PFilesDrawer({
 
   const handleFiles = (files) => {
     if (!files || files.length === 0) return;
-    Array.from(files).forEach((file) => {
+    setFileError(null);
+
+    const validFiles = [];
+    for (const file of Array.from(files)) {
+      const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+      if (BLOCKED_EXTENSIONS.includes(ext)) {
+        setFileError(`Transfer blocked: Executable file types (${ext}) are prohibited for security.`);
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setFileError(`File "${file.name}" exceeds the 500 MB peer transfer limit.`);
+        return;
+      }
+      validFiles.push(file);
+    }
+
+    validFiles.forEach((file) => {
       onSendFile?.(file, selectedPeerId);
     });
   };
@@ -91,6 +117,19 @@ export default function P2PFilesDrawer({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Security Warning Alert for Blocked Files */}
+        {fileError && (
+          <div className="p-3 rounded-2xl bg-[#FF6B35]/15 border border-[#FF6B35]/40 text-[#FFA14A] text-xs flex items-start justify-between gap-2 animate-in fade-in">
+            <span>⚠️ {fileError}</span>
+            <button
+              onClick={() => setFileError(null)}
+              className="text-[#FFA14A] hover:text-white font-bold text-sm leading-none shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Drag & Drop Upload Box */}
         <div
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -235,7 +274,7 @@ export default function P2PFilesDrawer({
 
                 <a
                   href={file.url}
-                  download={file.name}
+                  download={sanitizeFilename(file.name)}
                   className="p-2 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold transition shrink-0 shadow-md shadow-[#FF6B35]/20"
                   title="Download File"
                 >

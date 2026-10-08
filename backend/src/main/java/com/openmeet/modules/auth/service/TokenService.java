@@ -23,12 +23,34 @@ public class TokenService {
 
     private final SecretKey key;
     private final long ttlMs;
+    private static final String DEFAULT_INSECURE_SECRET = "4a7e9b2c8f1d3e5a7b9c1d3e5f7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a";
+
+    public TokenService(String secret, long ttlMs) {
+        this(secret, ttlMs, "dev");
+    }
 
     public TokenService(
-            @Value("${openmeet.jwt.secret:4a7e9b2c8f1d3e5a7b9c1d3e5f7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a}") String secret,
-            @Value("${openmeet.jwt.ttl-ms:3600000}") long ttlMs
+            @Value("${openmeet.jwt.secret:}") String secret,
+            @Value("${openmeet.jwt.ttl-ms:3600000}") long ttlMs,
+            @Value("${spring.profiles.active:dev}") String activeProfile
     ) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        String effectiveSecret = secret;
+        if (effectiveSecret == null || effectiveSecret.isBlank()) {
+            if ("prod".equalsIgnoreCase(activeProfile) || "production".equalsIgnoreCase(activeProfile)) {
+                throw new IllegalStateException("FATAL: JWT_SECRET environment variable MUST be explicitly set in production!");
+            }
+            // In dev mode, fall back to default but log severe warning
+            org.slf4j.LoggerFactory.getLogger(TokenService.class)
+                    .warn("SECURITY WARNING: Using default development JWT secret. Set JWT_SECRET in production.");
+            effectiveSecret = DEFAULT_INSECURE_SECRET;
+        }
+
+        byte[] keyBytes = effectiveSecret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException("JWT secret must be at least 256 bits (32 bytes) of entropy");
+        }
+
+        this.key = Keys.hmacShaKeyFor(keyBytes);
         this.ttlMs = ttlMs;
     }
 
