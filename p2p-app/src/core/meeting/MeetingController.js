@@ -29,6 +29,7 @@ export class MeetingController {
     onPeerLeave = null,
     onStream = null,
     onScreenStream = null,
+    onScreenAudioStream = null,
     onData = null,
     onNetworkStats = null
   }) {
@@ -89,6 +90,7 @@ export class MeetingController {
     if (onPeerLeave) this.on('peerLeft', ({ userId }) => onPeerLeave(userId));
     if (onStream) this.on('participantStream', ({ peerId, stream }) => onStream(peerId, stream));
     if (onScreenStream) this.on('participantScreenStream', ({ peerId, stream }) => onScreenStream(peerId, stream));
+    if (onScreenAudioStream) this.on('participantScreenAudioStream', ({ peerId, stream, track }) => onScreenAudioStream(peerId, stream, track));
     if (onData) {
       this.on('dataMessage', ({ data }) => onData(data));
       this.signaling.on('data', (data) => onData(data));

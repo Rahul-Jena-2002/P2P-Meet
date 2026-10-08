@@ -34,6 +34,9 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isMobileLandscape, setIsMobileLandscape] = useState(false);
+  const [screenAudioStreams, setScreenAudioStreams] = useState(new Map());
+  const [topologyMode, setTopologyMode] = useState('mesh');
+  const [isSupernode, setIsSupernode] = useState(false);
   const hideTimeoutRef = useRef(null);
 
   useEffect(() => {
@@ -302,6 +305,17 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           }
         }));
       },
+      onScreenAudioStream: (peerId, remoteScreenAudioStream) => {
+        setScreenAudioStreams(prev => {
+          const next = new Map(prev);
+          if (remoteScreenAudioStream) {
+            next.set(peerId, remoteScreenAudioStream);
+          } else {
+            next.delete(peerId);
+          }
+          return next;
+        });
+      },
       onData: (data) => {
         const { type } = data;
 
@@ -414,7 +428,18 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     meshRef.current = mesh;
     mesh.connect();
 
+    mesh.topology?.on?.('modeChanged', ({ mode }) => setTopologyMode(mode));
+    const checkTopology = () => {
+      if (mesh.topology) {
+        setTopologyMode(mesh.topology.getMode());
+        const bestPeer = mesh.topology.relaySelector?.selectBestRelayCandidate?.();
+        setIsSupernode(bestPeer?.id === meetingInfo.userId);
+      }
+    };
+    const topoTimer = setInterval(checkTopology, 2500);
+
     return () => {
+      clearInterval(topoTimer);
       mesh.destroy();
     };
   }, [meetingInfo.code, meetingInfo.userId]);
@@ -438,6 +463,13 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
       });
     }
   }, [localStream, screenStream, screenSharing, videoEnabled, audioEnabled, currentUserName]);
+
+  // Keep mic mute state synced into the WebAudio mixer when screen share + system audio is active
+  useEffect(() => {
+    if (screenSharing && screenStream?.getAudioTracks().length > 0 && meshRef.current) {
+      meshRef.current.setMixerMicMuted?.(!audioEnabled);
+    }
+  }, [audioEnabled, screenSharing, screenStream]);
 
   const handleSendReaction = (emoji) => {
     spawnReaction(emoji);
@@ -795,6 +827,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           isMobile={isMobile}
           isMobileLandscape={isMobileLandscape}
           networkStats={networkStats}
+          topologyMode={topologyMode}
+          isSupernode={isSupernode}
         />
 
         {/* Mouse proximity trigger for bottom dock */}
@@ -882,6 +916,12 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             {r.emoji}
           </div>
         ))}
+        {/* Remote Dual-Track Screen Audio Playback Elements (Unmixed Pure Stereo) */}
+        <div className="hidden" aria-hidden="true">
+          {Array.from(screenAudioStreams.entries()).map(([peerId, stream]) => (
+            <RemoteScreenAudio key={peerId} stream={stream} />
+          ))}
+        </div>
       </div>
 
       <style jsx global>{`
@@ -901,4 +941,18 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
       `}</style>
     </div>
   );
+}
+
+function RemoteScreenAudio({ stream }) {
+  const audioRef = useRef(null);
+  useEffect(() => {
+    if (audioRef.current && stream) {
+      audioRef.current.srcObject = stream;
+      audioRef.current.play().catch(e => {
+        console.warn('[Audio] Screen audio autoplay blocked:', e);
+      });
+    }
+  }, [stream]);
+
+  return <audio ref={audioRef} autoPlay playsInline />;
 }

@@ -103,6 +103,10 @@ export class QualityController {
       clearInterval(this.timer);
       this.timer = null;
     }
+  }
+
+  destroy() {
+    this.stop();
     this.listeners.clear();
   }
 }

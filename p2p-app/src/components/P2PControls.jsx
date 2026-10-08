@@ -50,8 +50,10 @@ export default function P2PControls({
     audioLevel,
     videoFilter = 'none',
     setVideoFilter,
+    voiceFocusEnabled,
     toggleAudio,
     toggleVideo,
+    toggleVoiceFocus,
     switchCamera,
     switchMicrophone,
     switchAudioOutput,
@@ -155,6 +157,28 @@ export default function P2PControls({
                 ) : (
                   <div className="px-2.5 py-1 text-white/50 text-xs">Default Microphone</div>
                 )}
+
+                <div className="h-[1px] bg-white/10 my-1.5" />
+
+                {/* Voice Focus / Noise Suppression Toggle */}
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white/40">Audio Processing</div>
+                <button
+                  onClick={() => { toggleVoiceFocus?.(); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between text-xs transition ${
+                    voiceFocusEnabled ? 'bg-[#0E72ED]/15 text-white hover:bg-[#0E72ED]/25' : 'hover:bg-white/10 text-white/80'
+                  }`}
+                  title="Voice Focus uses noise suppression, echo cancellation, and auto gain control to make your voice clearer"
+                >
+                  <span className="flex items-center gap-2">
+                    <Sparkles className={`w-3.5 h-3.5 ${voiceFocusEnabled ? 'text-[#60A5FA]' : 'text-white/40'}`} />
+                    <span>Voice Focus (Noise Suppression)</span>
+                  </span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    voiceFocusEnabled ? 'bg-[#0E72ED] text-white' : 'bg-white/10 text-white/40'
+                  }`}>
+                    {voiceFocusEnabled ? 'ON' : 'OFF'}
+                  </span>
+                </button>
 
                 <div className="h-[1px] bg-white/10 my-1.5" />
 
@@ -397,6 +421,11 @@ export default function P2PControls({
               <span className="text-[10px] sm:text-[11px] font-bold tracking-tight mt-0.5">
                 {screenSharing ? 'Stop Share' : 'Share Screen'}
               </span>
+              {screenSharing && (
+                <span className="hidden sm:inline text-[8px] font-semibold text-emerald-200 bg-black/40 px-1 rounded mt-0.5">
+                  510kbps Hi-Fi
+                </span>
+              )}
             </button>
           </div>
 

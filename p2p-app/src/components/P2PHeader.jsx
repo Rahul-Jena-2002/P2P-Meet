@@ -25,7 +25,9 @@ export default function P2PHeader({
   isVisible = true,
   isMobile = false,
   isMobileLandscape = false,
-  networkStats
+  networkStats,
+  topologyMode = 'mesh',
+  isSupernode = false
 }) {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showViewDropdown, setShowViewDropdown] = useState(false);
@@ -103,6 +105,16 @@ export default function P2PHeader({
           <span className="hidden sm:inline font-medium text-white/90">{title}</span>
         </button>
 
+        {/* Network Topology Badge */}
+        <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border ${
+          topologyMode === 'relay-tree'
+            ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+        }`} title={topologyMode === 'relay-tree' ? 'Decentralized Relay SFU tree' : 'Zero latency Full Mesh connection'}>
+          <span className={`w-1.5 h-1.5 rounded-full ${topologyMode === 'relay-tree' ? 'bg-blue-400' : 'bg-emerald-400'} animate-pulse`} />
+          <span>{topologyMode === 'relay-tree' ? (isSupernode ? 'Supernode Host' : 'Relay Tree') : 'Direct Mesh'}</span>
+        </div>
+
         {/* Recording Indicator */}
         {isRecording && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-600/90 text-white text-xs font-semibold shadow animate-pulse">
@@ -153,6 +165,19 @@ export default function P2PHeader({
               <div className="flex items-center justify-between py-1">
                 <span className="text-white/50">Passcode:</span>
                 <span className="font-mono bg-white/10 px-1.5 py-0.5 rounded text-white font-semibold">2026</span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-white/50">Topology:</span>
+                <span className="font-semibold text-white">
+                  {topologyMode === 'relay-tree' ? 'Decentralized Relay SFU' : 'Direct Full Mesh (P2P)'}
+                  {isSupernode ? ' • Supernode Host' : ''}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-white/50">Audio Quality:</span>
+                <span className="text-emerald-400 font-semibold">
+                  Opus 510kbps Stereo (Hi-Fi)
+                </span>
               </div>
               <div className="flex items-center justify-between py-1">
                 <span className="text-white/50">Encryption:</span>

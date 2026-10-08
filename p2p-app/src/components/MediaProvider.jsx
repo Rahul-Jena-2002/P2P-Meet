@@ -23,6 +23,7 @@ export function MediaProvider({ children }) {
   const [audioLevel, setAudioLevel] = useState(0); // 0 to 100 for mic meter
   const [videoFilter, setVideoFilterState] = useState('none');
   const [mediaError, setMediaError] = useState(null);
+  const [voiceFocusEnabled, setVoiceFocusEnabledState] = useState(true);
 
   const mediaManagerRef = useRef(null);
   if (!mediaManagerRef.current) {
@@ -98,6 +99,13 @@ export function MediaProvider({ children }) {
     setAudioEnabled(next);
     return next;
   }, [audioEnabled, mediaManager]);
+
+  const toggleVoiceFocus = useCallback(async () => {
+    const next = !voiceFocusEnabled;
+    await mediaManager.setVoiceFocusEnabled(next);
+    setVoiceFocusEnabledState(next);
+    return next;
+  }, [voiceFocusEnabled, mediaManager]);
 
   const toggleVideo = useCallback(async () => {
     const next = !videoEnabled;
@@ -243,8 +251,10 @@ export function MediaProvider({ children }) {
       videoFilter,
       setVideoFilter,
       mediaError,
+      voiceFocusEnabled,
       toggleAudio,
       toggleVideo,
+      toggleVoiceFocus,
       switchCamera,
       switchMicrophone,
       switchAudioOutput,
