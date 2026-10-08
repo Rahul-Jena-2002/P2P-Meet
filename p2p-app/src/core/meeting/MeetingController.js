@@ -31,7 +31,8 @@ export class MeetingController {
     onScreenStream = null,
     onScreenAudioStream = null,
     onData = null,
-    onNetworkStats = null
+    onNetworkStats = null,
+    keyManager = null
   }) {
     this.roomId = (roomId || 'default').trim().toUpperCase();
     this.userId = userId;
@@ -62,6 +63,7 @@ export class MeetingController {
       rtc: this.rtc
     });
 
+    this.keyManager = keyManager;
     this.failureDetector = new FailureDetector();
     this.rebalancer = new Rebalancer({
       overlayManager: this.topology.overlayManager,
@@ -177,6 +179,7 @@ export class MeetingController {
     this.signaling.on('peer-left', ({ userId }) => {
       this.failureDetector.removePeer(userId);
       this.topology?.removePeer?.(userId);
+      this.keyManager?.handlePeerLeave?.(userId);
       this.rtc.removePeer(userId);
       this.participants.delete(userId);
       this.emit('participantsChanged', this.getParticipants());

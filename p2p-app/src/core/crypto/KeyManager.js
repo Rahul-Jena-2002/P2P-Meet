@@ -146,6 +146,130 @@ export class KeyManager {
     }
   }
 
+  /**
+   * Initializes session for peer and generates initial epoch media key.
+   */
+  async initSession({ peerId }) {
+    this.peerId = peerId;
+    this.epoch = 1;
+    this.peerKeys = new Map();
+    this.currentMediaKey = new Uint8Array(16);
+    this.crypto.getRandomValues(this.currentMediaKey);
+    return this;
+  }
+
+  async getCurrentMediaKey() {
+    if (!this.currentMediaKey) {
+      this.currentMediaKey = new Uint8Array(16);
+      this.crypto.getRandomValues(this.currentMediaKey);
+    }
+    return new Uint8Array(this.currentMediaKey);
+  }
+
+  /**
+   * Derives an AES-GCM wrapping key using pairwise ECDH and HKDF.
+   */
+  async derivePairwiseWrappingKey(myPrivateKey, peerPublicKeyJwk) {
+    let peerKey = peerPublicKeyJwk;
+    if (!peerKey.type) {
+      peerKey = await this.crypto.subtle.importKey(
+        'jwk',
+        peerPublicKeyJwk,
+        { name: 'ECDH', namedCurve: 'P-256' },
+        false,
+        []
+      );
+    }
+
+    const sharedBits = await this.crypto.subtle.deriveBits(
+      {
+        name: 'ECDH',
+        public: peerKey
+      },
+      myPrivateKey,
+      256
+    );
+
+    const baseKey = await this.crypto.subtle.importKey('raw', sharedBits, 'HKDF', false, ['deriveKey']);
+    return await this.crypto.subtle.deriveKey(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: new TextEncoder().encode('p2pmeet-ecdh-wrap-salt'),
+        info: new TextEncoder().encode('p2pmeet-pairwise-key-wrap')
+      },
+      baseKey,
+      { name: 'AES-GCM', length: 128 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  }
+
+  /**
+   * Wraps (encrypts) raw media key for a target peer over pairwise ECDH.
+   */
+  async wrapKeyForPeer({ targetPeerId, myPrivateKey, targetPublicKeyJwk, rawKeyBytes, epoch = this.epoch || 1 }) {
+    const wrapKey = await this.derivePairwiseWrappingKey(myPrivateKey, targetPublicKeyJwk);
+    const iv = new Uint8Array(12);
+    this.crypto.getRandomValues(iv);
+
+    const ciphertext = await this.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      wrapKey,
+      rawKeyBytes
+    );
+
+    const payload = {
+      targetPeerId,
+      epoch,
+      ciphertextHex: this.bufferToHex(ciphertext),
+      ivHex: this.bufferToHex(iv)
+    };
+
+    if (this.peerKeys) {
+      this.peerKeys.set(targetPeerId, {
+        targetPublicKeyJwk,
+        wrappedPayload: payload
+      });
+    }
+
+    return payload;
+  }
+
+  /**
+   * Unwraps (decrypts) incoming media key from sender peer.
+   */
+  async unwrapKeyFromPeer({ senderPeerId, myPrivateKey, senderPublicKeyJwk, wrapped }) {
+    const wrapKey = await this.derivePairwiseWrappingKey(myPrivateKey, senderPublicKeyJwk);
+    const iv = this.hexToBuffer(wrapped.ivHex);
+    const ciphertext = this.hexToBuffer(wrapped.ciphertextHex);
+
+    const decrypted = await this.crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      wrapKey,
+      ciphertext
+    );
+
+    return new Uint8Array(decrypted);
+  }
+
+  /**
+   * Advances the epoch, rotates media key, and invalidates departed peer's session state.
+   */
+  async handlePeerLeave(peerId) {
+    if (this.peerKeys) {
+      this.peerKeys.delete(peerId);
+    }
+    this.epoch = (this.epoch || 1) + 1;
+    this.currentMediaKey = new Uint8Array(16);
+    this.crypto.getRandomValues(this.currentMediaKey);
+    return this.epoch;
+  }
+
+  hasPeerState(peerId) {
+    return this.peerKeys ? this.peerKeys.has(peerId) : false;
+  }
+
   bufferToHex(buffer) {
     return Array.from(new Uint8Array(buffer))
       .map((b) => b.toString(16).padStart(2, '0'))
