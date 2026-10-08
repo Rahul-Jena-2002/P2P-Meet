@@ -7,11 +7,14 @@
 
 export class MediaManager {
   constructor(options = {}) {
+    this.navigator = options.navigator || (typeof navigator !== 'undefined' ? navigator : null);
     this.deviceEnumerator = options.deviceEnumerator || null;
     this.stream = null;
     this.screenStream = null;
+    this.localScreenAudioTrack = null;
     this.isAudioEnabled = true;
     this.isVideoEnabled = true;
+    this.isVoiceFocusEnabled = true; // noise suppression / voice focus on by default
     this.audioContext = null;
     this.analyser = null;
     this.animFrameId = null;
@@ -67,6 +70,30 @@ export class MediaManager {
     return this.isVideoEnabled;
   }
 
+  /**
+   * Toggle Voice Focus (noise suppression) mode.
+   * Applies applyConstraints() to live audio tracks so no stream re-acquire is needed.
+   */
+  async setVoiceFocusEnabled(enabled) {
+    this.isVoiceFocusEnabled = Boolean(enabled);
+    if (this.stream) {
+      const tracks = this.stream.getAudioTracks();
+      for (const t of tracks) {
+        try {
+          await t.applyConstraints({
+            noiseSuppression: this.isVoiceFocusEnabled,
+            echoCancellation: this.isVoiceFocusEnabled,
+            autoGainControl: this.isVoiceFocusEnabled
+          });
+        } catch (e) {
+          console.warn('[MediaManager] applyConstraints (voiceFocus) failed:', e);
+        }
+      }
+    }
+    this.emit('voiceFocusToggled', this.isVoiceFocusEnabled);
+    return this.isVoiceFocusEnabled;
+  }
+
   async acquireUserMedia({ camId, micId } = {}) {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       throw new Error('getUserMedia is not supported on this environment/origin');
@@ -78,16 +105,17 @@ export class MediaManager {
 
     let stream;
     try {
+      const audioProcessing = {
+        echoCancellation: this.isVoiceFocusEnabled,
+        noiseSuppression: this.isVoiceFocusEnabled,
+        autoGainControl: this.isVoiceFocusEnabled,
+        latency: 0
+      };
       const constraints = {
         video: camId ? { deviceId: { exact: camId } } : { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
         audio: micId
-          ? { deviceId: { exact: micId } }
-          : {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-              latency: 0
-            },
+          ? { deviceId: { exact: micId }, ...audioProcessing }
+          : audioProcessing,
       };
       stream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch {
@@ -152,11 +180,20 @@ export class MediaManager {
   }
 
   async acquireDisplayMedia(options = {}) {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getDisplayMedia) {
+    const nav = this.navigator || (typeof navigator !== 'undefined' ? navigator : null);
+    if (!nav || !nav.mediaDevices?.getDisplayMedia) {
       throw new Error('getDisplayMedia is not supported');
     }
 
     const surface = options.surface || 'monitor';
+    const audioRequested = options.audio !== false;
+    const audioConstraints = audioRequested ? {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+      latency: 0
+    } : false;
+
     const constraints = {
       video: {
         cursor: 'always',
@@ -165,31 +202,26 @@ export class MediaManager {
         width: { ideal: 1920 },
         height: { ideal: 1080 }
       },
-      audio: {
-        autoGainControl: false,
-        echoCancellation: false,
-        noiseSuppression: false,
-        suppressLocalAudioPlayback: false
-      },
+      audio: audioConstraints,
       systemAudio: 'include',
       selfBrowserSurface: 'exclude'
     };
 
     let stream;
     try {
-      stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+      stream = await nav.mediaDevices.getDisplayMedia(constraints);
     } catch (err) {
       console.warn('[MediaManager] Primary display constraints failed, trying standard fallback:', err);
       try {
-        stream = await navigator.mediaDevices.getDisplayMedia({
+        stream = await nav.mediaDevices.getDisplayMedia({
           video: { cursor: 'always' },
-          audio: true,
+          audio: audioConstraints,
           systemAudio: 'include'
         });
       } catch (err2) {
-        stream = await navigator.mediaDevices.getDisplayMedia({
+        stream = await nav.mediaDevices.getDisplayMedia({
           video: true,
-          audio: true
+          audio: audioConstraints
         });
       }
     }
@@ -199,9 +231,21 @@ export class MediaManager {
       videoTrack.contentHint = 'motion';
     }
 
+    this.localScreenAudioTrack = stream.getAudioTracks()[0] || null;
     this.screenStream = stream;
     this.emit('screenStreamChanged', stream);
+    if (this.localScreenAudioTrack) {
+      this.emit('screenAudioTrackChanged', this.localScreenAudioTrack);
+    }
     return stream;
+  }
+
+  async startScreenShare(options = {}) {
+    return this.acquireDisplayMedia(options);
+  }
+
+  getLocalScreenAudioTrack() {
+    return this.localScreenAudioTrack;
   }
 
   async getDevices() {

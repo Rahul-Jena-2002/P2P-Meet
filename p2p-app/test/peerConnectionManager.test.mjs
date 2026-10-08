@@ -254,3 +254,16 @@ test('mungeSdpForHighFidelityAudio handles SDP without existing fmtp line for op
   assert.match(munged, /a=fmtp:111.*stereo=1.*maxaveragebitrate=510000/);
 });
 
+test('PeerConnectionManager identifies screen audio track and dispatches screenAudioTrack event', () => {
+  const manager = new PeerConnectionManager({ myId: 'local' });
+  let emitted = false;
+  manager.on('screenAudioTrack', ({ peerId, track }) => {
+    emitted = true;
+    assert.strictEqual(peerId, 'peer-1');
+    assert.strictEqual(track.id, 'screen-audio-1');
+  });
+  const mockTrack = { id: 'screen-audio-1', kind: 'audio' };
+  manager.setPeerScreenAudioTrack('peer-1', mockTrack);
+  assert.strictEqual(emitted, true);
+});
+

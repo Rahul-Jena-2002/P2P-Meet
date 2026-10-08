@@ -69,3 +69,28 @@ test('MediaManager categorizes device list correctly', async () => {
   assert.equal(categorized.video[0].deviceId, 'cam-1');
   assert.equal(categorized.audio[0].deviceId, 'mic-1');
 });
+
+test('MediaManager requests screen share with zero latency and raw audio constraints', async () => {
+  let capturedConstraints = null;
+  const mockNavigator = {
+    mediaDevices: {
+      getDisplayMedia: async (constraints) => {
+        capturedConstraints = constraints;
+        return {
+          getVideoTracks: () => [{ id: 'screen-video', stop: () => {} }],
+          getAudioTracks: () => [{ id: 'screen-audio', stop: () => {} }],
+          getTracks: () => [{ id: 'screen-video', stop: () => {} }, { id: 'screen-audio', stop: () => {} }]
+        };
+      }
+    }
+  };
+  const manager = new MediaManager({ navigator: mockNavigator });
+  await manager.startScreenShare({ audio: true });
+  assert.deepStrictEqual(capturedConstraints.audio, {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+    latency: 0
+  });
+  assert.equal(manager.getLocalScreenAudioTrack().id, 'screen-audio');
+});

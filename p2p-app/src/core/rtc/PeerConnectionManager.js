@@ -34,7 +34,7 @@ export class PeerConnectionManager {
 
     this.peers = new Map(); // peerId -> { pc, polite, makingOffer, ignoreOffer, isSettingRemoteAnswerPending, senders, ... }
     this.listeners = new Map();
-    this.local = { audio: null, video: null, screen: null }; // slots: mic, camera, screen
+    this.local = { audio: null, video: null, screen: null, screenAudio: null }; // slots: mic, camera, screen, screenAudio
     this.localStream = null; // camera stream (audio + camera video)
     this.localScreenStream = null; // screen stream
   }
@@ -91,6 +91,7 @@ export class PeerConnectionManager {
     if (this.local.audio) this.attachTrack(peerEntry, this.local.audio, 'audio');
     if (this.local.video) this.attachTrack(peerEntry, this.local.video, 'video');
     if (this.local.screen) this.attachTrack(peerEntry, this.local.screen, 'screen');
+    if (this.local.screenAudio) this.attachTrack(peerEntry, this.local.screenAudio, 'screenAudio');
 
     // Renegotiate whenever tracks are added later (late mic/camera/screen share)
     pc.onnegotiationneeded = async () => {
@@ -113,19 +114,33 @@ export class PeerConnectionManager {
       const track = event.track;
       const stream = event.streams?.[0];
       const isExpectedScreen = !!(peerEntry.expectedScreenTrackId && track.id === peerEntry.expectedScreenTrackId);
+      const isExpectedScreenAudio = !!(peerEntry.expectedScreenAudioTrackId && track.id === peerEntry.expectedScreenAudioTrackId);
       const isSecondVideo = track?.kind === 'video' && peerEntry.remoteStream?.getVideoTracks()?.length > 0 && peerEntry.remoteStream.getVideoTracks()[0].id !== track.id;
+      const isSecondAudio = track?.kind === 'audio' && peerEntry.remoteStream?.getAudioTracks()?.length > 0 && peerEntry.remoteStream.getAudioTracks()[0].id !== track.id;
       const isScreenHint = track?.contentHint === 'detail';
-      const isScreen = stream?.id?.includes('screen') || isExpectedScreen || isSecondVideo || isScreenHint;
+      const isScreen = stream?.id?.includes('screen') || isExpectedScreen || isExpectedScreenAudio || isSecondVideo || isSecondAudio || isScreenHint;
 
       if (isScreen) {
-        if (peerEntry.remoteScreenStream && !peerEntry.remoteScreenStream.getTracks().includes(track)) {
-          peerEntry.remoteScreenStream.addTrack(track);
+        if (track.kind === 'audio') {
+          peerEntry.screenAudioTrack = track;
+          if (peerEntry.remoteScreenStream && !peerEntry.remoteScreenStream.getTracks().includes(track)) {
+            peerEntry.remoteScreenStream.addTrack(track);
+          }
+          track.onended = () => {
+            peerEntry.remoteScreenStream?.removeTrack?.(track);
+            this.emit('screenAudioTrack', { peerId, track: null, stream: null });
+          };
+          this.emit('screenAudioTrack', { peerId, track, stream: peerEntry.remoteScreenStream || stream });
+        } else {
+          if (peerEntry.remoteScreenStream && !peerEntry.remoteScreenStream.getTracks().includes(track)) {
+            peerEntry.remoteScreenStream.addTrack(track);
+          }
+          track.onended = () => {
+            peerEntry.remoteScreenStream?.removeTrack?.(track);
+            this.emit('screenTrack', { peerId, track: null, stream: null });
+          };
+          this.emit('screenTrack', { peerId, track, stream: peerEntry.remoteScreenStream || stream });
         }
-        track.onended = () => {
-          peerEntry.remoteScreenStream?.removeTrack?.(track);
-          this.emit('screenTrack', { peerId, track: null, stream: null });
-        };
-        this.emit('screenTrack', { peerId, track, stream: peerEntry.remoteScreenStream || stream });
       } else {
         if (peerEntry.remoteStream && !peerEntry.remoteStream.getTracks().includes(track)) {
           peerEntry.remoteStream.addTrack(track);
@@ -287,7 +302,7 @@ export class PeerConnectionManager {
   async setLocalTrack(slot, track) {
     const old = this.local[slot];
     this.local[slot] = track;
-    const isScreen = slot === 'screen';
+    const isScreen = slot === 'screen' || slot === 'screenAudio';
     const activeStream = isScreen ? this.localScreenStream : this.localStream;
     if (old && old !== track) activeStream?.removeTrack?.(old);
     if (track && activeStream && !activeStream.getTracks().includes(track)) {
@@ -303,8 +318,8 @@ export class PeerConnectionManager {
       if (!peer.senders) peer.senders = {};
       let sender = peer.senders[slot];
       // Only fallback to findSender if slot sender wasn't recorded and it's NOT screen sharing
-      // (Screen sharing must have its own dedicated transceiver/sender)
-      if (!sender && slot !== 'screen') {
+      // (Screen sharing video & screen audio must have dedicated transceivers/senders)
+      if (!sender && slot !== 'screen' && slot !== 'screenAudio') {
         sender = this.findSender(peer.pc, slot === 'audio' ? 'audio' : 'video');
       }
 
@@ -342,6 +357,28 @@ export class PeerConnectionManager {
     }
   }
 
+  setPeerScreenAudioTrack(peerId, screenAudioTrackOrId) {
+    const peer = this.peers.get(peerId);
+    let track = null;
+    if (typeof screenAudioTrackOrId === 'object' && screenAudioTrackOrId !== null) {
+      track = screenAudioTrackOrId;
+    } else if (typeof screenAudioTrackOrId === 'string' && peer) {
+      peer.expectedScreenAudioTrackId = screenAudioTrackOrId;
+      if (peer.remoteStream) {
+        track = peer.remoteStream.getAudioTracks().find(t => t.id === screenAudioTrackOrId) || null;
+      }
+    }
+
+    if (peer && track) {
+      peer.screenAudioTrack = track;
+      if (peer.remoteScreenStream && !peer.remoteScreenStream.getTracks().includes(track)) {
+        peer.remoteScreenStream.addTrack(track);
+      }
+    }
+
+    this.emit('screenAudioTrack', { peerId, track, stream: peer?.remoteScreenStream || null });
+  }
+
   addTrack(track) {
     return this.setLocalTrack(track.kind, track);
   }
@@ -350,6 +387,7 @@ export class PeerConnectionManager {
     if ('audioTrack' in tracks) await this.setLocalTrack('audio', tracks.audioTrack);
     if ('videoTrack' in tracks) await this.setLocalTrack('video', tracks.videoTrack);
     if ('screenTrack' in tracks) await this.setLocalTrack('screen', tracks.screenTrack);
+    if ('screenAudioTrack' in tracks) await this.setLocalTrack('screenAudio', tracks.screenAudioTrack);
   }
 
   sendData(data) {
