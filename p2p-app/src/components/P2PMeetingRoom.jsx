@@ -796,22 +796,69 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     })
   ];
 
-  // Screen sharing / presentation info
+  // Multi-Pinning up to 4 tiles
+  const [pinnedIds, setPinnedIds] = useState([]);
+
+  const handleTogglePin = (id) => {
+    if (!id) return;
+    setPinnedIds(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      if (prev.length >= 4) return [...prev.slice(0, 3), id]; // Max 4
+      return [...prev, id];
+    });
+  };
+
+  const handleUnpinAll = () => {
+    setPinnedIds([]);
+  };
+
+  // Screen sharing / presentation / pinned info
   const activeSharer = (screenSharing && screenStream)
     ? { name: `${meetingInfo.name} (Screen)`, isLocal: true, isScreenSharing: true }
     : Object.values(peers).find(p => p.isScreenSharing);
 
-  const presentationInfo = activeSharer ? {
-    name: activeSharer.name,
-    isLocal: activeSharer.isLocal || false,
-    isScreenSharing: true
-  } : (watchTogetherState?.active ? {
-    name: 'Watch Party',
-    isLocal: false,
-    isScreenSharing: false
-  } : null);
+  let presentationInfo = null;
+  if (pinnedIds.length === 1) {
+    const pTile = participantList.find(p => p.id === pinnedIds[0]);
+    presentationInfo = {
+      name: pTile?.name || 'Pinned',
+      isLocal: pinnedIds[0] === meetingInfo.userId,
+      isPinned: true,
+      onUnpin: handleUnpinAll
+    };
+  } else if (pinnedIds.length === 2) {
+    presentationInfo = {
+      name: '2 Pinned (50/50)',
+      isPinned: true,
+      onUnpin: handleUnpinAll
+    };
+  } else if (pinnedIds.length === 3) {
+    presentationInfo = {
+      name: '3 Pinned',
+      isPinned: true,
+      onUnpin: handleUnpinAll
+    };
+  } else if (pinnedIds.length === 4) {
+    presentationInfo = {
+      name: '4 Pinned (Quadrants)',
+      isPinned: true,
+      onUnpin: handleUnpinAll
+    };
+  } else if (activeSharer) {
+    presentationInfo = {
+      name: activeSharer.name,
+      isLocal: activeSharer.isLocal || false,
+      isScreenSharing: true
+    };
+  } else if (watchTogetherState?.active) {
+    presentationInfo = {
+      name: 'Watch Party',
+      isLocal: false,
+      isScreenSharing: false
+    };
+  }
 
-  const isPresenting = !!activeSharer || watchTogetherState?.active;
+  const isPresenting = pinnedIds.length > 0 || !!activeSharer || watchTogetherState?.active;
   // Side tiles only exist in presentation mode when participants have live cameras ON!
   const remotePeersWithCamera = Object.values(peers).filter(p => p.isVideoOn && p.stream?.getVideoTracks()?.length > 0);
   const localHasCamera = videoEnabled && localStream?.getVideoTracks()?.length > 0;
@@ -853,6 +900,10 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             onWatchTogetherSync={handleWatchTogetherSync}
             onStopWatchTogether={handleStopWatchTogether}
             controlsVisible={controlsVisible || !!activePanel}
+            pinnedIds={pinnedIds}
+            onTogglePin={handleTogglePin}
+            onUnpinAll={handleUnpinAll}
+            onSetPinnedIds={setPinnedIds}
           />
         </div>
 
@@ -931,6 +982,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           isHost={isCurrentUserHost}
           roomCode={meetingInfo.code}
           raisedHands={raisedHands}
+          pinnedIds={pinnedIds}
+          onTogglePin={handleTogglePin}
           onLowerHand={handleLowerHand}
           onMuteAll={handleMuteAll}
           onRenameUser={handleRenameUser}

@@ -197,6 +197,9 @@ export function MediaProvider({ children }) {
   const startScreenShare = useCallback(async (options = {}) => {
     try {
       const stream = await mediaManager.acquireDisplayMedia(options);
+      if (screenStream) {
+        screenStream.getTracks().forEach(t => t.stop());
+      }
       const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.onended = () => {
@@ -214,7 +217,7 @@ export function MediaProvider({ children }) {
       console.warn('Screen share canceled or denied:', err);
       return null;
     }
-  }, [mediaManager]);
+  }, [mediaManager, screenStream]);
 
   const setVideoFilter = useCallback(async (filter) => {
     setVideoFilterState(filter);

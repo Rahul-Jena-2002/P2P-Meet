@@ -85,10 +85,47 @@ export default function P2PChatDrawer({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
+  const [drawerWidth, setDrawerWidth] = useState(384);
+  const isResizingRef = useRef(false);
+
+  const handleStartResize = (e) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    const startX = e.clientX;
+    const startW = drawerWidth;
+
+    const onMouseMove = (moveEvent) => {
+      if (!isResizingRef.current) return;
+      const deltaX = startX - moveEvent.clientX;
+      const newW = Math.max(280, Math.min(680, startW + deltaX));
+      setDrawerWidth(newW);
+    };
+
+    const onMouseUp = () => {
+      isResizingRef.current = false;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
   const otherParticipants = participants.filter(p => p.id !== currentUserId);
 
   return (
-    <aside className="relative w-full sm:w-88 md:w-96 h-full border-l border-[#FF6B35]/40 flex flex-col z-30 select-text bg-[#161324] text-[#F8F7FC] shadow-2xl shrink-0 animate-in slide-in-from-right duration-150">
+    <aside
+      style={{ width: `${drawerWidth}px` }}
+      className="relative max-w-[90vw] h-full border-l border-white/10 flex flex-col z-30 select-text bg-[#13111E] text-[#F8F7FC] shadow-2xl shrink-0 animate-in slide-in-from-right duration-150"
+    >
+      {/* Draggable resize handle on left border */}
+      <div
+        onMouseDown={handleStartResize}
+        className="absolute top-0 bottom-0 -left-1 w-2 cursor-col-resize hover:bg-[#FF6B35]/50 active:bg-[#FF6B35] transition z-40 flex items-center justify-center select-none group"
+        title="Drag to resize sidebar"
+      >
+        <div className="w-0.5 h-10 rounded-full bg-white/20 group-hover:bg-[#FF6B35] transition" />
+      </div>
       {/* Header with Clean Separated Context Tabs */}
       <div className="h-12 px-3 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-[#161324] shrink-0">
         <div className="flex items-center gap-1.5">

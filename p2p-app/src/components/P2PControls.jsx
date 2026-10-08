@@ -10,7 +10,7 @@ import {
   Mic, MicOff, Video, VideoOff, ChevronUp, Users,
   MessageSquare, Smile, Check, Shield,
   Share2, Circle, Hand, Palette,
-  Volume2, Sparkles, Lock
+  Volume2, Sparkles, Lock, RefreshCw, X, Square, Clapperboard
 } from 'lucide-react';
 import { useMedia } from './MediaProvider';
 import { soundSynth } from '../lib/soundEffects';
@@ -65,6 +65,7 @@ export default function P2PControls({
   const [showVideoMenu, setShowVideoMenu] = useState(false);
   const [showSecurityMenu, setShowSecurityMenu] = useState(false);
   const [showReactionsMenu, setShowReactionsMenu] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [videoMenuTab, setVideoMenuTab] = useState('effects'); // 'effects' | 'devices'
 
@@ -73,6 +74,7 @@ export default function P2PControls({
   const videoMenuRef = useRef(null);
   const securityMenuRef = useRef(null);
   const reactionsMenuRef = useRef(null);
+  const shareMenuRef = useRef(null);
 
   useEffect(() => {
     const handleOutside = (e) => {
@@ -80,6 +82,7 @@ export default function P2PControls({
       if (videoMenuRef.current && !videoMenuRef.current.contains(e.target)) setShowVideoMenu(false);
       if (securityMenuRef.current && !securityMenuRef.current.contains(e.target)) setShowSecurityMenu(false);
       if (reactionsMenuRef.current && !reactionsMenuRef.current.contains(e.target)) setShowReactionsMenu(false);
+      if (shareMenuRef.current && !shareMenuRef.current.contains(e.target)) setShowShareMenu(false);
     };
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
@@ -100,7 +103,7 @@ export default function P2PControls({
     { id: 'noir', label: 'Noir (B&W)', icon: '🎞️' }
   ];
 
-  const isAnyMenuOpen = showAudioMenu || showVideoMenu || showSecurityMenu || showReactionsMenu;
+  const isAnyMenuOpen = showAudioMenu || showVideoMenu || showSecurityMenu || showReactionsMenu || showShareMenu;
 
   return (
     <>
@@ -432,28 +435,106 @@ export default function P2PControls({
             <span className="text-[11px] font-semibold hidden sm:inline">Chat</span>
           </button>
 
-          {/* SHARE SCREEN (TRANSLUCENT PILL WITH THIN ACCENT - LESS CONTRASTY) */}
-          <button
-            type="button"
-            onClick={() => {
-              if (screenSharing) {
-                stopScreenShare();
-              } else {
-                startScreenShare({ surface: 'monitor', isWatchParty: false });
-              }
-            }}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-semibold text-xs transition cursor-pointer ${
-              screenSharing
-                ? 'bg-[#FF6B35]/25 hover:bg-[#FF6B35]/35 border border-[#FF6B35]/50 text-[#FFA14A]'
-                : 'bg-white/[0.06] hover:bg-[#FF6B35]/20 border border-white/15 text-[#FFA14A] hover:text-[#F8F7FC]'
-            }`}
-            title={screenSharing ? 'Stop Screen Sharing' : 'Share Screen'}
-          >
-            <Share2 className="w-4 h-4 shrink-0 text-[#FF6B35]" />
-            <span className="text-[11px] font-semibold tracking-tight">
-              {screenSharing ? 'Stop Share' : 'Share Screen'}
-            </span>
-          </button>
+          {/* SHARE SCREEN (TRANSLUCENT PILL WITH THIN ACCENT - LESS CONTRASTY & PRESENTATION MENU) */}
+          <div ref={shareMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                if (screenSharing) {
+                  setShowShareMenu(v => !v);
+                  setShowAudioMenu(false);
+                  setShowVideoMenu(false);
+                  setShowSecurityMenu(false);
+                  setShowReactionsMenu(false);
+                } else {
+                  startScreenShare({ surface: 'monitor', isWatchParty: false });
+                }
+              }}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-semibold text-xs transition cursor-pointer ${
+                screenSharing
+                  ? 'bg-[#FF6B35]/25 hover:bg-[#FF6B35]/35 border border-[#FF6B35]/50 text-[#FFA14A]'
+                  : 'bg-white/[0.06] hover:bg-[#FF6B35]/20 border border-white/15 text-[#FFA14A] hover:text-[#F8F7FC]'
+              }`}
+              title={screenSharing ? 'Presentation Options (Click to switch or stop)' : 'Share Screen'}
+            >
+              <Share2 className="w-4 h-4 shrink-0 text-[#FF6B35]" />
+              <span className="text-[11px] font-semibold tracking-tight">
+                {screenSharing ? 'Stop Share' : 'Share Screen'}
+              </span>
+              {screenSharing && (
+                <ChevronUp className={`w-3 h-3 text-[#FFA14A] transition-transform duration-200 ${showShareMenu ? 'rotate-180' : ''}`} />
+              )}
+            </button>
+
+            {/* PRESENTATION OPTIONS POPUP MENU */}
+            {screenSharing && showShareMenu && (
+              <div
+                className="absolute bottom-12 sm:bottom-14 left-1/2 -translate-x-1/2 w-64 sm:w-72 rounded-2xl bg-[#161324]/95 border border-[#FF6B35]/60 p-2 text-xs shadow-2xl backdrop-blur-2xl z-50 text-[#F8F7FC] animate-in fade-in zoom-in-95 duration-150"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-white/10 mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF6B35] opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF6B35]"></span>
+                    </span>
+                    <span className="text-[11px] font-bold text-[#FFA14A] uppercase tracking-wider">Presenting Screen</span>
+                  </div>
+                  <button
+                    onClick={() => setShowShareMenu(false)}
+                    className="p-1 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                    title="Cancel"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  {/* Option 1: Share Something Else / Switch Window */}
+                  <button
+                    onClick={() => {
+                      setShowShareMenu(false);
+                      startScreenShare({ surface: 'monitor', isWatchParty: false });
+                    }}
+                    className="w-full flex items-start gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/[0.08] transition text-left cursor-pointer group"
+                  >
+                    <div className="p-1.5 rounded-lg bg-[#FF6B35]/20 text-[#FFA14A] group-hover:bg-[#FF6B35] group-hover:text-[#0D0B14] transition shrink-0 mt-0.5">
+                      <RefreshCw className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-[#F8F7FC] group-hover:text-[#FFA14A] transition">Share Something Else</div>
+                      <div className="text-[10px] text-white/60 leading-tight">Switch to another screen, window, or tab</div>
+                    </div>
+                  </button>
+
+                  <div className="h-[1px] bg-white/10 my-0.5" />
+
+                  {/* Option 4: Stop Sharing Screen */}
+                  <button
+                    onClick={() => {
+                      setShowShareMenu(false);
+                      stopScreenShare();
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[#FF6B35]/20 hover:bg-[#FF6B35]/30 border border-[#FF6B35]/50 text-[#FFA14A] hover:text-[#F8F7FC] transition cursor-pointer font-semibold text-xs mt-0.5"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Square className="w-3.5 h-3.5 fill-current" />
+                      Stop Sharing
+                    </span>
+                    <span className="text-[10px] opacity-75">End Presentation</span>
+                  </button>
+
+                  {/* Option 5: Cancel */}
+                  <button
+                    onClick={() => setShowShareMenu(false)}
+                    className="w-full text-center py-1 text-[11px] text-white/50 hover:text-white transition cursor-pointer"
+                  >
+                    Cancel (Keep Sharing)
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* WHITEBOARD BUTTON */}
           <button

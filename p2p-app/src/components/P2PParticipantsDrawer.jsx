@@ -5,11 +5,11 @@
  * Copyright (C) 2026 OpenMeet Contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X, Mic, MicOff, Video, VideoOff, Shield, UserPlus,
   VolumeX, Check, Search, Hand, MoreVertical, Edit2, Lock,
-  Users, MessageSquare
+  Users, MessageSquare, Pin, PinOff
 } from 'lucide-react';
 
 export default function P2PParticipantsDrawer({
@@ -18,6 +18,8 @@ export default function P2PParticipantsDrawer({
   isHost = false,
   roomCode,
   raisedHands = [],
+  pinnedIds = [],
+  onTogglePin,
   onLowerHand,
   onMuteAll,
   onRenameUser,
@@ -26,12 +28,37 @@ export default function P2PParticipantsDrawer({
   onSwitchPanel,
   onClose
 }) {
+  const [drawerWidth, setDrawerWidth] = useState(384);
+  const isResizingRef = useRef(false);
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState(false);
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState('');
   const [showMuteAllModal, setShowMuteAllModal] = useState(false);
   const [actionMenuPeerId, setActionMenuPeerId] = useState(null);
+
+  const handleStartResize = (e) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    const startX = e.clientX;
+    const startW = drawerWidth;
+
+    const onMouseMove = (moveEvent) => {
+      if (!isResizingRef.current) return;
+      const deltaX = startX - moveEvent.clientX;
+      const newW = Math.max(280, Math.min(680, startW + deltaX));
+      setDrawerWidth(newW);
+    };
+
+    const onMouseUp = () => {
+      isResizingRef.current = false;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
 
   const handleInvite = () => {
     navigator.clipboard.writeText(`${window.location.origin}?code=${roomCode}`);
@@ -67,7 +94,18 @@ export default function P2PParticipantsDrawer({
   };
 
   return (
-    <aside className="relative w-full sm:w-88 md:w-96 h-full bg-[#161324] border-l border-[#FF6B35]/40 flex flex-col z-30 select-none shadow-2xl shrink-0 animate-in slide-in-from-right duration-150">
+    <aside
+      style={{ width: `${drawerWidth}px` }}
+      className="relative max-w-[90vw] h-full bg-[#13111E] border-l border-white/10 flex flex-col z-30 select-none shadow-2xl shrink-0 animate-in slide-in-from-right duration-150"
+    >
+      {/* Draggable resize handle on left border */}
+      <div
+        onMouseDown={handleStartResize}
+        className="absolute top-0 bottom-0 -left-1 w-2 cursor-col-resize hover:bg-[#FF6B35]/50 active:bg-[#FF6B35] transition z-40 flex items-center justify-center select-none group"
+        title="Drag to resize sidebar"
+      >
+        <div className="w-0.5 h-10 rounded-full bg-white/20 group-hover:bg-[#FF6B35] transition" />
+      </div>
       {/* Header with Clean Separated Context Tabs */}
       <div className="h-12 px-3 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-[#161324] shrink-0">
         <div className="flex items-center gap-1.5">
@@ -117,7 +155,12 @@ export default function P2PParticipantsDrawer({
           return (
             <div
               key={p.id}
-              className="group flex items-center justify-between p-2 rounded-xl hover:bg-[rgba(196,181,253,0.08)] border border-transparent hover:border-[rgba(196,181,253,0.10)] transition"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/plain', p.id);
+              }}
+              className="group flex items-center justify-between p-2 rounded-xl hover:bg-[rgba(196,181,253,0.08)] border border-transparent hover:border-[rgba(196,181,253,0.10)] transition cursor-grab active:cursor-grabbing"
+              title="Drag onto stage to pin or click pin icon"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 {/* Avatar */}
@@ -164,6 +207,20 @@ export default function P2PParticipantsDrawer({
 
               {/* Status Icons & Action Buttons */}
               <div className="flex items-center gap-1.5 shrink-0 relative">
+                {/* Pin / Unpin Button */}
+                {onTogglePin && (
+                  <button
+                    onClick={() => onTogglePin(p.id)}
+                    title={pinnedIds.includes(p.id) ? "Unpin participant" : "Pin participant (Up to 4)"}
+                    className={`p-1 rounded-lg transition cursor-pointer ${
+                      pinnedIds.includes(p.id)
+                        ? 'bg-[#FF6B35] text-[#0D0B14]'
+                        : 'opacity-0 group-hover:opacity-100 hover:bg-[rgba(196,181,253,0.12)] text-[#C4B5FD]/70 hover:text-[#F8F7FC]'
+                    }`}
+                  >
+                    {pinnedIds.includes(p.id) ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+                  </button>
+                )}
                 {/* Hand Raised Badge */}
                 {isHandUp && (
                   <button

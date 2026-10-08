@@ -377,7 +377,8 @@ export default function P2PVideoTile({
       )}
 
       {/* Top Indicators & Quick Action Controls (Only rendered on individual tiles, not fullscreen hero to prevent View collision) */}
-      {!isSingle && (
+      {/* Top Indicators & Quick Action Controls (Rendered on tiles or when pinned) */}
+      {(!isSingle || isPinned) && (
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-20">
           {/* Left side: Hand Raised / Screen Sharing / Pinned */}
           <div className="flex items-center gap-1.5">
@@ -408,7 +409,7 @@ export default function P2PVideoTile({
                   e.stopPropagation();
                   onPinToggle();
                 }}
-                title={isPinned ? "Unpin video (Back to Grid)" : "Pin video to Main Stage"}
+                title={isPinned ? "Unpin video" : "Pin video (Up to 4)"}
                 className={`p-1.5 rounded-full backdrop-blur-xl border transition shadow-md cursor-pointer ${
                   isPinned
                     ? 'bg-[#FF6B35] border-[#FF6B35] text-[#0D0B14]'

@@ -4,7 +4,7 @@
  * Copyright (C) 2026 OpenMeet Contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { MousePointer, ShieldAlert, Monitor, Check, X, Play, Pause, Clapperboard, Users } from 'lucide-react';
 import P2PVideoTile from './P2PVideoTile';
 
@@ -34,9 +34,78 @@ export default function P2PGrid({
   onStopWatchTogether,
   controlsVisible = true,
   isMobile: propIsMobile,
-  isMobileLandscape: propIsMobileLandscape
+  isMobileLandscape: propIsMobileLandscape,
+  pinnedIds: propPinnedIds,
+  onTogglePin: propTogglePin,
+  onSetPinnedIds: propSetPinnedIds,
+  onUnpinAll: propUnpinAll
 }) {
-  const [pinnedId, setPinnedId] = useState(null);
+  const [internalPinnedIds, setInternalPinnedIds] = useState([]);
+  const pinnedIds = propPinnedIds ?? internalPinnedIds;
+  const setPinnedIds = propSetPinnedIds ?? setInternalPinnedIds;
+
+  const [splitRatio, setSplitRatio] = useState(50); // 50 / 50 draggable split
+  const isDraggingSplitRef = useRef(false);
+  const containerStageRef = useRef(null);
+
+  const [draggedPinId, setDraggedPinId] = useState(null);
+  const [dragOverPinId, setDragOverPinId] = useState(null);
+
+  const togglePin = (id) => {
+    if (!id) return;
+    if (propTogglePin) {
+      propTogglePin(id);
+    } else {
+      setPinnedIds(prev => {
+        if (prev.includes(id)) return prev.filter(x => x !== id);
+        if (prev.length >= 4) return [...prev.slice(0, 3), id]; // Max 4
+        return [...prev, id];
+      });
+    }
+  };
+
+  const handleUnpinAll = () => {
+    if (propUnpinAll) {
+      propUnpinAll();
+    } else {
+      setPinnedIds([]);
+    }
+  };
+
+  const handleSwapPinned = (srcId, tgtId) => {
+    if (!srcId || !tgtId || srcId === tgtId) return;
+    setPinnedIds(prev => {
+      const srcIdx = prev.indexOf(srcId);
+      const tgtIdx = prev.indexOf(tgtId);
+      if (srcIdx === -1 || tgtIdx === -1) return prev;
+      const copy = [...prev];
+      copy[srcIdx] = tgtId;
+      copy[tgtIdx] = srcId;
+      return copy;
+    });
+  };
+
+  const handleStartSplitDrag = (e) => {
+    e.preventDefault();
+    isDraggingSplitRef.current = true;
+
+    const onMouseMove = (moveEvent) => {
+      if (!isDraggingSplitRef.current || !containerStageRef.current) return;
+      const rect = containerStageRef.current.getBoundingClientRect();
+      const ratio = Math.max(20, Math.min(80, ((moveEvent.clientX - rect.left) / rect.width) * 100));
+      setSplitRatio(Math.round(ratio));
+    };
+
+    const onMouseUp = () => {
+      isDraggingSplitRef.current = false;
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
   const [gridOffset, setGridOffset] = useState(0);
   const [showGrantMenu, setShowGrantMenu] = useState(false);
   const [mobileSwapPip, setMobileSwapPip] = useState(false);
@@ -147,35 +216,37 @@ export default function P2PGrid({
     ? localScreenTile
     : (remoteScreenTiles[0] || null);
 
-  // 1. PIN has HIGHEST priority (Zoom model: user pin overrides default sharing/speaker view)
-  // 1. PIN has HIGHEST priority (Zoom model: user pin overrides default sharing/speaker view)
-  let heroTile = null;
-  if (pinnedId) {
-    heroTile = allTiles.find(t => t.id === pinnedId) || peers[pinnedId] || null;
-  }
+  // 1. Multi-Pin has HIGHEST priority (Up to 4 pinned tiles)
+  const pinnedTiles = pinnedIds
+    .map(id => allTiles.find(t => t.id === id) || peers[id])
+    .filter(Boolean);
 
-  // If pinned source disappears, automatically clear the pin and return to normal layout
+  // If pinned source disappears, automatically remove from pinnedIds
   React.useEffect(() => {
-    if (pinnedId && !allTiles.some(t => t.id === pinnedId)) {
-      setPinnedId(null);
+    if (pinnedIds.length > 0) {
+      setPinnedIds(prev => prev.filter(id => allTiles.some(t => t.id === id) || !!peers[id]));
     }
-  }, [pinnedId, allTiles]);
+  }, [pinnedIds.length, allTiles, peers]);
 
-  // 2. If nothing pinned, active screen share becomes the hero presentation
-  if (!heroTile && sharingTile) {
+  let heroTile = null;
+  if (pinnedTiles.length === 1) {
+    heroTile = pinnedTiles[0];
+  } else if (pinnedTiles.length === 0 && sharingTile) {
     heroTile = sharingTile;
-  }
-
-  // 3. If in speaker mode and no share/pin, highlight the active speaker or first peer
-  if (!heroTile && viewMode === 'speaker') {
+  } else if (pinnedTiles.length === 0 && !heroTile && viewMode === 'speaker') {
     const speakerPeer = remoteCameraTiles.find(p => isUserSpeaking(p.id));
     heroTile = speakerPeer || (remoteCameraTiles.length > 0 ? remoteCameraTiles[0] : null);
   }
 
+  const isMultiPinned = pinnedTiles.length >= 2;
+  const isPresentingMode = pinnedTiles.length > 0 || !!heroTile || watchTogetherState?.active;
+
+  const excludedIds = new Set(pinnedTiles.map(t => t.id));
+  if (heroTile) excludedIds.add(heroTile.id);
+
   // Side tiles in presentation layout: only show participants whose camera is actively turned ON!
-  // If camera is off, no need to show empty cards/pills because participants are visible in the participants drawer.
   const sideTiles = allTiles
-    .filter(t => t.id !== heroTile?.id)
+    .filter(t => !excludedIds.has(t.id))
     .filter(t => {
       if (!t.isVideoOn) return false;
       const tracks = t.stream?.getVideoTracks();
@@ -206,6 +277,37 @@ export default function P2PGrid({
   // MOBILE DEDICATED LAYOUTS (Native Zoom/Teams/FaceTime Model)
   // -------------------------------------------------------------
   if (isMobile) {
+    // 0. Mobile Multi-Pinned Stage (2 to 4 pinned tiles)
+    if (isMultiPinned) {
+      return (
+        <div className={`absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col ${
+          isMobileLandscape ? 'p-1' : 'pt-10 pb-16 px-1.5'
+        } select-none`}>
+          <div className={`w-full h-full grid ${
+            pinnedTiles.length === 2
+              ? (isMobileLandscape ? 'grid-cols-2 grid-rows-1' : 'grid-cols-1 grid-rows-2')
+              : 'grid-cols-2 grid-rows-2'
+          } gap-1.5`}>
+            {pinnedTiles.slice(0, 4).map((tile, idx) => (
+              <div key={tile.id} className="relative w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#FF6B35]/30 bg-[#161324] shadow-md">
+                <P2PVideoTile
+                  name={tile.name}
+                  stream={tile.stream}
+                  isLocal={tile.isLocal}
+                  isHost={tile.isHost}
+                  isAudioOn={tile.isAudioOn}
+                  isVideoOn={tile.isVideoOn ?? true}
+                  isSpeaking={isUserSpeaking(tile.id)}
+                  isPinned={true}
+                  onPinToggle={() => togglePin(tile.id)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     // 1. Mobile Screen Share / Presentation Mode: 100% Fullscreen Presentation Edge-to-Edge
     if (heroTile || watchTogetherState?.active) {
       const pipStream = heroTile?.isLocal
@@ -238,6 +340,8 @@ export default function P2PGrid({
                 isScreenSharing={heroTile.isScreenSharing}
                 isSpeaking={false}
                 isSingle={true}
+                isPinned={pinnedIds.includes(heroTile.id)}
+                onPinToggle={() => togglePin(heroTile.id)}
               />
             )}
 
@@ -305,8 +409,8 @@ export default function P2PGrid({
               isAudioOn={mainUser.isAudioOn}
               isVideoOn={mainUser.isVideoOn}
               isSpeaking={isUserSpeaking(mainUser.id)}
-              isPinned={pinnedId === mainUser.id}
-              onPinToggle={() => setPinnedId(pinnedId === mainUser.id ? null : mainUser.id)}
+              isPinned={pinnedIds.includes(mainUser.id)}
+              onPinToggle={() => togglePin(mainUser.id)}
             />
 
             {/* Floating PiP Corner Tile (Tap to swap!) */}
@@ -327,8 +431,8 @@ export default function P2PGrid({
                 isAudioOn={pipUser.isAudioOn}
                 isVideoOn={pipUser.isVideoOn}
                 isSpeaking={isUserSpeaking(pipUser.id)}
-                isPinned={pinnedId === pipUser.id}
-                onPinToggle={() => setPinnedId(pinnedId === pipUser.id ? null : pipUser.id)}
+                isPinned={pinnedIds.includes(pipUser.id)}
+                onPinToggle={() => togglePin(pipUser.id)}
               />
               <div className="absolute top-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[9px] text-[#C4B5FD] backdrop-blur-sm pointer-events-none">
                 Swap ⇋
@@ -360,8 +464,8 @@ export default function P2PGrid({
                     isAudioOn={p.isAudioOn}
                     isVideoOn={p.isVideoOn}
                     isSpeaking={isUserSpeaking(p.id)}
-                    isPinned={pinnedId === p.id}
-                    onPinToggle={() => setPinnedId(pinnedId === p.id ? null : p.id)}
+                    isPinned={pinnedIds.includes(p.id)}
+                    onPinToggle={() => togglePin(p.id)}
                   />
                 </div>
               ))}
@@ -388,8 +492,8 @@ export default function P2PGrid({
               isAudioOn={activePeer.isAudioOn}
               isVideoOn={activePeer.isVideoOn}
               isSpeaking={isUserSpeaking(activePeer.id)}
-              isPinned={pinnedId === activePeer.id}
-              onPinToggle={() => setPinnedId(pinnedId === activePeer.id ? null : activePeer.id)}
+              isPinned={pinnedIds.includes(activePeer.id)}
+              onPinToggle={() => togglePin(activePeer.id)}
             />
           </div>
 
@@ -405,8 +509,8 @@ export default function P2PGrid({
                   isAudioOn={p.isAudioOn}
                   isVideoOn={p.isVideoOn}
                   isSpeaking={isUserSpeaking(p.id)}
-                  isPinned={pinnedId === p.id}
-                  onPinToggle={() => setPinnedId(pinnedId === p.id ? null : p.id)}
+                  isPinned={pinnedIds.includes(p.id)}
+                  onPinToggle={() => togglePin(p.id)}
                 />
               </div>
             ))}
@@ -437,13 +541,23 @@ export default function P2PGrid({
   // DESKTOP LAYOUTS (Screens >= md)
   // -------------------------------------------------------------
 
-  // 1. P2P SIDE-BY-SIDE PRESENTATION MODE (Screen Sharing / Watch Together / Pinned Hero)
-  if (heroTile || watchTogetherState?.active) {
+  // 1. P2P SIDE-BY-SIDE PRESENTATION MODE (Screen Sharing / Watch Together / Multi-Pinned Hero)
+  if (isPresentingMode) {
     const hasSideTiles = sideTiles.length > 0;
+    const activeHero = pinnedTiles.length === 1 ? pinnedTiles[0] : heroTile;
+
     return (
       <div className="absolute inset-0 w-full h-full p-0 overflow-hidden bg-[#0D0B14] select-none flex flex-row">
         {/* Main Presentation Stage (fills available width) */}
-        <div className="flex-1 h-full min-w-0 overflow-hidden bg-[#0D0B14] relative">
+        <div
+          ref={containerStageRef}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            const droppedId = e.dataTransfer.getData('text/plain');
+            if (droppedId) togglePin(droppedId);
+          }}
+          className="flex-1 h-full min-w-0 overflow-hidden bg-[#0D0B14] relative"
+        >
           {watchTogetherState?.active ? (
             <div className="w-full h-full flex flex-col items-center justify-center bg-[#0D0B14] relative">
               <div className="absolute top-16 left-4 z-30 flex items-center gap-2 pointer-events-auto">
@@ -469,25 +583,207 @@ export default function P2PGrid({
                 onSeeked={(e) => onWatchTogetherSync?.({ action: 'seek', time: e.target.currentTime })}
               />
             </div>
-          ) : (
+          ) : isMultiPinned ? (
+            /* MULTI-PINNED STAGE (2: 50/50 with draggable divider | 3: Top 2 + Bottom 1 | 4: 4 Quadrants) */
+            <div className="w-full h-full relative overflow-hidden bg-[#0D0B14]">
+              {pinnedTiles.length === 2 ? (
+                /* 2 TILES PINNED: 50% / 50% SPLIT WITH DRAGGABLE CENTER DIVIDER */
+                <div className="w-full h-full flex flex-row items-center justify-center p-2 relative overflow-hidden select-none">
+                  {/* Left 50% Quadrant */}
+                  <div
+                    style={{ width: `${splitRatio}%` }}
+                    className={`h-full relative overflow-hidden transition-all duration-75 rounded-2xl border border-white/10 ${
+                      dragOverPinId === pinnedTiles[0].id ? 'ring-2 ring-[#FF6B35] shadow-[0_0_24px_rgba(255,107,53,0.35)]' : ''
+                    }`}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedPinId(pinnedTiles[0].id);
+                      e.dataTransfer.setData('text/plain', pinnedTiles[0].id);
+                    }}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverPinId(pinnedTiles[0].id); }}
+                    onDragLeave={() => setDragOverPinId(null)}
+                    onDrop={() => {
+                      handleSwapPinned(draggedPinId, pinnedTiles[0].id);
+                      setDraggedPinId(null);
+                      setDragOverPinId(null);
+                    }}
+                  >
+                    <P2PVideoTile
+                      name={pinnedTiles[0].name}
+                      stream={pinnedTiles[0].stream}
+                      isLocal={pinnedTiles[0].isLocal}
+                      isHost={pinnedTiles[0].isHost}
+                      isAudioOn={pinnedTiles[0].isAudioOn}
+                      isVideoOn={pinnedTiles[0].isVideoOn ?? true}
+                      isScreenSharing={pinnedTiles[0].isScreenSharing}
+                      isSpeaking={isUserSpeaking(pinnedTiles[0].id)}
+                      isPinned={true}
+                      isHandRaised={raisedHands.includes(pinnedTiles[0].id)}
+                      onPinToggle={() => togglePin(pinnedTiles[0].id)}
+                    />
+                    <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-black/60 text-[9px] font-bold text-white/90 border border-white/10 pointer-events-none z-20">
+                      Left ({splitRatio}%) • Drag to swap
+                    </div>
+                  </div>
+
+                  {/* Draggable Divider Handle between 50 / 50 */}
+                  <div
+                    onMouseDown={handleStartSplitDrag}
+                    onDoubleClick={() => setSplitRatio(50)}
+                    className="w-2.5 h-full cursor-col-resize hover:bg-[#FF6B35]/50 active:bg-[#FF6B35] transition z-30 shrink-0 flex items-center justify-center select-none group"
+                    title="Drag to resize 50/50 split (Double-click to reset)"
+                  >
+                    <div className="w-1 h-10 rounded-full bg-white/20 group-hover:bg-[#FF6B35] transition" />
+                  </div>
+
+                  {/* Right 50% Quadrant */}
+                  <div
+                    style={{ width: `${100 - splitRatio}%` }}
+                    className={`h-full relative overflow-hidden transition-all duration-75 rounded-2xl border border-white/10 ${
+                      dragOverPinId === pinnedTiles[1].id ? 'ring-2 ring-[#FF6B35] shadow-[0_0_24px_rgba(255,107,53,0.35)]' : ''
+                    }`}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedPinId(pinnedTiles[1].id);
+                      e.dataTransfer.setData('text/plain', pinnedTiles[1].id);
+                    }}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverPinId(pinnedTiles[1].id); }}
+                    onDragLeave={() => setDragOverPinId(null)}
+                    onDrop={() => {
+                      handleSwapPinned(draggedPinId, pinnedTiles[1].id);
+                      setDraggedPinId(null);
+                      setDragOverPinId(null);
+                    }}
+                  >
+                    <P2PVideoTile
+                      name={pinnedTiles[1].name}
+                      stream={pinnedTiles[1].stream}
+                      isLocal={pinnedTiles[1].isLocal}
+                      isHost={pinnedTiles[1].isHost}
+                      isAudioOn={pinnedTiles[1].isAudioOn}
+                      isVideoOn={pinnedTiles[1].isVideoOn ?? true}
+                      isScreenSharing={pinnedTiles[1].isScreenSharing}
+                      isSpeaking={isUserSpeaking(pinnedTiles[1].id)}
+                      isPinned={true}
+                      isHandRaised={raisedHands.includes(pinnedTiles[1].id)}
+                      onPinToggle={() => togglePin(pinnedTiles[1].id)}
+                    />
+                    <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-black/60 text-[9px] font-bold text-white/90 border border-white/10 pointer-events-none z-20">
+                      Right ({100 - splitRatio}%) • Drag to swap
+                    </div>
+                  </div>
+                </div>
+              ) : pinnedTiles.length === 3 ? (
+                /* 3 TILES PINNED: TOP-LEFT, TOP-RIGHT, BOTTOM SPANNING */
+                <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-2 p-2 relative overflow-hidden select-none">
+                  {pinnedTiles.slice(0, 3).map((tile, idx) => {
+                    const isBottom = idx === 2;
+                    const labels = ['Top Left', 'Top Right', 'Bottom (Full)'];
+                    return (
+                      <div
+                        key={tile.id}
+                        className={`${isBottom ? 'col-span-2 row-span-1' : 'col-span-1 row-span-1'} h-full w-full relative overflow-hidden rounded-2xl border border-white/10 transition-all ${
+                          dragOverPinId === tile.id ? 'ring-2 ring-[#FF6B35] shadow-[0_0_24px_rgba(255,107,53,0.35)]' : ''
+                        }`}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedPinId(tile.id);
+                          e.dataTransfer.setData('text/plain', tile.id);
+                        }}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverPinId(tile.id); }}
+                        onDragLeave={() => setDragOverPinId(null)}
+                        onDrop={() => {
+                          handleSwapPinned(draggedPinId, tile.id);
+                          setDraggedPinId(null);
+                          setDragOverPinId(null);
+                        }}
+                      >
+                        <P2PVideoTile
+                          name={tile.name}
+                          stream={tile.stream}
+                          isLocal={tile.isLocal}
+                          isHost={tile.isHost}
+                          isAudioOn={tile.isAudioOn}
+                          isVideoOn={tile.isVideoOn ?? true}
+                          isScreenSharing={tile.isScreenSharing}
+                          isSpeaking={isUserSpeaking(tile.id)}
+                          isPinned={true}
+                          isHandRaised={raisedHands.includes(tile.id)}
+                          onPinToggle={() => togglePin(tile.id)}
+                        />
+                        <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-black/60 text-[9px] font-bold text-white/90 border border-white/10 pointer-events-none z-20">
+                          {labels[idx]} • Drag to swap
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* 4 TILES PINNED: 4 QUADRANTS (TOP-LEFT, TOP-RIGHT, BOTTOM-LEFT, BOTTOM-RIGHT) */
+                <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-2 p-2 relative overflow-hidden select-none">
+                  {pinnedTiles.slice(0, 4).map((tile, idx) => {
+                    const quadrantNames = ['Top Left', 'Top Right', 'Bottom Left', 'Bottom Right'];
+                    return (
+                      <div
+                        key={tile.id}
+                        className={`col-span-1 row-span-1 h-full w-full relative overflow-hidden rounded-2xl border border-white/10 transition-all ${
+                          dragOverPinId === tile.id ? 'ring-2 ring-[#FF6B35] shadow-[0_0_24px_rgba(255,107,53,0.35)]' : ''
+                        }`}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedPinId(tile.id);
+                          e.dataTransfer.setData('text/plain', tile.id);
+                        }}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverPinId(tile.id); }}
+                        onDragLeave={() => setDragOverPinId(null)}
+                        onDrop={() => {
+                          handleSwapPinned(draggedPinId, tile.id);
+                          setDraggedPinId(null);
+                          setDragOverPinId(null);
+                        }}
+                      >
+                        <P2PVideoTile
+                          name={tile.name}
+                          stream={tile.stream}
+                          isLocal={tile.isLocal}
+                          isHost={tile.isHost}
+                          isAudioOn={tile.isAudioOn}
+                          isVideoOn={tile.isVideoOn ?? true}
+                          isScreenSharing={tile.isScreenSharing}
+                          isSpeaking={isUserSpeaking(tile.id)}
+                          isPinned={true}
+                          isHandRaised={raisedHands.includes(tile.id)}
+                          onPinToggle={() => togglePin(tile.id)}
+                        />
+                        <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-black/60 text-[9px] font-bold text-white/90 border border-white/10 pointer-events-none z-20">
+                          {quadrantNames[idx]} • Drag to swap
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : activeHero ? (
+            /* SINGLE HERO VIEW (1 PINNED OR SCREEN SHARE OR ACTIVE SPEAKER) */
             <div
               onMouseMove={handleMouseMove}
               onClick={handleClick}
               className={`w-full h-full relative ${remoteControlState?.isControlling ? 'cursor-crosshair' : ''}`}
             >
               <P2PVideoTile
-                name={heroTile.name}
-                stream={heroTile.stream}
-                isLocal={heroTile.isLocal}
-                isHost={heroTile.isHost}
-                isAudioOn={heroTile.isAudioOn}
-                isVideoOn={heroTile.isVideoOn ?? true}
-                isScreenSharing={heroTile.isScreenSharing}
-                isSpeaking={isUserSpeaking(heroTile.id)}
-                isPinned={!!pinnedId}
-                isHandRaised={raisedHands.includes(heroTile.id)}
+                name={activeHero.name}
+                stream={activeHero.stream}
+                isLocal={activeHero.isLocal}
+                isHost={activeHero.isHost}
+                isAudioOn={activeHero.isAudioOn}
+                isVideoOn={activeHero.isVideoOn ?? true}
+                isScreenSharing={activeHero.isScreenSharing}
+                isSpeaking={isUserSpeaking(activeHero.id)}
+                isPinned={pinnedIds.includes(activeHero.id)}
+                isHandRaised={raisedHands.includes(activeHero.id)}
                 isSingle={true}
-                onPinToggle={() => setPinnedId(null)}
+                onPinToggle={() => togglePin(activeHero.id)}
               />
 
               {/* Click Ripple Animations for Remote Desktop */}
@@ -499,8 +795,8 @@ export default function P2PGrid({
                 />
               ))}
 
-              {/* Virtual Remote Cursor Overlay (Only for remote peers controlling a remote screen - never on own screen) */}
-              {remoteCursor && !heroTile?.isLocal && (
+              {/* Virtual Remote Cursor Overlay */}
+              {remoteCursor && !activeHero?.isLocal && (
                 <div
                   className="absolute z-40 pointer-events-none transition-all duration-75 flex items-center gap-1 -translate-x-1 -translate-y-1"
                   style={{ top: `${remoteCursor.y}%`, left: `${remoteCursor.x}%` }}
@@ -512,7 +808,7 @@ export default function P2PGrid({
                 </div>
               )}
             </div>
-          )}
+          ) : null}
 
         {/* Remote Desktop Access Controls (Only shown when active or requested) */}
         {isScreenSharing && (remoteControlState?.requestPending || remoteControlState?.isBeingControlled || remoteControlState?.isControlling || showGrantMenu) && (
@@ -594,7 +890,15 @@ export default function P2PGrid({
 
             <div className="flex-1 overflow-y-auto p-2.5 flex flex-col gap-2.5">
               {sideTiles.map((tile) => (
-                <div key={tile.id} className="w-full h-36 shrink-0 rounded-xl overflow-hidden border border-white/10 bg-[#0D0B14] relative shadow-md">
+                <div
+                  key={tile.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', tile.id);
+                  }}
+                  className="w-full h-36 shrink-0 rounded-xl overflow-hidden border border-white/10 bg-[#0D0B14] relative shadow-md cursor-grab active:cursor-grabbing hover:border-[#FF6B35]/40 transition"
+                  title="Drag tile to pin onto stage, or click pin icon"
+                >
                   <P2PVideoTile
                     name={tile.name}
                     stream={tile.stream}
@@ -604,9 +908,9 @@ export default function P2PGrid({
                     isVideoOn={true}
                     isScreenSharing={tile.isScreenSharing}
                     isSpeaking={isUserSpeaking(tile.id)}
-                    isPinned={false}
+                    isPinned={pinnedIds.includes(tile.id)}
                     isHandRaised={raisedHands.includes(tile.id)}
-                    onPinToggle={() => setPinnedId(tile.id)}
+                    onPinToggle={() => togglePin(tile.id)}
                   />
                 </div>
               ))}
@@ -652,21 +956,29 @@ export default function P2PGrid({
         }`}
       >
         {visibleGridTiles.map((tile) => (
-          <P2PVideoTile
+          <div
             key={tile.id}
-            name={tile.name}
-            stream={tile.stream}
-            isLocal={tile.isLocal}
-            isHost={tile.isHost}
-            isAudioOn={tile.isAudioOn}
-            isVideoOn={tile.isVideoOn ?? true}
-            isScreenSharing={tile.isScreenSharing}
-            isSpeaking={tile.isSpeaking}
-            isPinned={pinnedId === tile.id}
-            isHandRaised={tile.isHandRaised}
-            isSingle={isSolo}
-            onPinToggle={() => setPinnedId(pinnedId === tile.id ? null : tile.id)}
-          />
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData('text/plain', tile.id);
+            }}
+            className="w-full h-full relative"
+          >
+            <P2PVideoTile
+              name={tile.name}
+              stream={tile.stream}
+              isLocal={tile.isLocal}
+              isHost={tile.isHost}
+              isAudioOn={tile.isAudioOn}
+              isVideoOn={tile.isVideoOn ?? true}
+              isScreenSharing={tile.isScreenSharing}
+              isSpeaking={tile.isSpeaking}
+              isPinned={pinnedIds.includes(tile.id)}
+              isHandRaised={tile.isHandRaised}
+              isSingle={isSolo}
+              onPinToggle={() => togglePin(tile.id)}
+            />
+          </div>
         ))}
       </div>
 

@@ -117,7 +117,9 @@ export default function P2PHeader({
           <div className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-white/10 bg-[#0D0B14]/60 backdrop-blur-xl text-white/90 shadow-md">
             <Monitor className="w-3.5 h-3.5 text-[#FFA14A]" />
             <span className="font-medium truncate max-w-[180px] sm:max-w-none">
-              {presentationInfo.isPinned ? `Pinned: ${presentationInfo.name}` : `Viewing: ${presentationInfo.name}`}
+              {presentationInfo.isPinned
+                ? (presentationInfo.name.includes('Pinned') ? presentationInfo.name : `Pinned: ${presentationInfo.name}`)
+                : `Viewing: ${presentationInfo.name}`}
             </span>
             {presentationInfo.isLocal && (
               <span className="text-[10px] bg-[#FF6B35]/25 text-[#FFA14A] border border-[#FF6B35]/40 px-1.5 py-0.5 rounded font-bold ml-0.5 shrink-0">
@@ -128,7 +130,7 @@ export default function P2PHeader({
               <button
                 onClick={presentationInfo.onUnpin}
                 className="ml-1 text-[10px] text-white/60 hover:text-white"
-                title="Unpin"
+                title="Unpin All"
               >
                 ✕
               </button>
