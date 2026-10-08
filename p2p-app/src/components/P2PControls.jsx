@@ -112,10 +112,10 @@ export default function P2PControls({
             : 'translate-y-12 opacity-0 pointer-events-none'
         }`}
       >
-        <div className="p2p-dock rounded-full px-2 sm:px-3 py-1.5 sm:py-2 flex items-center gap-1 sm:gap-2 shadow-2xl shadow-black/90 border border-[#FF6B35]/70 backdrop-blur-2xl">
+        <div className="p2p-dock rounded-full px-2 sm:px-3 py-1.5 sm:py-2 flex items-center gap-1 sm:gap-2 shadow-2xl shadow-black/90 border border-white/10 backdrop-blur-2xl">
           
           {/* 1. MUTE / UNMUTE CAPSULE WITH POPUP CHEVRON */}
-          <div ref={audioMenuRef} className="relative flex items-center bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 rounded-full pl-2 pr-1 py-0.5 border border-[#FF6B35]/70 backdrop-blur-xl transition">
+          <div ref={audioMenuRef} className="relative flex items-center bg-[#0D0B14]/60 hover:bg-[#0D0B14]/85 rounded-full pl-2 pr-1 py-0.5 border border-white/10 backdrop-blur-xl transition">
             <button
               type="button"
               onClick={toggleAudio}
@@ -227,7 +227,7 @@ export default function P2PControls({
           </div>
 
           {/* 2. START / STOP VIDEO CAPSULE WITH POPUP CHEVRON */}
-          <div ref={videoMenuRef} className="relative flex items-center bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 rounded-full pl-2 pr-1 py-0.5 border border-[#FF6B35]/70 backdrop-blur-xl transition">
+          <div ref={videoMenuRef} className="relative flex items-center bg-[#0D0B14]/60 hover:bg-[#0D0B14]/85 rounded-full pl-2 pr-1 py-0.5 border border-white/10 backdrop-blur-xl transition">
             <button
               type="button"
               onClick={toggleVideo}
@@ -405,8 +405,8 @@ export default function P2PControls({
           <button
             type="button"
             onClick={() => onTogglePanel?.('participants')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#FF6B35]/70 transition cursor-pointer ${
-              activePanel === 'participants' ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 transition cursor-pointer ${
+              activePanel === 'participants' ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/60 hover:bg-[#0D0B14]/85 text-[#F8F7FC]'
             }`}
             title="Participants List"
           >
@@ -423,8 +423,8 @@ export default function P2PControls({
           <button
             type="button"
             onClick={() => onTogglePanel?.('chat')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#FF6B35]/70 transition cursor-pointer ${
-              activePanel === 'chat' ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 transition cursor-pointer ${
+              activePanel === 'chat' ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/60 hover:bg-[#0D0B14]/85 text-[#F8F7FC]'
             }`}
             title="Meeting Chat"
           >
@@ -432,7 +432,7 @@ export default function P2PControls({
             <span className="text-[11px] font-semibold hidden sm:inline">Chat</span>
           </button>
 
-          {/* SHARE SCREEN (TRANSLUCENT PILL WITH THIN ORANGE BORDER - LESS CONTRASTY) */}
+          {/* SHARE SCREEN (TRANSLUCENT PILL WITH THIN ACCENT - LESS CONTRASTY) */}
           <button
             type="button"
             onClick={() => {
@@ -442,10 +442,10 @@ export default function P2PControls({
                 startScreenShare({ surface: 'monitor', isWatchParty: false });
               }
             }}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-semibold text-xs border border-[#FF6B35]/70 transition cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-semibold text-xs transition cursor-pointer ${
               screenSharing
-                ? 'bg-[#FF6B35]/25 hover:bg-[#FF6B35]/35 text-[#FFA14A]'
-                : 'bg-[#0D0B14]/50 hover:bg-[#FF6B35]/20 text-[#FFA14A] hover:text-[#F8F7FC]'
+                ? 'bg-[#FF6B35]/25 hover:bg-[#FF6B35]/35 border border-[#FF6B35]/50 text-[#FFA14A]'
+                : 'bg-white/[0.06] hover:bg-[#FF6B35]/20 border border-white/15 text-[#FFA14A] hover:text-[#F8F7FC]'
             }`}
             title={screenSharing ? 'Stop Screen Sharing' : 'Share Screen'}
           >
@@ -459,8 +459,8 @@ export default function P2PControls({
           <button
             type="button"
             onClick={onToggleWhiteboard}
-            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#FF6B35]/70 transition cursor-pointer ${
-              whiteboardActive ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
+            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 transition cursor-pointer ${
+              whiteboardActive ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/60 hover:bg-[#0D0B14]/85 text-[#F8F7FC]'
             }`}
             title="Open Interactive Whiteboard"
           >
@@ -472,8 +472,8 @@ export default function P2PControls({
           <button
             type="button"
             onClick={onToggleRecording}
-            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#FF6B35]/70 transition cursor-pointer ${
-              isRecording ? 'text-[#FF6B35] bg-[#0D0B14]' : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
+            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 transition cursor-pointer ${
+              isRecording ? 'text-[#FF6B35] bg-[#0D0B14]' : 'bg-[#0D0B14]/60 hover:bg-[#0D0B14]/85 text-[#F8F7FC]'
             }`}
             title={isRecording ? 'Stop Recording' : 'Record Meeting'}
           >
@@ -493,8 +493,8 @@ export default function P2PControls({
                 setShowVideoMenu(false);
                 setShowSecurityMenu(false);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#FF6B35]/70 transition cursor-pointer ${
-                isHandRaised ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/50 hover:bg-[#0D0B14]/80 text-[#F8F7FC]'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 transition cursor-pointer ${
+                isHandRaised ? 'bg-[#FF6B35] text-[#0D0B14]' : 'bg-[#0D0B14]/60 hover:bg-[#0D0B14]/85 text-[#F8F7FC]'
               }`}
               title="Send Reactions & Raise Hand"
             >
@@ -544,11 +544,11 @@ export default function P2PControls({
           {/* Divider */}
           <div className="h-6 w-[1px] bg-[rgba(196,181,253,0.16)] mx-0.5 hidden sm:block shrink-0" />
 
-          {/* 4. LEAVE / END BUTTON (SUBTLE TRANSLUCENT ORANGE PILL) */}
+          {/* 4. LEAVE / END BUTTON (ENTERPRISE SUBTLE RED PILL) */}
           <button
             type="button"
             onClick={() => setShowLeaveModal(true)}
-            className="px-4 py-1.5 rounded-full bg-[#FF6B35]/25 hover:bg-[#FF6B35]/40 border border-[#FF6B35]/70 text-[#FFA14A] hover:text-white font-bold text-xs transition cursor-pointer shrink-0"
+            className="px-4 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/35 border border-red-500/35 text-red-300 hover:text-white font-bold text-xs transition cursor-pointer shrink-0"
           >
             {isHost ? 'End' : 'Leave'}
           </button>

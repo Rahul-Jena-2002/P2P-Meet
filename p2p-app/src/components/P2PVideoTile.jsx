@@ -360,19 +360,12 @@ export default function P2PVideoTile({
         />
       )}
 
-      {/* Frosted Avatar when camera is off */}
+      {/* Frosted Avatar when camera is off (Clean minimalist avatar, no redundant 'Camera off' text) */}
       {((!isVideoOn || (isLocal && stream?.getVideoTracks()?.length === 0)) && !isScreenSharing) && (
         <div className="flex flex-col items-center justify-center w-full h-full bg-[#0D0B14]">
-          <div className="w-24 h-24 rounded-full bg-[#161324]/50 border border-white/10 backdrop-blur-xl flex items-center justify-center text-[#C4B5FD] text-3xl font-bold mb-3 shadow-2xl">
+          <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-[#221C35] to-[#2C2442] border border-[rgba(196,181,253,0.25)] backdrop-blur-xl flex items-center justify-center text-[#C4B5FD] text-xl sm:text-2xl font-bold shadow-xl">
             {initials}
           </div>
-          <span className="text-[#F8F7FC] text-sm font-semibold tracking-wide">{name}</span>
-          {!isVideoOn && (
-            <span className="text-[#C4B5FD]/50 text-xs mt-1">Camera off</span>
-          )}
-          {isVideoOn && isLocal && stream?.getVideoTracks()?.length === 0 && (
-            <span className="text-[#FFA14A] text-xs mt-1">Camera in use by another app</span>
-          )}
         </div>
       )}
 
@@ -394,13 +387,13 @@ export default function P2PVideoTile({
               </div>
             )}
             {isScreenSharing && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0D0B14]/60 text-[#C4B5FD] text-[10px] font-bold backdrop-blur-xl border border-[#FF6B35]/70 shadow-md">
-                <Monitor className="w-3 h-3 text-[#FF6B35]" />
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0D0B14]/60 text-[#C4B5FD] text-[10px] font-bold backdrop-blur-xl border border-white/15 shadow-md">
+                <Monitor className="w-3.5 h-3.5 text-[#FF6B35]" />
                 <span>Screen</span>
               </div>
             )}
             {isPinned && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FF6B35]/80 text-[#0D0B14] text-[10px] font-bold backdrop-blur-xl border border-[#FF6B35] shadow-md">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FF6B35] text-[#0D0B14] text-[10px] font-bold backdrop-blur-xl border border-[#FF6B35] shadow-md">
                 <Pin className="w-3 h-3 fill-current" />
                 <span>Pinned</span>
               </div>
@@ -416,10 +409,10 @@ export default function P2PVideoTile({
                   onPinToggle();
                 }}
                 title={isPinned ? "Unpin video (Back to Grid)" : "Pin video to Main Stage"}
-                className={`p-1.5 rounded-full backdrop-blur-xl border border-[#FF6B35]/70 transition shadow-md cursor-pointer ${
+                className={`p-1.5 rounded-full backdrop-blur-xl border transition shadow-md cursor-pointer ${
                   isPinned
-                    ? 'bg-[#FF6B35] text-[#0D0B14]'
-                    : 'bg-[#0D0B14]/60 hover:bg-[#FF6B35]/30 text-[#F8F7FC]'
+                    ? 'bg-[#FF6B35] border-[#FF6B35] text-[#0D0B14]'
+                    : 'bg-[#0D0B14]/60 border-white/15 hover:bg-[#FF6B35]/30 text-[#F8F7FC]'
                 }`}
               >
                 {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
@@ -431,18 +424,18 @@ export default function P2PVideoTile({
 
       {/* Bottom Left Name tag with audio icon - hidden on fullscreen screen-share to prevent content obstruction */}
       {!(isScreenSharing && isSingle) && (
-        <div className="absolute bottom-3 left-3 pointer-events-none flex items-center gap-2 px-3 py-1 rounded-full bg-[#0D0B14]/50 backdrop-blur-xl text-[#F8F7FC] text-xs font-semibold border border-[#FF6B35]/70 shadow-md z-20">
+        <div className="absolute bottom-2.5 left-2.5 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[#F8F7FC] text-xs font-medium border border-white/10 shadow-md z-20">
           <div className="shrink-0">
             {isAudioOn ? (
-              <Mic className={`w-3.5 h-3.5 ${isSpeaking ? 'text-[#FF6B35] animate-pulse' : 'text-[#FFA14A]'}`} />
+              <Mic className={`w-3.5 h-3.5 ${isSpeaking ? 'text-[#FF6B35] animate-pulse' : 'text-[#C4B5FD]'}`} />
             ) : (
               <MicOff className="w-3.5 h-3.5 text-[#FF6B35]" />
             )}
           </div>
-          <span className="truncate max-w-[120px] font-medium text-[11px]">{name} {isLocal && '(You)'}</span>
+          <span className="truncate max-w-[120px] font-medium text-[11px] text-white/90">{name} {isLocal && '(You)'}</span>
           {isHost && (
-            <span className="text-[9px] uppercase font-bold text-[#0D0B14] bg-[#FF6B35] px-1.5 py-0.2 rounded-full shadow-sm">
-              Host
+            <span className="text-[9px] uppercase font-bold text-[#FFA14A] bg-[#FF6B35]/25 border border-[#FF6B35]/40 px-1.5 py-0.5 rounded shadow-sm">
+              HOST
             </span>
           )}
         </div>

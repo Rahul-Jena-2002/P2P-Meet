@@ -51,29 +51,29 @@
   }
 }
 
-/* Glassmorphic Obsidian Dock, Panels & Dropdowns (50% Translucent with Thin Clean Orange Border) */
+/* Glassmorphic Obsidian Dock, Panels & Dropdowns (Enterprise Translucent Glass with Subtle Borders) */
 .p2p-dock, .zoom-dock {
-  background: rgba(13, 11, 20, 0.50);
+  background: rgba(13, 11, 20, 0.65);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 107, 53, 0.70);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.80);
 }
 
 .p2p-panel, .zoom-panel {
-  background: rgba(22, 19, 36, 0.50);
+  background: rgba(19, 17, 30, 0.85);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 107, 53, 0.70);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.80);
 }
 
 .p2p-dropdown, .zoom-dropdown {
-  background: rgba(22, 19, 36, 0.75);
+  background: rgba(22, 19, 36, 0.92);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 107, 53, 0.70);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.80);
 }
 
 /* Autohide overlay transition */
@@ -81,10 +81,10 @@
   transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Electric Orange Active Speaker Halo (Thin subtle highlight, not distracting) */
+/* Electric Orange Active Speaker Ring (Crisp 1.5px subtle highlight, zero distracting halo) */
 .speaking-halo {
   border-color: #FF6B35 !important;
-  box-shadow: 0 0 6px rgba(255, 107, 53, 0.3) !important;
+  box-shadow: 0 0 8px rgba(255, 107, 53, 0.25) !important;
 }
 
 /* Custom frosted lavender scrollbar */

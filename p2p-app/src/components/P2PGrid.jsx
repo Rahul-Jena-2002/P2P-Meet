@@ -172,8 +172,16 @@ export default function P2PGrid({
     heroTile = speakerPeer || (remoteCameraTiles.length > 0 ? remoteCameraTiles[0] : null);
   }
 
-  // Side tiles in presentation layout (up to 8 other sources as secondary cards)
-  const sideTiles = allTiles.filter(t => t.id !== heroTile?.id).slice(0, 8);
+  // Side tiles in presentation layout: only show participants whose camera is actively turned ON!
+  // If camera is off, no need to show empty cards/pills because participants are visible in the participants drawer.
+  const sideTiles = allTiles
+    .filter(t => t.id !== heroTile?.id)
+    .filter(t => {
+      if (!t.isVideoOn) return false;
+      const tracks = t.stream?.getVideoTracks();
+      return tracks && tracks.length > 0 && tracks[0].readyState === 'live';
+    })
+    .slice(0, 8);
 
   const totalCount = allTiles.length;
 
@@ -506,31 +514,12 @@ export default function P2PGrid({
             </div>
           )}
 
-        {/* Presentation Status Bar - Floats at top-16 left-4 (BELOW Top Header, auto-hides with controlsVisible) */}
-        {heroTile && !watchTogetherState?.active && (
+        {/* Remote Desktop Access Controls (Only shown when active or requested) */}
+        {isScreenSharing && (remoteControlState?.requestPending || remoteControlState?.isBeingControlled || remoteControlState?.isControlling || showGrantMenu) && (
           <div className={`absolute top-16 left-4 z-20 flex flex-wrap items-center gap-2 transition-all duration-300 ${
             controlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}>
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0D0B14]/60 backdrop-blur-xl border border-[#FF6B35]/70 text-xs font-semibold text-[#F8F7FC] shadow-lg">
-              <Monitor className="w-3.5 h-3.5 text-[#FFA14A]" />
-              <span>{pinnedId ? `Pinned: ${heroTile.name}` : `Viewing: ${heroTile.name}`}</span>
-              {heroTile.isLocal && (
-                <span className="text-[10px] bg-[#FF6B35]/20 text-[#FFA14A] border border-[#FF6B35]/40 px-1.5 py-0.5 rounded-full font-bold">
-                  {heroTile.isScreenSharing ? 'Your Screen' : 'You'}
-                </span>
-              )}
-              {pinnedId && (
-                <button
-                  onClick={() => setPinnedId(null)}
-                  className="ml-1 px-2 py-0.5 rounded-full bg-[#FF6B35]/25 hover:bg-[#FF6B35] text-[#FFA14A] hover:text-[#0D0B14] border border-[#FF6B35]/40 text-[10px] font-bold transition flex items-center gap-1 shadow-sm cursor-pointer"
-                >
-                  Unpin ✕
-                </button>
-              )}
-            </div>
-
-            {/* Remote Desktop Access Controls (Only shown when active or requested) */}
-            {isScreenSharing && remoteControlState?.requestPending && (
+            {remoteControlState?.requestPending && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] text-xs font-bold shadow-lg animate-bounce">
                 <ShieldAlert className="w-4 h-4 shrink-0" />
                 <span>{remoteControlState.requesterName} requests Access</span>
@@ -549,7 +538,7 @@ export default function P2PGrid({
               </div>
             )}
 
-            {isScreenSharing && remoteControlState?.isBeingControlled && (
+            {remoteControlState?.isBeingControlled && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FF6B35] text-[#0D0B14] text-xs font-bold shadow-lg">
                 <MousePointer className="w-3.5 h-3.5 animate-pulse" />
                 <span>Controlled by {remoteControlState.controllerName}</span>
@@ -562,16 +551,16 @@ export default function P2PGrid({
               </div>
             )}
 
-            {isScreenSharing && !remoteControlState?.isBeingControlled && !remoteControlState?.requestPending && peerList.length > 0 && (
+            {!remoteControlState?.isBeingControlled && !remoteControlState?.requestPending && peerList.length > 0 && (
               <div className="relative">
                 <button
                   onClick={() => setShowGrantMenu(!showGrantMenu)}
-                  className="px-3 py-1.5 rounded-full bg-[#0D0B14]/60 hover:bg-[#FF6B35]/25 border border-[#FF6B35]/70 text-[#FFA14A] hover:text-[#F8F7FC] text-xs font-semibold backdrop-blur-xl shadow transition cursor-pointer"
+                  className="px-3 py-1.5 rounded-full bg-[#0D0B14]/70 hover:bg-[#FF6B35]/25 border border-white/10 hover:border-[#FF6B35]/40 text-[#FFA14A] hover:text-[#F8F7FC] text-xs font-semibold backdrop-blur-xl shadow transition cursor-pointer"
                 >
                   Give Control ▾
                 </button>
                 {showGrantMenu && (
-                  <div className="absolute left-0 top-10 w-48 rounded-2xl bg-[#161324]/95 border border-[#FF6B35]/70 p-2 text-xs shadow-2xl backdrop-blur-xl z-50">
+                  <div className="absolute left-0 top-10 w-48 rounded-2xl bg-[#161324]/95 border border-white/15 p-2 text-xs shadow-2xl backdrop-blur-xl z-50">
                     <span className="text-[10px] font-bold text-[#FFA14A] block px-2 mb-1 uppercase tracking-wider">Select User</span>
                     {peerList.map(p => (
                       <button
@@ -580,7 +569,7 @@ export default function P2PGrid({
                           onGrantRemoteControlToPeer?.(p.id, p.name);
                           setShowGrantMenu(false);
                         }}
-                        className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-white/[0.06] text-[#F8F7FC] transition cursor-pointer"
+                        className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-white/[0.08] text-[#F8F7FC] transition cursor-pointer"
                       >
                         {p.name}
                       </button>
@@ -589,57 +578,30 @@ export default function P2PGrid({
                 )}
               </div>
             )}
-
-            {!isScreenSharing && heroTile.id !== localUser.id && (
-              <div>
-                {remoteControlState?.isControlling ? (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFA14A] text-[#0D0B14] text-xs font-bold shadow-lg">
-                    <MousePointer className="w-3.5 h-3.5 animate-bounce" />
-                    <span>Remote Control Active</span>
-                    <button
-                      onClick={onRevokeRemoteControl}
-                      className="px-2.5 py-1 rounded-full bg-[#0D0B14] hover:bg-[#161324] text-white transition text-xs font-semibold cursor-pointer"
-                    >
-                      Release
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={onRequestRemoteControl}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FF6B35] hover:bg-[#FFA14A] text-[#0D0B14] text-xs font-bold backdrop-blur-md shadow-lg shadow-[#FF6B35]/25 transition cursor-pointer"
-                  >
-                    <MousePointer className="w-3.5 h-3.5" />
-                    <span>Request Control</span>
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         )}
         </div>
 
-        {/* DOCKED SIDEBAR FOR PEOPLE (PARTICIPANT CAMERAS) - SAME LIKE CHAT ON THE SIDE, NOT FLOATING! */}
+        {/* DOCKED SIDEBAR FOR PEOPLE (ONLY PARTICIPANTS WITH LIVE VIDEO ON) */}
         {hasSideTiles && (
-          <aside className="w-56 sm:w-64 md:w-72 h-full bg-[#161324] border-l border-[#FF6B35]/40 flex flex-col shrink-0 z-20 select-none">
-            <div className="h-12 px-3.5 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between shrink-0 bg-[#161324]">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs px-2.5 py-1 rounded-full bg-[#FF6B35]/20 text-[#FFA14A] font-bold border border-[#FF6B35]/40 flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5" />
-                  <span>People ({sideTiles.length})</span>
-                </span>
+          <aside className="w-64 sm:w-72 h-full bg-[#13111E] border-l border-white/10 flex flex-col shrink-0 z-20 select-none shadow-2xl">
+            <div className="h-12 px-4 border-b border-white/10 flex items-center justify-between shrink-0 bg-[#14121F]">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-[#FFA14A]" />
+                <span className="text-xs font-semibold text-white/90">People ({sideTiles.length})</span>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-2.5 flex flex-col gap-2.5">
               {sideTiles.map((tile) => (
-                <div key={tile.id} className="w-full h-36 shrink-0 rounded-2xl overflow-hidden border border-[#FF6B35]/70 bg-[#0D0B14] relative shadow-lg">
+                <div key={tile.id} className="w-full h-36 shrink-0 rounded-xl overflow-hidden border border-white/10 bg-[#0D0B14] relative shadow-md">
                   <P2PVideoTile
                     name={tile.name}
                     stream={tile.stream}
                     isLocal={tile.isLocal}
                     isHost={tile.isHost}
                     isAudioOn={tile.isAudioOn}
-                    isVideoOn={tile.isVideoOn ?? true}
+                    isVideoOn={true}
                     isScreenSharing={tile.isScreenSharing}
                     isSpeaking={isUserSpeaking(tile.id)}
                     isPinned={false}

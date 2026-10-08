@@ -796,6 +796,30 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     })
   ];
 
+  // Screen sharing / presentation info
+  const activeSharer = (screenSharing && screenStream)
+    ? { name: `${meetingInfo.name} (Screen)`, isLocal: true, isScreenSharing: true }
+    : Object.values(peers).find(p => p.isScreenSharing);
+
+  const presentationInfo = activeSharer ? {
+    name: activeSharer.name,
+    isLocal: activeSharer.isLocal || false,
+    isScreenSharing: true
+  } : (watchTogetherState?.active ? {
+    name: 'Watch Party',
+    isLocal: false,
+    isScreenSharing: false
+  } : null);
+
+  const isPresenting = !!activeSharer || watchTogetherState?.active;
+  // Side tiles only exist in presentation mode when participants have live cameras ON!
+  const remotePeersWithCamera = Object.values(peers).filter(p => p.isVideoOn && p.stream?.getVideoTracks()?.length > 0);
+  const localHasCamera = videoEnabled && localStream?.getVideoTracks()?.length > 0;
+  const camerasActiveCount = (activeSharer?.isLocal ? (localHasCamera ? 1 : 0) : (localHasCamera ? 1 : 0)) +
+    remotePeersWithCamera.filter(p => p.id !== activeSharer?.id).length;
+  const hasPeopleSidebar = isPresenting && !isMobile && camerasActiveCount > 0;
+  const peopleSidebarWidth = hasPeopleSidebar ? 288 : 0;
+
   return (
     <div className="relative w-screen h-[100dvh] max-h-[100dvh] bg-[#0D0B14] text-[#F8F7FC] overflow-hidden flex select-none" style={{ height: '100dvh' }}>
       {/* 1. Main Video Stage & Floating Overlay Area (resizes flexibly when drawers open) */}
@@ -850,6 +874,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           networkStats={networkStats}
           topologyMode={topologyMode}
           isSupernode={isSupernode}
+          presentationInfo={presentationInfo}
+          sidebarOffset={peopleSidebarWidth}
         />
 
         {/* Mouse proximity trigger for bottom dock */}
