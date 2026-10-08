@@ -90,6 +90,51 @@ export class RelaySelector {
     return eligible.slice(0, count).map((r) => r.peerId);
   }
 
+  /**
+   * Deterministically elects a Head Relay and a Hot Standby per cluster.
+   * Tie-breaking hierarchy:
+   * 1. NAT Reachability (reachable > restricted)
+   * 2. Available Upload Bandwidth (higher is better)
+   * 3. CPU Load (lower is better)
+   * 4. RTT Latency (lower is better)
+   * 5. Peer ID (lexicographical)
+   */
+  electHeadAndStandby(peers = []) {
+    if (!peers || peers.length === 0) {
+      return { headRelayId: null, standbyRelayId: null };
+    }
+
+    const sorted = [...peers].sort((a, b) => {
+      // 1. Reachability
+      const reachA = a.reachability === 'reachable' ? 1 : 0;
+      const reachB = b.reachability === 'reachable' ? 1 : 0;
+      if (reachB !== reachA) return reachB - reachA;
+
+      // 2. Upload bandwidth
+      const upA = a.uploadMbps ?? a.upload ?? 0;
+      const upB = b.uploadMbps ?? b.upload ?? 0;
+      if (upB !== upA) return upB - upA;
+
+      // 3. CPU Load (lower is better)
+      const cpuA = a.cpuLoad ?? a.cpu ?? 1.0;
+      const cpuB = b.cpuLoad ?? b.cpu ?? 1.0;
+      if (cpuA !== cpuB) return cpuA - cpuB;
+
+      // 4. RTT (lower is better)
+      const rttA = a.rttMs ?? a.rtt ?? 999;
+      const rttB = b.rttMs ?? b.rtt ?? 999;
+      if (rttA !== rttB) return rttA - rttB;
+
+      // 5. Lexicographical peerId
+      return String(a.peerId).localeCompare(String(b.peerId));
+    });
+
+    return {
+      headRelayId: sorted[0]?.peerId || null,
+      standbyRelayId: sorted[1]?.peerId || null
+    };
+  }
+
   clear() {
     this.nodes.clear();
   }

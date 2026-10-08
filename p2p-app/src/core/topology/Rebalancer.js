@@ -69,4 +69,30 @@ export class Rebalancer {
 
     return migrations;
   }
+
+  /**
+   * Immediately promotes an elected hot standby to primary relay upon failure detection.
+   */
+  promoteStandby({ failedRelayId, standbyId }) {
+    if (!failedRelayId || !standbyId) return null;
+
+    if (this.overlayManager) {
+      const trees = this.overlayManager.getAllTrees();
+      for (const tree of trees) {
+        if (tree.upstreamParent === failedRelayId) {
+          this.overlayManager.assignRelay({
+            sourceId: tree.sourceId,
+            parentPeerId: standbyId,
+            childPeerId: this.localUserId,
+            generation: (tree.generation || 0) + 1
+          });
+        }
+      }
+    }
+
+    const eventData = { failedRelayId, promotedRelayId: standbyId };
+    this.emit('standbyPromoted', eventData);
+    return eventData;
+  }
 }
+
