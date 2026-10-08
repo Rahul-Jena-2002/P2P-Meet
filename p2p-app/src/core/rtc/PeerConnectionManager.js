@@ -37,6 +37,8 @@ export class PeerConnectionManager {
     this.local = { audio: null, video: null, screen: null, screenAudio: null }; // slots: mic, camera, screen, screenAudio
     this.localStream = null; // camera stream (audio + camera video)
     this.localScreenStream = null; // screen stream
+    this.senderTransformFactory = options.senderTransformFactory || null;
+    this.receiverTransformFactory = options.receiverTransformFactory || null;
   }
 
   on(event, handler) {
@@ -112,6 +114,9 @@ export class PeerConnectionManager {
 
     pc.ontrack = (event) => {
       const track = event.track;
+      if (event.receiver) {
+        this.applyTransformToReceiver(event.receiver, track?.kind);
+      }
       const stream = event.streams?.[0];
       const isExpectedScreen = !!(peerEntry.expectedScreenTrackId && track.id === peerEntry.expectedScreenTrackId);
       const isExpectedScreenAudio = !!(peerEntry.expectedScreenAudioTrackId && track.id === peerEntry.expectedScreenAudioTrackId);
@@ -284,9 +289,47 @@ export class PeerConnectionManager {
       const sender = peer.pc.addTrack(track, ...(stream ? [stream] : []));
       if (!peer.senders) peer.senders = {};
       peer.senders[slot] = sender;
+      this.applyTransformToSender(sender, slot);
       return sender;
     } catch (err) {
       console.warn(`[PeerConnection] addTrack failed on ${peer.peerId}:`, err);
+    }
+  }
+
+  setTransformHooks({ senderTransformFactory, receiverTransformFactory } = {}) {
+    if (senderTransformFactory !== undefined) this.senderTransformFactory = senderTransformFactory;
+    if (receiverTransformFactory !== undefined) this.receiverTransformFactory = receiverTransformFactory;
+  }
+
+  applyTransformToSender(sender, slot) {
+    if (!sender || !this.senderTransformFactory) return;
+    try {
+      const transform = this.senderTransformFactory(sender, slot);
+      if (!transform) return;
+      if ('transform' in sender) {
+        sender.transform = transform;
+      } else if (typeof sender.createEncodedStreams === 'function') {
+        const { readable, writable } = sender.createEncodedStreams();
+        readable.pipeThrough(transform).pipeTo(writable).catch(() => {});
+      }
+    } catch (e) {
+      console.warn(`[PeerConnection] Failed applying sender transform for ${slot}:`, e);
+    }
+  }
+
+  applyTransformToReceiver(receiver, kind) {
+    if (!receiver || !this.receiverTransformFactory) return;
+    try {
+      const transform = this.receiverTransformFactory(receiver, kind);
+      if (!transform) return;
+      if ('transform' in receiver) {
+        receiver.transform = transform;
+      } else if (typeof receiver.createEncodedStreams === 'function') {
+        const { readable, writable } = receiver.createEncodedStreams();
+        readable.pipeThrough(transform).pipeTo(writable).catch(() => {});
+      }
+    } catch (e) {
+      console.warn(`[PeerConnection] Failed applying receiver transform for ${kind}:`, e);
     }
   }
 

@@ -12,6 +12,7 @@ export class ForwardingBridge {
 
     // key: `${sourceId}->${childPeerId}` -> { sourceId, childPeerId, sender, track }
     this.forwarded = new Map();
+    this.encodedPipes = new Map(); // key: `${sourceId}->${childPeerId}` -> { sourceId, childPeerId, abortController }
     this.relayStreams = new Map(); // sourceId -> MediaStream
     this.listeners = new Map();
   }
@@ -122,6 +123,52 @@ export class ForwardingBridge {
     }
   }
 
+  /**
+   * Directly pipes an encoded stream (ciphertext) from an incoming receiver to a child sender
+   * without decoding or inspecting the content (Zero-Trust SFU forwarding).
+   */
+  pipeEncodedStream(sourceId, childPeerId, { readable, writable }) {
+    const key = `${sourceId}->${childPeerId}`;
+    if (this.encodedPipes.has(key)) return this.encodedPipes.get(key);
+
+    const abortController = new AbortController();
+    const pipeRecord = {
+      sourceId,
+      childPeerId,
+      abortController,
+      startedAt: Date.now()
+    };
+
+    this.encodedPipes.set(key, pipeRecord);
+
+    readable.pipeTo(writable, { signal: abortController.signal }).catch((err) => {
+      if (err.name !== 'AbortError') {
+        console.warn(`[ForwardingBridge] Encoded stream pipe error between ${sourceId} and ${childPeerId}:`, err);
+      }
+    });
+
+    this.emit('encodedPipeStarted', pipeRecord);
+    return pipeRecord;
+  }
+
+  stopEncodedPipe(sourceId, childPeerId) {
+    const key = `${sourceId}->${childPeerId}`;
+    const pipe = this.encodedPipes.get(key);
+    if (!pipe) return false;
+
+    try {
+      pipe.abortController.abort();
+    } catch (_) {}
+
+    this.encodedPipes.delete(key);
+    this.emit('encodedPipeStopped', { sourceId, childPeerId });
+    return true;
+  }
+
+  isPipeActive(sourceId, childPeerId) {
+    return this.encodedPipes.has(`${sourceId}->${childPeerId}`);
+  }
+
   getForwardedList() {
     return Array.from(this.forwarded.values());
   }
@@ -130,8 +177,13 @@ export class ForwardingBridge {
     for (const [key, record] of this.forwarded.entries()) {
       this.stopForwarding(record.sourceId, record.childPeerId);
     }
+    for (const [key, pipe] of this.encodedPipes.entries()) {
+      this.stopEncodedPipe(pipe.sourceId, pipe.childPeerId);
+    }
     this.forwarded.clear();
+    this.encodedPipes.clear();
     this.relayStreams.clear();
     this.listeners.clear();
   }
 }
+
