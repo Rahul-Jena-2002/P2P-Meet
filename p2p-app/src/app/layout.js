@@ -26,7 +26,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark h-full w-full">
-      <body className="h-[100dvh] max-h-[100dvh] w-screen overflow-hidden bg-[#1C1C1C] text-[#F5E8D8] antialiased select-none" style={{ height: '100dvh' }}>
+      <body className="h-[100dvh] max-h-[100dvh] w-screen overflow-hidden bg-[#0D0B14] text-[#F8F7FC] antialiased select-none" style={{ height: '100dvh' }}>
         {children}
       </body>
     </html>

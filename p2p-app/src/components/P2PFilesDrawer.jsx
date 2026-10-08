@@ -58,30 +58,30 @@ export default function P2PFilesDrawer({
   const otherParticipants = participants.filter(p => p.id !== currentUserId);
 
   return (
-    <aside className="w-80 sm:w-96 h-full p2p-panel border-l border-[#F5E8D8]/10 flex flex-col z-30 animate-in slide-in-from-right duration-200 select-none bg-[#1C1C1C]/95 text-[#F5E8D8]">
+    <aside className="w-80 sm:w-96 h-full p2p-panel border-l border-[rgba(196,181,253,0.14)] flex flex-col z-30 animate-in slide-in-from-right duration-200 select-none bg-[#161324] text-[#F8F7FC]">
       {/* Header */}
-      <div className="p-4 border-b border-[#F5E8D8]/10 flex items-center justify-between">
+      <div className="p-4 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-[#161324]">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-bold text-[#F5E8D8] tracking-tight">Direct P2P Files</h3>
-          <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-[#DAA520]/15 text-[#DAA520] border border-[#DAA520]/25 font-bold">
+          <h3 className="text-sm font-bold text-[#F8F7FC] tracking-tight">Direct P2P Files</h3>
+          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[rgba(196,181,253,0.14)] text-[#C4B5FD] border border-[rgba(196,181,253,0.25)] font-bold">
             Zero Cloud
           </span>
         </div>
         <button
           onClick={onClose}
-          className="p-1 rounded-lg text-[#F5E8D8]/50 hover:text-[#F5E8D8] hover:bg-white/[0.06] transition"
+          className="p-1 rounded-lg text-[#C4B5FD]/50 hover:text-[#F8F7FC] hover:bg-[rgba(196,181,253,0.10)] transition"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Recipient Picker */}
-      <div className="px-4 py-2 border-b border-[#F5E8D8]/10 bg-[#1C1C1C]/40 flex items-center justify-between text-xs text-[#F5E8D8]/70">
+      <div className="px-4 py-2 border-b border-[rgba(196,181,253,0.14)] bg-[#0D0B14]/40 flex items-center justify-between text-xs text-[#C4B5FD]/70">
         <span>Send to:</span>
         <select
           value={selectedPeerId}
           onChange={(e) => setSelectedPeerId(e.target.value)}
-          className="bg-[#242424] px-2.5 py-1 rounded-lg border border-[#F5E8D8]/15 text-xs text-[#F5E8D8] focus:outline-none focus:border-[#FF6F61]"
+          className="bg-[#0D0B14] px-2.5 py-1 rounded-xl border border-[rgba(196,181,253,0.18)] text-xs text-[#F8F7FC] focus:outline-none focus:border-[#FF6B35]"
         >
           <option value="all">Everyone in Call</option>
           {otherParticipants.map((p) => (
@@ -99,8 +99,8 @@ export default function P2PFilesDrawer({
           onClick={() => fileInputRef.current?.click()}
           className={`cursor-pointer border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center text-center transition ${
             isDragging
-              ? 'border-[#FF6F61] bg-[#FF6F61]/10'
-              : 'border-[#F5E8D8]/15 hover:border-[#FF6F61]/40 bg-[#242424]/60'
+              ? 'border-[#FF6B35] bg-[rgba(255,107,53,0.10)]'
+              : 'border-[rgba(196,181,253,0.20)] hover:border-[#FF6B35] bg-[#221C35]/40'
           }`}
         >
           <input
@@ -110,25 +110,25 @@ export default function P2PFilesDrawer({
             className="hidden"
             onChange={(e) => handleFiles(e.target.files)}
           />
-          <div className="w-10 h-10 rounded-full bg-[#1C1C1C] flex items-center justify-center text-[#FF6F61] mb-2 border border-[#F5E8D8]/10">
+          <div className="w-10 h-10 rounded-full bg-[#0D0B14] flex items-center justify-center text-[#FF6B35] mb-2 border border-[rgba(196,181,253,0.18)] shadow-sm">
             <Upload className="w-5 h-5" />
           </div>
-          <p className="text-xs font-semibold text-[#F5E8D8]">Click or Drag files to transfer</p>
-          <p className="text-[10px] text-[#F5E8D8]/50 mt-0.5">Direct encrypted browser-to-browser pipe</p>
+          <p className="text-xs font-semibold text-[#F8F7FC]">Click or Drag files to transfer</p>
+          <p className="text-[10px] text-[#C4B5FD]/60 mt-0.5">Direct encrypted browser-to-browser pipe</p>
         </div>
 
         {/* Request File from Peer Section */}
         {otherParticipants.length > 0 && (
-          <div className="p-3 rounded-2xl bg-[#242424]/80 border border-[#F5E8D8]/10 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#DAA520]">
-              <FileQuestion className="w-3.5 h-3.5" />
+          <div className="p-3.5 rounded-2xl bg-[#221C35] border border-[rgba(196,181,253,0.15)] space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#C4B5FD]">
+              <FileQuestion className="w-3.5 h-3.5 text-[#FFA14A]" />
               <span>Request File from Participant</span>
             </div>
             <form onSubmit={handleSendRequest} className="space-y-2">
               <select
                 value={requestTargetId}
                 onChange={(e) => setRequestTargetId(e.target.value)}
-                className="w-full bg-[#1C1C1C] px-2.5 py-1.5 rounded-lg border border-[#F5E8D8]/15 text-xs text-[#F5E8D8] focus:outline-none"
+                className="w-full bg-[#0D0B14] px-2.5 py-1.5 rounded-xl border border-[rgba(196,181,253,0.18)] text-xs text-[#F8F7FC] focus:outline-none focus:border-[#FF6B35]"
               >
                 <option value="">Select participant...</option>
                 {otherParticipants.map((p) => (
@@ -139,13 +139,13 @@ export default function P2PFilesDrawer({
                 type="text"
                 value={requestNote}
                 onChange={(e) => setRequestNote(e.target.value)}
-                placeholder="Note (e.g. Please share the presentation PDF)"
-                className="w-full bg-[#1C1C1C] px-2.5 py-1.5 rounded-lg border border-[#F5E8D8]/15 text-xs text-[#F5E8D8] placeholder-[#F5E8D8]/30 focus:outline-none"
+                placeholder="Note (e.g. Please share presentation PDF)"
+                className="w-full bg-[#0D0B14] px-2.5 py-1.5 rounded-xl border border-[rgba(196,181,253,0.18)] text-xs text-[#F8F7FC] placeholder-[#C4B5FD]/35 focus:outline-none focus:border-[#FF6B35]"
               />
               <button
                 type="submit"
                 disabled={!requestTargetId}
-                className="w-full py-1.5 rounded-lg bg-[#DAA520] hover:bg-[#DAA520]/90 disabled:opacity-40 text-[#1C1C1C] font-semibold text-xs transition"
+                className="w-full py-1.5 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 disabled:opacity-40 text-[#0D0B14] font-bold text-xs transition shadow-md shadow-[#FF6B35]/20"
               >
                 Send Request Prompt
               </button>
@@ -156,18 +156,18 @@ export default function P2PFilesDrawer({
         {/* Incoming File Requests Banner */}
         {fileRequests.length > 0 && (
           <div className="space-y-2">
-            <span className="text-[10px] uppercase font-bold text-[#DAA520] tracking-wider block">
+            <span className="text-[10px] uppercase font-bold text-[#FFA14A] tracking-wider block">
               Incoming File Requests
             </span>
             {fileRequests.map((req, i) => (
-              <div key={i} className="p-2.5 rounded-xl bg-[#DAA520]/10 border border-[#DAA520]/30 text-xs space-y-1.5">
-                <p className="font-medium text-[#F5E8D8]">
-                  <strong className="text-[#DAA520]">{req.requesterName}</strong> requested a file
+              <div key={i} className="p-3 rounded-2xl bg-[rgba(196,181,253,0.12)] border border-[rgba(196,181,253,0.25)] text-xs space-y-1.5">
+                <p className="font-medium text-[#F8F7FC]">
+                  <strong className="text-[#FFA14A]">{req.requesterName}</strong> requested a file
                 </p>
-                {req.note && <p className="text-[11px] text-[#F5E8D8]/70 italic">"{req.note}"</p>}
+                {req.note && <p className="text-[11px] text-[#C4B5FD]/80 italic">"{req.note}"</p>}
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-1 rounded-lg bg-[#DAA520] text-[#1C1C1C] font-bold text-[11px] flex items-center justify-center gap-1.5"
+                  className="w-full py-1.5 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold text-[11px] flex items-center justify-center gap-1.5 shadow"
                 >
                   <Upload className="w-3.5 h-3.5" />
                   <span>Choose File to Send</span>
@@ -180,22 +180,22 @@ export default function P2PFilesDrawer({
         {/* Active Outgoing / Incoming Transfers */}
         {transfers.length > 0 && (
           <div className="space-y-2">
-            <span className="text-[10px] uppercase font-bold text-[#F5E8D8]/50 tracking-wider block">
+            <span className="text-[10px] uppercase font-bold text-[#C4B5FD]/50 tracking-wider block">
               Active Transfers
             </span>
             {transfers.map((t, i) => (
-              <div key={i} className="p-2.5 rounded-xl bg-[#242424] border border-[#F5E8D8]/10 text-xs space-y-1.5">
+              <div key={i} className="p-3 rounded-2xl bg-[#221C35] border border-[rgba(196,181,253,0.15)] text-xs space-y-1.5">
                 <div className="flex items-center justify-between font-medium">
                   <span className="truncate max-w-[180px]">{t.name}</span>
-                  <span className="text-[#DAA520] font-mono text-[10px]">{t.progress || 0}%</span>
+                  <span className="text-[#FFA14A] font-mono text-[10px] font-bold">{t.progress || 0}%</span>
                 </div>
-                <div className="w-full h-1.5 bg-[#1C1C1C] rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-[#0D0B14] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[#FF6F61] transition-all duration-150"
+                    className="h-full bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] transition-all duration-150"
                     style={{ width: `${t.progress || 0}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-between text-[10px] text-[#F5E8D8]/50">
+                <div className="flex items-center justify-between text-[10px] text-[#C4B5FD]/60">
                   <span>{formatFileSize(t.size)}</span>
                   <span>{t.status || 'Transferring...'}</span>
                 </div>
@@ -206,28 +206,28 @@ export default function P2PFilesDrawer({
 
         {/* Received Files Download List */}
         <div className="space-y-2">
-          <span className="text-[10px] uppercase font-bold text-[#F5E8D8]/50 tracking-wider block">
+          <span className="text-[10px] uppercase font-bold text-[#C4B5FD]/50 tracking-wider block">
             Received Files ({receivedFiles.length})
           </span>
           {receivedFiles.length === 0 ? (
-            <div className="p-6 rounded-2xl bg-[#242424]/40 border border-[#F5E8D8]/5 text-center text-[#F5E8D8]/40 text-xs">
+            <div className="p-6 rounded-2xl bg-[#221C35]/30 border border-[rgba(196,181,253,0.10)] text-center text-[#C4B5FD]/40 text-xs">
               <FileText className="w-6 h-6 mx-auto mb-1 opacity-50" />
               <p>No files received yet</p>
-              <p className="text-[10px] text-[#F5E8D8]/30 mt-0.5">Files sent by peers will appear here</p>
+              <p className="text-[10px] text-[#C4B5FD]/30 mt-0.5">Files sent by peers will appear here</p>
             </div>
           ) : (
             receivedFiles.map((file, i) => (
               <div
                 key={i}
-                className="p-3 rounded-xl bg-[#242424] border border-[#F5E8D8]/10 flex items-center justify-between gap-2.5"
+                className="p-3 rounded-2xl bg-[#221C35] border border-[rgba(196,181,253,0.15)] flex items-center justify-between gap-2.5"
               >
                 <div className="min-w-0 flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#1C1C1C] flex items-center justify-center text-[#DAA520] shrink-0 border border-[#F5E8D8]/10">
+                  <div className="w-8 h-8 rounded-xl bg-[#0D0B14] flex items-center justify-center text-[#C4B5FD] shrink-0 border border-[rgba(196,181,253,0.15)]">
                     <FileText className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-[#F5E8D8] truncate">{file.name}</p>
-                    <p className="text-[10px] text-[#F5E8D8]/50">
+                    <p className="text-xs font-semibold text-[#F8F7FC] truncate">{file.name}</p>
+                    <p className="text-[10px] text-[#C4B5FD]/60">
                       {formatFileSize(file.size)} • from {file.senderName || 'Peer'}
                     </p>
                   </div>
@@ -236,7 +236,7 @@ export default function P2PFilesDrawer({
                 <a
                   href={file.url}
                   download={file.name}
-                  className="p-2 rounded-lg bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white transition shrink-0"
+                  className="p-2 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold transition shrink-0 shadow-md shadow-[#FF6B35]/20"
                   title="Download File"
                 >
                   <ArrowDownToLine className="w-4 h-4" />
@@ -248,8 +248,8 @@ export default function P2PFilesDrawer({
       </div>
 
       {/* Footer Info */}
-      <div className="p-3 border-t border-[#F5E8D8]/10 bg-[#1C1C1C]/80 flex items-center justify-center gap-1.5 text-[11px] text-[#DAA520]">
-        <ShieldCheck className="w-3.5 h-3.5" />
+      <div className="p-3 border-t border-[rgba(196,181,253,0.14)] bg-[#161324] flex items-center justify-center gap-1.5 text-[11px] text-[#C4B5FD]">
+        <ShieldCheck className="w-3.5 h-3.5 text-[#FF6B35]" />
         <span>End-to-End Encrypted Wire (DTLS/SRTP)</span>
       </div>
     </aside>

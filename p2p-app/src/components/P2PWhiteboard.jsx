@@ -19,9 +19,9 @@ const Excalidraw = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-[#121214] text-white">
-        <div className="w-9 h-9 border-2 border-[#0E72ED] border-t-transparent rounded-full animate-spin mb-3" />
-        <span className="text-xs font-medium text-white/70 tracking-wide">Loading Excalidraw Canvas...</span>
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#0D0B14] text-[#F8F7FC]">
+        <div className="w-9 h-9 border-2 border-[#FF6B35] border-t-transparent rounded-full animate-spin mb-3" />
+        <span className="text-xs font-medium text-[#C4B5FD]/80 tracking-wide">Loading Excalidraw Canvas...</span>
       </div>
     )
   }
@@ -97,19 +97,19 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-50 flex flex-col bg-[#121214] text-white animate-in fade-in duration-150 pointer-events-auto"
+      className="fixed inset-0 z-50 flex flex-col bg-[#0D0B14] text-[#F8F7FC] animate-in fade-in duration-150 pointer-events-auto"
     >
       {/* Top Header Bar */}
-      <header className="h-12 bg-[#1C1C20] border-b border-white/10 px-4 flex items-center justify-between shrink-0 z-20">
+      <header className="h-12 bg-[#161324] border-b border-[#C4B5FD]/15 px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-lg bg-[#0E72ED]/20 border border-[#0E72ED]/40 flex items-center justify-center text-[#0E72ED]">
+          <div className="w-6 h-6 rounded-lg bg-[#FF6B35]/20 border border-[#FF6B35]/40 flex items-center justify-center text-[#FF6B35]">
             <Edit3 className="w-3.5 h-3.5" />
           </div>
           <div>
-            <h3 className="font-bold text-xs tracking-wide text-white">Excalidraw Whiteboard</h3>
-            <span className="text-[10px] text-white/50 block leading-tight">Virtual hand-drawn diagramming</span>
+            <h3 className="font-bold text-xs tracking-wide text-[#F8F7FC]">Excalidraw Whiteboard</h3>
+            <span className="text-[10px] text-[#C4B5FD]/60 block leading-tight">Virtual hand-drawn diagramming</span>
           </div>
-          <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+          <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#C4B5FD]/15 text-[#C4B5FD] border border-[#C4B5FD]/30">
             P2P Synced
           </span>
         </div>
@@ -121,7 +121,7 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
                 excalidrawAPI.setActiveTool({ type: 'freedraw' });
               }
             }}
-            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 transition"
+            className="px-2.5 py-1 rounded-lg bg-[#FF6B35]/20 hover:bg-[#FF6B35]/30 text-[#FFA14A] text-xs font-semibold flex items-center gap-1.5 transition"
             title="Switch to Draw Pen"
           >
             <Edit3 className="w-3.5 h-3.5" />
@@ -129,14 +129,14 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
           </button>
           <button
             onClick={toggleFullscreen}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition"
+            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-[#F8F7FC]/70 hover:text-white transition"
             title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 transition"
+            className="p-1.5 rounded-lg bg-[#FF6B35]/20 hover:bg-[#FF6B35]/30 text-[#FFA14A] hover:text-white transition"
             title="Close Whiteboard"
           >
             <X className="w-4 h-4" />
@@ -152,10 +152,10 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
           initialData={{
             appState: {
               theme: 'dark',
-              viewBackgroundColor: '#121214',
+              viewBackgroundColor: '#0D0B14',
               currentItemFontFamily: 1,
               activeTool: { type: 'freedraw' },
-              currentItemStrokeColor: '#10B981',
+              currentItemStrokeColor: '#C4B5FD',
               currentItemRoughness: 1
             }
           }}

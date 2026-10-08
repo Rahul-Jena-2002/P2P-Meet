@@ -36,7 +36,7 @@ export default function Home() {
 
   return (
     <MediaProvider>
-      <main className="w-screen h-screen overflow-hidden bg-[#1C1C1C] text-[#F5E8D8]">
+      <main className="w-screen h-screen overflow-hidden bg-[#0D0B14] text-[#F8F7FC]">
         {meetingState ? (
           <P2PMeetingRoom
             meetingInfo={meetingState}

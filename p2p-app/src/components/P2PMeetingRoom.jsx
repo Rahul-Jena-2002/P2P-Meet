@@ -777,9 +777,9 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   ];
 
   return (
-    <div className="relative w-screen h-[100dvh] max-h-[100dvh] bg-[#18181B] text-white overflow-hidden flex select-none" style={{ height: '100dvh' }}>
+    <div className="relative w-screen h-[100dvh] max-h-[100dvh] bg-[#0D0B14] text-[#F8F7FC] overflow-hidden flex select-none" style={{ height: '100dvh' }}>
       {/* 1. Main Video Stage & Floating Overlay Area (resizes flexibly when drawers open) */}
-      <div onClick={handleStageClick} className="flex-1 h-full w-full relative overflow-hidden flex flex-col bg-[#141416]">
+      <div onClick={handleStageClick} className="flex-1 h-full w-full relative overflow-hidden flex flex-col bg-[#0D0B14]">
         {/* Fullscreen Video Canvas */}
         <div className="w-full h-full relative">
           <P2PGrid

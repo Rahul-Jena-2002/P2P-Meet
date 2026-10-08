@@ -235,7 +235,7 @@ export default function P2PGrid({
 
             {/* In portrait: helper tip to rotate phone */}
             {!isMobileLandscape && (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-3 py-1 rounded-full bg-black/60 border border-white/10 text-[10px] text-[#F5E8D8]/70 backdrop-blur-md flex items-center gap-1.5 shadow-lg">
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-3 py-1 rounded-full bg-[#0D0B14]/80 border border-[#C4B5FD]/20 text-[10px] text-[#C4B5FD] backdrop-blur-md flex items-center gap-1.5 shadow-lg">
                 <span>🔄 Rotate phone sideways for fullscreen</span>
               </div>
             )}
@@ -244,7 +244,7 @@ export default function P2PGrid({
             {pipStream && !pipMinimized && (
               <div
                 onClick={() => setPipMinimized(true)}
-                className={`absolute z-20 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl bg-[#242424] cursor-pointer active:scale-95 transition-transform ${
+                className={`absolute z-20 rounded-2xl overflow-hidden border-2 border-[#C4B5FD]/30 shadow-2xl bg-[#161324] cursor-pointer active:scale-95 transition-transform ${
                   isMobileLandscape
                     ? 'bottom-3 right-3 w-32 h-20'
                     : 'bottom-4 right-3 w-26 h-36'
@@ -266,7 +266,7 @@ export default function P2PGrid({
             {pipStream && pipMinimized && (
               <button
                 onClick={() => setPipMinimized(false)}
-                className="absolute bottom-3 right-3 z-20 px-2.5 py-1 rounded-xl bg-black/80 backdrop-blur-md border border-white/20 text-[11px] text-[#F5E8D8] flex items-center gap-1.5 shadow-2xl active:scale-95 transition"
+                className="absolute bottom-3 right-3 z-20 px-2.5 py-1 rounded-xl bg-[#161324]/90 backdrop-blur-md border border-[#C4B5FD]/25 text-[11px] text-[#F8F7FC] flex items-center gap-1.5 shadow-2xl active:scale-95 transition"
               >
                 <span>📷 Show Camera</span>
               </button>
@@ -284,7 +284,7 @@ export default function P2PGrid({
       const pipUser = mainIsRemote ? { ...localUser, stream: localStream, isLocal: true, isAudioOn, isVideoOn } : remotePeer;
 
       return (
-        <div className={`absolute inset-0 w-full h-full bg-[#1C1C1C] overflow-hidden flex flex-col ${
+        <div className={`absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col ${
           isMobileLandscape ? 'p-0' : 'pt-10 pb-16'
         } select-none`}>
           {/* Full-Screen Main Video */}
@@ -304,7 +304,7 @@ export default function P2PGrid({
             {/* Floating PiP Corner Tile (Tap to swap!) */}
             <div
               onClick={() => setMobileSwapPip(s => !s)}
-              className={`absolute z-20 rounded-2xl overflow-hidden border-2 border-white/25 shadow-2xl active:scale-95 transition-transform cursor-pointer bg-[#242424] ${
+              className={`absolute z-20 rounded-2xl overflow-hidden border-2 border-[#C4B5FD]/35 shadow-2xl active:scale-95 transition-transform cursor-pointer bg-[#161324] ${
                 isMobileLandscape
                   ? 'bottom-3 right-3 w-32 h-20'
                   : 'bottom-4 right-3 w-26 h-36'
@@ -322,7 +322,7 @@ export default function P2PGrid({
                 isPinned={pinnedId === pipUser.id}
                 onPinToggle={() => setPinnedId(pinnedId === pipUser.id ? null : pipUser.id)}
               />
-              <div className="absolute top-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[9px] text-white backdrop-blur-sm pointer-events-none">
+              <div className="absolute top-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[9px] text-[#C4B5FD] backdrop-blur-sm pointer-events-none">
                 Swap ⇋
               </div>
             </div>
@@ -340,10 +340,10 @@ export default function P2PGrid({
           ...peerList
         ];
         return (
-          <div className="absolute inset-0 w-full h-full bg-[#1C1C1C] overflow-hidden p-1.5 select-none">
+          <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden p-1.5 select-none">
             <div className={`grid ${totalCount <= 4 ? 'grid-cols-2' : 'grid-cols-3'} h-full w-full gap-1.5`}>
               {allParticipants.map(p => (
-                <div key={p.id} className="relative w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#F5E8D8]/10 bg-[#242424]">
+                <div key={p.id} className="relative w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#C4B5FD]/15 bg-[#161324]">
                   <P2PVideoTile
                     name={p.name}
                     stream={p.stream}
@@ -370,9 +370,9 @@ export default function P2PGrid({
       ];
 
       return (
-        <div className="absolute inset-0 w-full h-full bg-[#1C1C1C] overflow-hidden flex flex-col pt-10 pb-16 select-none gap-2 px-2">
+        <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col pt-10 pb-16 select-none gap-2 px-2">
           {/* Main Speaker Stage */}
-          <div className="relative flex-1 w-full min-h-0 rounded-2xl overflow-hidden border border-[#F5E8D8]/10 bg-[#242424]">
+          <div className="relative flex-1 w-full min-h-0 rounded-2xl overflow-hidden border border-[#C4B5FD]/15 bg-[#161324]">
             <P2PVideoTile
               name={activePeer.name}
               stream={activePeer.stream}
@@ -388,7 +388,7 @@ export default function P2PGrid({
           {/* Horizontal Carousel for other participants */}
           <div className="h-28 w-full flex flex-row gap-2 overflow-x-auto overflow-y-hidden shrink-0">
             {otherPeers.map(p => (
-              <div key={p.id} className="w-32 h-full shrink-0 rounded-xl overflow-hidden border border-white/10">
+              <div key={p.id} className="w-32 h-full shrink-0 rounded-xl overflow-hidden border border-[#C4B5FD]/15 bg-[#161324]">
                 <P2PVideoTile
                   name={p.name}
                   stream={p.stream}
@@ -409,7 +409,7 @@ export default function P2PGrid({
 
     // 4. Solo in room on Mobile (1 person): Clean fullscreen self view
     return (
-      <div className={`absolute inset-0 w-full h-full bg-[#1C1C1C] overflow-hidden flex flex-col ${
+      <div className={`absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col ${
         isMobileLandscape ? 'p-0' : 'pt-10 pb-16'
       } select-none`}>
         <div className="relative flex-1 w-full h-full overflow-hidden">
@@ -435,22 +435,22 @@ export default function P2PGrid({
     return (
       <div className="absolute inset-0 w-full h-full p-2 sm:p-3 pt-14 pb-20 sm:pt-16 sm:pb-24 flex flex-col md:flex-row gap-2 sm:gap-3">
         {/* LEFT / CENTER: Huge Main Presentation Stage */}
-        <div className="flex-1 min-h-0 w-full flex flex-col relative rounded-2xl overflow-hidden bg-[#1C1C1C] border border-[#F5E8D8]/10 shadow-2xl">
+        <div className="flex-1 min-h-0 w-full flex flex-col relative rounded-2xl overflow-hidden bg-[#0D0B14] border border-[#C4B5FD]/15 shadow-2xl shadow-black/80">
           {/* Top Bar for Remote Access Controls */}
           {heroTile && (
             <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between pointer-events-none">
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#1C1C1C]/85 backdrop-blur-md border border-[#F5E8D8]/10 text-xs font-semibold text-[#F5E8D8] pointer-events-auto shadow-lg">
-                <Monitor className="w-3.5 h-3.5 text-[#DAA520]" />
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#161324]/85 backdrop-blur-md border border-[#C4B5FD]/20 text-xs font-semibold text-[#F8F7FC] pointer-events-auto shadow-lg">
+                <Monitor className="w-3.5 h-3.5 text-[#FFA14A]" />
                 <span>{pinnedId ? `Pinned Focus: ${heroTile.name}` : `Viewing: ${heroTile.name}`}</span>
                 {heroTile.isLocal && (
-                  <span className="text-[10px] bg-[#DAA520]/20 text-[#DAA520] border border-[#DAA520]/30 px-1.5 py-0.5 rounded font-bold">
+                  <span className="text-[10px] bg-[#FF6B35]/20 text-[#FFA14A] border border-[#FF6B35]/40 px-1.5 py-0.5 rounded font-bold">
                     {heroTile.isScreenSharing ? 'Your Screen' : 'You (Spotlight)'}
                   </span>
                 )}
                 {pinnedId && (
                   <button
                     onClick={() => setPinnedId(null)}
-                    className="ml-2 px-2 py-0.5 rounded-lg bg-[#FF4500]/25 hover:bg-[#FF4500] text-[#FF6F61] hover:text-white border border-[#FF4500]/40 text-[10px] font-bold transition flex items-center gap-1 shadow-sm"
+                    className="ml-2 px-2 py-0.5 rounded-lg bg-[#FF6B35]/25 hover:bg-[#FF6B35] text-[#FFA14A] hover:text-white border border-[#FF6B35]/40 text-[10px] font-bold transition flex items-center gap-1 shadow-sm"
                   >
                     Unpin ✕
                   </button>
@@ -461,18 +461,18 @@ export default function P2PGrid({
               <div className="pointer-events-auto flex items-center gap-2">
                 {/* 1. Host: Someone requested remote desktop control */}
                 {isScreenSharing && remoteControlState?.requestPending && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#DAA520] text-[#1C1C1C] text-xs font-bold shadow-2xl animate-bounce">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] text-xs font-bold shadow-2xl animate-bounce">
                     <ShieldAlert className="w-4 h-4 shrink-0" />
                     <span>{remoteControlState.requesterName} requests Remote Access</span>
                     <button
                       onClick={() => onGrantRemoteControl?.(true)}
-                      className="px-2.5 py-1 rounded-lg bg-[#1C1C1C] text-[#F5E8D8] hover:bg-black transition"
+                      className="px-2.5 py-1 rounded-lg bg-[#0D0B14] text-[#F8F7FC] hover:bg-[#161324] transition"
                     >
                       Allow
                     </button>
                     <button
                       onClick={() => onGrantRemoteControl?.(false)}
-                      className="px-2.5 py-1 rounded-lg bg-[#F5E8D8]/80 text-[#1C1C1C] hover:bg-[#F5E8D8] transition"
+                      className="px-2.5 py-1 rounded-lg bg-[#C4B5FD]/90 text-[#0D0B14] hover:bg-[#C4B5FD] transition"
                     >
                       Deny
                     </button>
@@ -481,12 +481,12 @@ export default function P2PGrid({
 
                 {/* 2. Host: Someone is actively controlling */}
                 {isScreenSharing && remoteControlState?.isBeingControlled && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FF6F61] text-[#1C1C1C] text-xs font-bold shadow-lg border border-[#FF6F61]/40">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FF6B35] text-white text-xs font-bold shadow-lg shadow-[#FF6B35]/30 border border-[#FF6B35]/50">
                     <MousePointer className="w-3.5 h-3.5 animate-pulse" />
                     <span>Controlled by {remoteControlState.controllerName}</span>
                     <button
                       onClick={onRevokeRemoteControl}
-                      className="px-2.5 py-1 rounded-lg bg-[#FF4500] hover:bg-[#FF4500]/80 text-white transition text-xs shadow"
+                      className="px-2.5 py-1 rounded-lg bg-[#0D0B14] hover:bg-[#161324] border border-white/20 text-white transition text-xs shadow"
                     >
                       Revoke Control
                     </button>
@@ -496,8 +496,8 @@ export default function P2PGrid({
                 {/* 3. Host: Ready for remote access */}
                 {isScreenSharing && !remoteControlState?.isBeingControlled && !remoteControlState?.requestPending && (
                   <div className="relative flex items-center gap-1.5">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#242424]/90 border border-[#F5E8D8]/12 text-[#F5E8D8] text-xs font-medium backdrop-blur-md">
-                      <span className="w-2 h-2 rounded-full bg-[#DAA520] animate-pulse" />
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#161324]/90 border border-[#C4B5FD]/15 text-[#F8F7FC] text-xs font-medium backdrop-blur-md">
+                      <span className="w-2 h-2 rounded-full bg-[#FF6B35] animate-pulse" />
                       <span>Remote Access Ready</span>
                     </div>
 
@@ -505,22 +505,21 @@ export default function P2PGrid({
                       <div className="relative">
                         <button
                           onClick={() => setShowGrantMenu(!showGrantMenu)}
-                          className="px-2.5 py-1.5 rounded-xl bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white text-xs font-semibold shadow transition"
+                          className="px-2.5 py-1.5 rounded-xl bg-[#FF6B35] hover:bg-[#FFA14A] text-[#0D0B14] text-xs font-bold shadow transition"
                         >
                           Give Control ▾
                         </button>
                         {showGrantMenu && (
-                          <div className="absolute right-0 top-10 w-48 rounded-xl bg-[#242424] border border-[#F5E8D8]/15 p-2 text-xs shadow-2xl z-50">
-                            <span className="text-[10px] font-bold text-[#F5E8D8]/50 block px-2 mb-1 uppercase tracking-wider">Select User</span>
+                          <div className="absolute right-0 top-10 w-48 rounded-xl bg-[#161324] border border-[#C4B5FD]/20 p-2 text-xs shadow-2xl backdrop-blur-xl z-50">
+                            <span className="text-[10px] font-bold text-[#C4B5FD]/60 block px-2 mb-1 uppercase tracking-wider">Select User</span>
                             {peerList.map(p => (
                               <button
                                 key={p.id}
                                 onClick={() => {
                                   onGrantRemoteControlToPeer?.(p.id, p.name);
                                   setShowGrantMenu(false);
-                                daylight: true;
                                 }}
-                                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/[0.06] text-[#F5E8D8] transition"
+                                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/[0.06] text-[#F8F7FC] transition"
                               >
                                 {p.name}
                               </button>
@@ -533,7 +532,7 @@ export default function P2PGrid({
                     <button
                       onClick={onSimulateRemoteControl}
                       title="Test simulated remote cursor and click ripples"
-                      className="px-2.5 py-1.5 rounded-xl bg-[#242424] hover:bg-[#2C2C2C] text-[#F5E8D8] text-xs font-medium border border-[#F5E8D8]/12 transition"
+                      className="px-2.5 py-1.5 rounded-xl bg-[#161324] hover:bg-[#221C35] text-[#F8F7FC] text-xs font-medium border border-[#C4B5FD]/15 transition"
                     >
                       Test Remote Cursor
                     </button>
@@ -544,12 +543,12 @@ export default function P2PGrid({
                 {!isScreenSharing && heroTile.id !== localUser.id && (
                   <div>
                     {remoteControlState?.isControlling ? (
-                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#DAA520] text-[#1C1C1C] text-xs font-bold shadow-lg border border-[#DAA520]/40">
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#C4B5FD] text-[#0D0B14] text-xs font-bold shadow-lg border border-[#C4B5FD]/40">
                         <MousePointer className="w-3.5 h-3.5 animate-bounce" />
                         <span>Remote Control Active (Click & Move on Screen)</span>
                         <button
                           onClick={onRevokeRemoteControl}
-                          className="px-2.5 py-1 rounded-lg bg-[#FF4500] hover:bg-[#FF4500]/80 text-white transition text-xs shadow"
+                          className="px-2.5 py-1 rounded-lg bg-[#FF6B35] hover:bg-[#FFA14A] text-white transition text-xs shadow"
                         >
                           Release Control
                         </button>
@@ -557,7 +556,7 @@ export default function P2PGrid({
                     ) : (
                       <button
                         onClick={onRequestRemoteControl}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FF6F61] hover:bg-[#FF4500] text-[#1C1C1C] hover:text-white text-xs font-bold backdrop-blur-md shadow-lg shadow-[#FF6F61]/20 transition"
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FF6B35] hover:bg-[#FFA14A] text-[#0D0B14] text-xs font-bold backdrop-blur-md shadow-lg shadow-[#FF6B35]/25 transition"
                       >
                         <MousePointer className="w-3.5 h-3.5" />
                         <span>Request Remote Control</span>
@@ -571,15 +570,15 @@ export default function P2PGrid({
 
           {/* Watch-Together Co-Streaming Player Stage */}
           {watchTogetherState?.active ? (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-[#1C1C1C] relative">
+            <div className="w-full h-full flex flex-col items-center justify-center bg-[#0D0B14] relative">
               <div className="absolute top-3 left-3 right-3 z-30 flex items-center justify-between pointer-events-none">
-                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#1C1C1C]/85 backdrop-blur-md border border-[#F5E8D8]/10 text-xs font-semibold text-[#F5E8D8] pointer-events-auto shadow-lg">
-                  <Clapperboard className="w-3.5 h-3.5 text-[#DAA520]" />
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#161324]/85 backdrop-blur-md border border-[#C4B5FD]/20 text-xs font-semibold text-[#F8F7FC] pointer-events-auto shadow-lg">
+                  <Clapperboard className="w-3.5 h-3.5 text-[#FFA14A]" />
                   <span>Watch Party (Synchronized Co-Streaming)</span>
                 </div>
                 <button
                   onClick={onStopWatchTogether}
-                  className="pointer-events-auto px-3 py-1.5 rounded-xl bg-[#FF4500] hover:bg-[#FF4500]/80 text-white text-xs font-bold shadow transition"
+                  className="pointer-events-auto px-3 py-1.5 rounded-xl bg-[#FF6B35] hover:bg-[#FFA14A] text-white text-xs font-bold shadow transition"
                 >
                   End Watch Party
                 </button>
@@ -620,7 +619,7 @@ export default function P2PGrid({
               {remoteRipples?.map(r => (
                 <div
                   key={r.id}
-                  className="absolute pointer-events-none rounded-full border-2 border-[#DAA520] bg-[#DAA520]/30 animate-ping -translate-x-1/2 -translate-y-1/2 z-40"
+                  className="absolute pointer-events-none rounded-full border-2 border-[#FF6B35] bg-[#FF6B35]/30 animate-ping -translate-x-1/2 -translate-y-1/2 z-40"
                   style={{ top: `${r.y}%`, left: `${r.x}%`, width: '40px', height: '40px' }}
                 />
               ))}
@@ -631,8 +630,8 @@ export default function P2PGrid({
                   className="absolute z-40 pointer-events-none transition-all duration-75 flex items-center gap-1 -translate-x-1 -translate-y-1"
                   style={{ top: `${remoteCursor.y}%`, left: `${remoteCursor.x}%` }}
                 >
-                  <MousePointer className="w-5 h-5 text-[#DAA520] drop-shadow-md fill-[#DAA520]" />
-                  <span className="px-1.5 py-0.5 rounded bg-[#DAA520] text-[#1C1C1C] text-[10px] font-bold shadow">
+                  <MousePointer className="w-5 h-5 text-[#FF6B35] drop-shadow-md fill-[#FF6B35]" />
+                  <span className="px-1.5 py-0.5 rounded bg-[#FF6B35] text-[#0D0B14] text-[10px] font-bold shadow">
                     {remoteCursor.name}
                   </span>
                 </div>
@@ -677,7 +676,7 @@ export default function P2PGrid({
         <button
           onClick={() => setGridOffset(Math.max(0, gridOffset - maxGridCards))}
           title="Previous sources"
-          className="absolute left-3 z-30 p-3 rounded-full bg-[#1C1C1C]/80 hover:bg-black border border-white/20 text-[#F5E8D8] backdrop-blur-md transition shadow-2xl active:scale-95"
+          className="absolute left-3 z-30 p-3 rounded-full bg-[#161324]/80 hover:bg-[#221C35] border border-[#C4B5FD]/25 text-[#F8F7FC] backdrop-blur-md transition shadow-2xl active:scale-95"
         >
           ‹
         </button>
@@ -718,7 +717,7 @@ export default function P2PGrid({
         <button
           onClick={() => setGridOffset(gridOffset + maxGridCards)}
           title="More sources"
-          className="absolute right-3 z-30 p-3 rounded-full bg-[#1C1C1C]/80 hover:bg-black border border-white/20 text-[#F5E8D8] backdrop-blur-md transition shadow-2xl active:scale-95"
+          className="absolute right-3 z-30 p-3 rounded-full bg-[#161324]/80 hover:bg-[#221C35] border border-[#C4B5FD]/25 text-[#F8F7FC] backdrop-blur-md transition shadow-2xl active:scale-95"
         >
           ›
         </button>

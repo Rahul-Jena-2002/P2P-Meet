@@ -65,30 +65,30 @@ export default function P2PParticipantsDrawer({
   };
 
   return (
-    <aside className="w-full sm:w-80 md:w-88 h-full bg-[#1F1F23] border-l border-white/10 flex flex-col z-30 select-none shadow-2xl animate-in slide-in-from-right duration-200">
+    <aside className="w-full sm:w-80 md:w-88 h-full bg-[#161324] border-l border-[rgba(196,181,253,0.14)] flex flex-col z-30 select-none shadow-2xl animate-in slide-in-from-right duration-200">
       {/* Header */}
-      <div className="h-12 px-4 border-b border-white/10 flex items-center justify-between bg-[#232326]">
-        <h3 className="text-xs font-bold text-white tracking-wide">
+      <div className="h-12 px-4 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-[#161324]">
+        <h3 className="text-xs font-bold text-[#F8F7FC] tracking-wide">
           Participants ({participants.length})
         </h3>
         <button
           onClick={onClose}
-          className="p-1 rounded-md text-white/50 hover:text-white hover:bg-white/10 transition"
+          className="p-1 rounded-lg text-[#C4B5FD]/60 hover:text-[#F8F7FC] hover:bg-[rgba(196,181,253,0.10)] transition"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Search Input */}
-      <div className="p-2.5 border-b border-white/10 bg-[#1A1A1E]">
+      <div className="p-2.5 border-b border-[rgba(196,181,253,0.14)] bg-[#0D0B14]/60">
         <div className="relative">
-          <Search className="w-3.5 h-3.5 text-white/40 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-3.5 h-3.5 text-[#C4B5FD]/40 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search participants..."
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#27272A] border border-white/10 text-xs text-white placeholder-white/40 focus:outline-none focus:border-[#0E72ED]"
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#0D0B14] border border-[rgba(196,181,253,0.18)] text-xs text-[#F8F7FC] placeholder-[#C4B5FD]/40 focus:outline-none focus:border-[#FF6B35]"
           />
         </div>
       </div>
@@ -102,11 +102,11 @@ export default function P2PParticipantsDrawer({
           return (
             <div
               key={p.id}
-              className="group flex items-center justify-between p-2 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/5 transition"
+              className="group flex items-center justify-between p-2 rounded-xl hover:bg-[rgba(196,181,253,0.08)] border border-transparent hover:border-[rgba(196,181,253,0.10)] transition"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 {/* Avatar */}
-                <div className="w-7 h-7 rounded-full bg-[#0E72ED] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#221C35] to-[#2C2442] border border-[rgba(196,181,253,0.25)] flex items-center justify-center text-[#C4B5FD] text-xs font-bold shrink-0 shadow-sm">
                   {p.name[0]?.toUpperCase() || 'U'}
                 </div>
 
@@ -119,26 +119,26 @@ export default function P2PParticipantsDrawer({
                         value={renameText}
                         onChange={(e) => setRenameText(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSaveRename(p.id)}
-                        className="px-1.5 py-0.5 rounded bg-black/60 border border-[#0E72ED] text-xs text-white"
+                        className="px-2 py-0.5 rounded-lg bg-[#0D0B14] border border-[#FF6B35] text-xs text-[#F8F7FC]"
                         autoFocus
                       />
                       <button
                         onClick={() => handleSaveRename(p.id)}
-                        className="p-1 rounded bg-[#0E72ED] text-white text-[10px]"
+                        className="p-1 rounded-lg bg-[#FF6B35] text-[#0D0B14] text-[10px] font-bold"
                       >
                         ✓
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5 truncate">
-                      <span className="text-xs font-medium text-white truncate">{p.name}</span>
-                      {isMe && <span className="text-[10px] text-white/50">(Me)</span>}
+                      <span className="text-xs font-medium text-[#F8F7FC] truncate">{p.name}</span>
+                      {isMe && <span className="text-[10px] text-[#C4B5FD]/60">(Me)</span>}
                       {p.role === 'host' || p.isHost ? (
-                        <span className="text-[9px] uppercase font-bold text-amber-400 bg-amber-400/15 border border-amber-400/25 px-1 py-0.2 rounded">
+                        <span className="text-[9px] uppercase font-bold text-[#FFA14A] bg-[rgba(255,107,53,0.15)] border border-[#FF6B35]/30 px-1.5 py-0.2 rounded-md">
                           Host
                         </span>
                       ) : p.role === 'co-host' ? (
-                        <span className="text-[9px] uppercase font-bold text-sky-400 bg-sky-400/15 border border-sky-400/25 px-1 py-0.2 rounded">
+                        <span className="text-[9px] uppercase font-bold text-[#C4B5FD] bg-[rgba(196,181,253,0.15)] border border-[rgba(196,181,253,0.30)] px-1.5 py-0.2 rounded-md">
                           Co-Host
                         </span>
                       ) : null}
@@ -154,23 +154,23 @@ export default function P2PParticipantsDrawer({
                   <button
                     onClick={() => onLowerHand?.(p.id)}
                     title={isHost || isMe ? "Click to Lower Hand" : "Hand Raised"}
-                    className="p-1 rounded bg-amber-400 text-black text-xs font-bold hover:scale-105 transition"
+                    className="p-1 rounded-lg bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] text-xs font-bold hover:scale-105 transition shadow-sm"
                   >
                     ✋
                   </button>
                 )}
 
                 {/* Mic & Video icons */}
-                <div className="flex items-center gap-1 text-white/70">
+                <div className="flex items-center gap-1 text-[#C4B5FD]/70">
                   {p.isAudioOn ? (
-                    <Mic className="w-3.5 h-3.5 text-white/80" />
+                    <Mic className="w-3.5 h-3.5 text-[#C4B5FD]" />
                   ) : (
-                    <MicOff className="w-3.5 h-3.5 text-red-500" />
+                    <MicOff className="w-3.5 h-3.5 text-[#FF6B35]" />
                   )}
                   {p.isVideoOn ? (
-                    <Video className="w-3.5 h-3.5 text-white/80" />
+                    <Video className="w-3.5 h-3.5 text-[#C4B5FD]" />
                   ) : (
-                    <VideoOff className="w-3.5 h-3.5 text-white/30" />
+                    <VideoOff className="w-3.5 h-3.5 text-[#C4B5FD]/40" />
                   )}
                 </div>
 
@@ -178,7 +178,7 @@ export default function P2PParticipantsDrawer({
                 {(isMe || isHost) && renamingId !== p.id && (
                   <button
                     onClick={() => handleStartRename(p)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-white/60 hover:text-white transition"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-[rgba(196,181,253,0.12)] text-[#C4B5FD]/70 hover:text-[#F8F7FC] transition"
                     title="Rename"
                   >
                     <Edit2 className="w-3 h-3" />
@@ -190,20 +190,20 @@ export default function P2PParticipantsDrawer({
                   <div className="relative">
                     <button
                       onClick={() => setActionMenuPeerId(actionMenuPeerId === p.id ? null : p.id)}
-                      className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white transition"
+                      className="p-1 rounded-lg hover:bg-[rgba(196,181,253,0.12)] text-[#C4B5FD]/70 hover:text-[#F8F7FC] transition"
                       title="Participant Options"
                     >
                       <MoreVertical className="w-3.5 h-3.5" />
                     </button>
 
                     {actionMenuPeerId === p.id && (
-                      <div className="absolute right-0 top-7 w-44 rounded-xl bg-[#232326] border border-white/15 p-1.5 text-xs shadow-2xl text-white z-50 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="absolute right-0 top-7 w-44 rounded-2xl bg-[#221C35] border border-[rgba(196,181,253,0.18)] p-1.5 text-xs shadow-2xl text-[#F8F7FC] z-50 animate-in fade-in zoom-in-95 duration-100">
                         <button
                           onClick={() => {
                             onChangeRole?.(p.id, 'host');
                             setActionMenuPeerId(null);
                           }}
-                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/10 text-amber-300 font-medium transition flex items-center justify-between"
+                          className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] text-[#FFA14A] font-medium transition flex items-center justify-between"
                         >
                           <span>Make Host</span>
                           <span className="text-[10px] text-white/40">👑</span>
@@ -215,23 +215,23 @@ export default function P2PParticipantsDrawer({
                             onChangeRole?.(p.id, newRole);
                             setActionMenuPeerId(null);
                           }}
-                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/10 text-sky-300 font-medium transition flex items-center justify-between"
+                          className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[rgba(196,181,253,0.10)] text-[#C4B5FD] font-medium transition flex items-center justify-between"
                         >
                           <span>{p.role === 'co-host' ? 'Remove Co-Host' : 'Make Co-Host'}</span>
                           <span className="text-[10px] text-white/40">⭐</span>
                         </button>
 
-                        <div className="h-[1px] bg-white/10 my-1" />
+                        <div className="h-[1px] bg-[rgba(196,181,253,0.14)] my-1" />
 
                         <button
                           onClick={() => {
                             onRemoveUser?.(p.id);
                             setActionMenuPeerId(null);
                           }}
-                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-red-500/20 text-red-400 font-medium transition flex items-center justify-between"
+                          className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-red-500/20 text-[#FF6B35] font-medium transition flex items-center justify-between"
                         >
                           <span>Remove</span>
-                          <span className="text-[10px] text-red-400">✕</span>
+                          <span className="text-[10px] text-[#FF6B35]">✕</span>
                         </button>
                       </div>
                     )}
@@ -243,20 +243,20 @@ export default function P2PParticipantsDrawer({
         })}
       </div>
 
-      {/* Footer Host Actions (Zoom Style) */}
-      <div className="p-3 border-t border-white/10 bg-[#232326] flex items-center gap-2">
+      {/* Footer Host Actions */}
+      <div className="p-3 border-t border-[rgba(196,181,253,0.14)] bg-[#161324] flex items-center gap-2">
         <button
           onClick={handleInvite}
-          className="flex-1 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition"
+          className="flex-1 py-2 rounded-xl bg-[rgba(196,181,253,0.12)] hover:bg-[rgba(196,181,253,0.20)] text-[#F8F7FC] font-medium text-xs flex items-center justify-center gap-1.5 border border-[rgba(196,181,253,0.18)] transition shadow-sm"
         >
-          {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <UserPlus className="w-3.5 h-3.5" />}
+          {copied ? <Check className="w-3.5 h-3.5 text-[#FFA14A]" /> : <UserPlus className="w-3.5 h-3.5 text-[#C4B5FD]" />}
           <span>{copied ? 'Link Copied' : 'Invite'}</span>
         </button>
 
         {isHost && (
           <button
             onClick={() => setShowMuteAllModal(true)}
-            className="flex-1 py-2 rounded-lg bg-[#E02828]/15 hover:bg-[#E02828] text-red-400 hover:text-white font-semibold text-xs flex items-center justify-center gap-1.5 border border-red-500/30 transition"
+            className="flex-1 py-2 rounded-xl bg-[rgba(255,107,53,0.15)] hover:bg-[#FF6B35] text-[#FFA14A] hover:text-[#0D0B14] font-bold text-xs flex items-center justify-center gap-1.5 border border-[#FF6B35]/35 transition shadow-sm"
           >
             <VolumeX className="w-3.5 h-3.5" />
             <span>Mute All</span>
@@ -266,10 +266,10 @@ export default function P2PParticipantsDrawer({
 
       {/* Mute All Modal */}
       {showMuteAllModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-xl bg-[#232326] border border-white/15 p-5 text-white shadow-2xl">
-            <h4 className="text-sm font-bold text-white mb-2">Mute all current and new participants?</h4>
-            <p className="text-xs text-white/60 mb-4">
+        <div className="fixed inset-0 z-50 bg-[#0D0B14]/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-3xl bg-[#161324] border border-[rgba(196,181,253,0.20)] p-5 text-[#F8F7FC] shadow-2xl">
+            <h4 className="text-sm font-bold text-[#F8F7FC] mb-2">Mute all current and new participants?</h4>
+            <p className="text-xs text-[#C4B5FD]/70 mb-4">
               All participants will be muted. They will be notified that host has muted everyone.
             </p>
             <div className="flex gap-2">
@@ -278,13 +278,13 @@ export default function P2PParticipantsDrawer({
                   onMuteAll?.();
                   setShowMuteAllModal(false);
                 }}
-                className="flex-1 py-2 rounded-lg bg-[#0E72ED] hover:bg-[#005CE6] text-white font-bold text-xs"
+                className="flex-1 py-2 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold text-xs shadow-md shadow-[#FF6B35]/20"
               >
                 Mute All
               </button>
               <button
                 onClick={() => setShowMuteAllModal(false)}
-                className="flex-1 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium text-xs"
+                className="flex-1 py-2 rounded-xl bg-[rgba(196,181,253,0.12)] hover:bg-[rgba(196,181,253,0.20)] text-[#F8F7FC] font-medium text-xs border border-[rgba(196,181,253,0.15)]"
               >
                 Cancel
               </button>

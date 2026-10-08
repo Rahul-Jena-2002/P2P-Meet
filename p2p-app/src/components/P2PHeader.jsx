@@ -86,44 +86,44 @@ export default function P2PHeader({
   };
 
   return (
-    <header className={`absolute top-0 left-0 right-0 h-11 px-3 z-30 flex items-center justify-between select-none bg-gradient-to-b from-black/80 via-black/40 to-transparent transition-opacity duration-200 ${
+    <header className={`absolute top-0 left-0 right-0 h-12 px-4 z-30 flex items-center justify-between select-none bg-[#161324]/85 backdrop-blur-2xl border-b border-[rgba(196,181,253,0.14)] shadow-lg transition-opacity duration-200 ${
       isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
     }`}>
-      {/* 1. LEFT: Iconic Zoom Green Shield (Meeting Info) + Recording Badge */}
+      {/* 1. LEFT: Iconic Security Shield (Meeting Info) + Recording Badge */}
       <div className="flex items-center gap-2 relative">
         <button
           id="zoom-info-btn"
           onClick={() => setShowInfoModal(v => !v)}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition text-xs font-medium border ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition text-xs font-medium border ${
             showInfoModal
-              ? 'bg-[#107C41] text-white border-[#107C41]'
-              : 'bg-black/40 hover:bg-black/60 text-emerald-400 hover:text-emerald-300 border-white/10'
+              ? 'bg-[#221C35] text-[#FF6B35] border-[#FF6B35]/40 shadow-md'
+              : 'bg-[#0D0B14]/70 hover:bg-[#221C35] text-[#C4B5FD] hover:text-[#F8F7FC] border-[rgba(196,181,253,0.16)]'
           }`}
-          title="Meeting Information (Zoom Security Shield)"
+          title="Meeting Information (E2EE Direct Security)"
         >
-          <ShieldCheck className="w-4 h-4 fill-emerald-500/20 text-emerald-400" />
-          <span className="hidden sm:inline font-medium text-white/90">{title}</span>
+          <ShieldCheck className="w-4 h-4 text-[#C4B5FD]" />
+          <span className="hidden sm:inline font-semibold text-[#F8F7FC]">{title}</span>
         </button>
 
         {/* Network Topology Badge */}
-        <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold border ${
+        <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold border ${
           topologyMode === 'relay-tree'
-            ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
-            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+            ? 'bg-[rgba(196,181,253,0.12)] text-[#C4B5FD] border-[rgba(196,181,253,0.25)]'
+            : 'bg-[rgba(255,107,53,0.12)] text-[#FFA14A] border-[rgba(255,107,53,0.25)]'
         }`} title={topologyMode === 'relay-tree' ? 'Decentralized Relay SFU tree' : 'Zero latency Full Mesh connection'}>
-          <span className={`w-1.5 h-1.5 rounded-full ${topologyMode === 'relay-tree' ? 'bg-blue-400' : 'bg-emerald-400'} animate-pulse`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${topologyMode === 'relay-tree' ? 'bg-[#C4B5FD]' : 'bg-[#FF6B35]'} animate-pulse`} />
           <span>{topologyMode === 'relay-tree' ? (isSupernode ? 'Supernode Host' : 'Relay Tree') : 'Direct Mesh'}</span>
         </div>
 
         {/* Recording Indicator */}
         {isRecording && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-600/90 text-white text-xs font-semibold shadow animate-pulse">
-            <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] text-xs font-bold shadow-lg shadow-[#FF6B35]/25 animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-[#0D0B14] animate-ping" />
             <span>● Recording</span>
             {onStopRecording && (
               <button
                 onClick={onStopRecording}
-                className="ml-1 px-1.5 py-0.5 rounded bg-black/40 hover:bg-black/70 text-[10px] text-white"
+                className="ml-1 px-1.5 py-0.5 rounded-md bg-[#0D0B14]/30 hover:bg-[#0D0B14]/60 text-[10px] text-[#0D0B14] font-bold"
                 title="Stop Recording"
               >
                 Stop
@@ -132,67 +132,67 @@ export default function P2PHeader({
           </div>
         )}
 
-        {/* Zoom Meeting Info Popup */}
+        {/* Meeting Info Popup */}
         {showInfoModal && (
           <div
             ref={modalRef}
-            className="absolute top-12 left-0 w-80 sm:w-96 rounded-xl bg-[#232326] border border-white/15 p-4 text-xs shadow-2xl text-white/90 z-50 animate-in fade-in zoom-in-95 duration-150"
+            className="absolute top-13 left-0 w-80 sm:w-96 rounded-2xl bg-[#161324] border border-[rgba(196,181,253,0.20)] p-4 text-xs shadow-2xl text-[#F8F7FC] z-50 animate-in fade-in zoom-in-95 duration-150"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+            <div className="flex items-center justify-between pb-3 border-b border-[rgba(196,181,253,0.14)] mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                  <ShieldCheck className="w-3.5 h-3.5" />
+                <div className="w-7 h-7 rounded-full bg-[rgba(196,181,253,0.14)] border border-[rgba(196,181,253,0.25)] flex items-center justify-center text-[#C4B5FD]">
+                  <ShieldCheck className="w-4 h-4" />
                 </div>
-                <h4 className="font-bold text-sm text-white">{title || 'Zoom Meeting'}</h4>
+                <h4 className="font-bold text-sm text-[#F8F7FC]">{title || 'p2pmeet Call'}</h4>
               </div>
               <button
                 onClick={() => setShowInfoModal(false)}
-                className="p-1 rounded-md hover:bg-white/10 text-white/50 hover:text-white"
+                className="p-1 rounded-lg hover:bg-[rgba(196,181,253,0.10)] text-[#C4B5FD]/70 hover:text-[#F8F7FC]"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-2.5 font-sans">
               <div className="flex items-center justify-between py-1">
-                <span className="text-white/50">Meeting ID:</span>
-                <span className="font-mono font-bold tracking-wider text-white text-[13px]">{roomCode}</span>
+                <span className="text-[#C4B5FD]/70">Meeting ID:</span>
+                <span className="font-mono font-bold tracking-wider text-[#FF6B35] text-[13px]">{roomCode}</span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-white/50">Host:</span>
-                <span className="font-medium text-white">{hostName}</span>
+                <span className="text-[#C4B5FD]/70">Host:</span>
+                <span className="font-medium text-[#F8F7FC]">{hostName}</span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-white/50">Passcode:</span>
-                <span className="font-mono bg-white/10 px-1.5 py-0.5 rounded text-white font-semibold">2026</span>
+                <span className="text-[#C4B5FD]/70">Passcode:</span>
+                <span className="font-mono bg-[#0D0B14] border border-[rgba(196,181,253,0.18)] px-2 py-0.5 rounded-md text-[#C4B5FD] font-semibold">2026</span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-white/50">Topology:</span>
-                <span className="font-semibold text-white">
+                <span className="text-[#C4B5FD]/70">Topology:</span>
+                <span className="font-semibold text-[#F8F7FC]">
                   {topologyMode === 'relay-tree' ? 'Decentralized Relay SFU' : 'Direct Full Mesh (P2P)'}
                   {isSupernode ? ' • Supernode Host' : ''}
                 </span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-white/50">Audio Quality:</span>
-                <span className="text-emerald-400 font-semibold">
+                <span className="text-[#C4B5FD]/70">Audio Quality:</span>
+                <span className="text-[#FFA14A] font-semibold">
                   Opus 510kbps Stereo (Hi-Fi)
                 </span>
               </div>
               <div className="flex items-center justify-between py-1">
-                <span className="text-white/50">Encryption:</span>
-                <span className="text-emerald-400 font-medium flex items-center gap-1">
-                  <Lock className="w-3 h-3" /> End-to-End Encrypted
+                <span className="text-[#C4B5FD]/70">Encryption:</span>
+                <span className="text-[#C4B5FD] font-medium flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-[#FF6B35]" /> End-to-End Encrypted (SFrame + E2EE)
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
-                <div className="truncate text-white/60 text-[11px] bg-black/40 px-2 py-1.5 rounded-lg border border-white/5 flex-1 font-mono">
+              <div className="pt-2 border-t border-[rgba(196,181,253,0.14)] flex items-center justify-between gap-2">
+                <div className="truncate text-[#C4B5FD]/70 text-[11px] bg-[#0D0B14] px-2.5 py-1.5 rounded-xl border border-[rgba(196,181,253,0.14)] flex-1 font-mono">
                   {getInviteLink()}
                 </div>
                 <button
                   onClick={handleCopyLink}
-                  className="px-3 py-1.5 rounded-lg bg-[#0E72ED] hover:bg-[#005CE6] text-white font-bold text-xs shrink-0 flex items-center gap-1.5 shadow transition"
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold text-xs shrink-0 flex items-center gap-1.5 shadow-md shadow-[#FF6B35]/20 transition"
                 >
                   {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copied ? 'Copied' : 'Copy Link'}</span>
@@ -203,19 +203,20 @@ export default function P2PHeader({
         )}
       </div>
 
-      {/* 2. CENTER: Meeting Clock Duration */}
-      <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/30 border border-white/10 text-xs font-mono text-white/80 backdrop-blur-md">
-        <Clock className="w-3.5 h-3.5 text-white/50" />
+      {/* 2. CENTER: Meeting Clock Duration with Orange Live Indicator */}
+      <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-[#0D0B14]/85 border border-[rgba(196,181,253,0.16)] text-xs font-mono text-[#F8F7FC] backdrop-blur-md shadow-inner">
+        <span className="w-2 h-2 rounded-full bg-[#FF6B35] animate-pulse" />
+        <Clock className="w-3.5 h-3.5 text-[#C4B5FD]/60" />
         <span>{formatTimer(secondsElapsed)}</span>
       </div>
 
-      {/* 3. RIGHT: Authentic Zoom "View ⊞" Dropdown + Mobile Leave Button + Fullscreen */}
+      {/* 3. RIGHT: "View ⊞" Dropdown + Mobile Leave Button + Fullscreen */}
       <div className="flex items-center gap-2 relative">
-        {/* Mobile Red Leave/End Button (Zoom Mobile layout) */}
+        {/* Mobile Leave/End Button */}
         {onLeave && (
           <button
             onClick={onLeave}
-            className="md:hidden px-3 py-1 rounded-md bg-[#E02828] hover:bg-[#C91A1A] text-white font-bold text-xs shadow-md transition"
+            className="md:hidden px-3 py-1 rounded-xl bg-[#FF6B35] hover:bg-[#FF854D] text-[#0D0B14] font-bold text-xs shadow-md shadow-[#FF6B35]/25 transition"
           >
             {isHost ? 'End' : 'Leave'}
           </button>
@@ -225,22 +226,24 @@ export default function P2PHeader({
           <button
             id="zoom-view-btn"
             onClick={() => setShowViewDropdown(v => !v)}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-black/40 hover:bg-black/60 border border-white/10 text-white text-xs font-semibold transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0D0B14]/70 hover:bg-[#221C35] border border-[rgba(196,181,253,0.16)] text-[#F8F7FC] text-xs font-semibold transition"
           >
-            <LayoutGrid className="w-3.5 h-3.5 text-white/70" />
+            <LayoutGrid className="w-3.5 h-3.5 text-[#C4B5FD]" />
             <span>View</span>
-            <ChevronDown className="w-3 h-3 text-white/50" />
+            <ChevronDown className="w-3 h-3 text-[#C4B5FD]/70" />
           </button>
 
           {showViewDropdown && (
             <div
               ref={viewMenuRef}
-              className="absolute right-0 top-9 w-48 rounded-xl bg-[#232326] border border-white/15 p-1.5 text-xs shadow-2xl text-white z-50 animate-in fade-in zoom-in-95 duration-100"
+              className="absolute right-0 top-10 w-48 rounded-2xl bg-[#221C35] border border-[rgba(196,181,253,0.18)] p-1.5 text-xs shadow-2xl text-[#F8F7FC] z-50 animate-in fade-in zoom-in-95 duration-100"
             >
               <button
                 onClick={() => { onToggleViewMode?.('speaker'); setShowViewDropdown(false); }}
-                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between transition ${
-                  viewMode === 'speaker' ? 'bg-[#0E72ED] text-white font-semibold' : 'hover:bg-white/10 text-white/80'
+                className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition ${
+                  viewMode === 'speaker'
+                    ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold'
+                    : 'hover:bg-[rgba(196,181,253,0.12)] text-[#F8F7FC]/80'
                 }`}
               >
                 <span>Speaker View</span>
@@ -249,20 +252,22 @@ export default function P2PHeader({
 
               <button
                 onClick={() => { onToggleViewMode?.('gallery'); setShowViewDropdown(false); }}
-                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between transition ${
-                  viewMode === 'gallery' ? 'bg-[#0E72ED] text-white font-semibold' : 'hover:bg-white/10 text-white/80'
+                className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition ${
+                  viewMode === 'gallery'
+                    ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold'
+                    : 'hover:bg-[rgba(196,181,253,0.12)] text-[#F8F7FC]/80'
                 }`}
               >
                 <span>Gallery View</span>
                 {viewMode === 'gallery' && <Check className="w-3.5 h-3.5" />}
               </button>
 
-              <div className="h-[1px] bg-white/10 my-1" />
+              <div className="h-[1px] bg-[rgba(196,181,253,0.14)] my-1" />
 
               {onToggleWhiteboard && (
                 <button
                   onClick={() => { onToggleWhiteboard(); setShowViewDropdown(false); }}
-                  className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-white/10 text-white/80 flex items-center justify-between transition"
+                  className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-[rgba(196,181,253,0.12)] text-[#F8F7FC]/80 flex items-center justify-between transition"
                 >
                   <span>Whiteboard</span>
                   <span>🖊️</span>
@@ -271,7 +276,7 @@ export default function P2PHeader({
 
               <button
                 onClick={() => { toggleFullscreen(); setShowViewDropdown(false); }}
-                className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-white/10 text-white/80 flex items-center justify-between transition"
+                className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-[rgba(196,181,253,0.12)] text-[#F8F7FC]/80 flex items-center justify-between transition"
               >
                 <span>{isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}</span>
                 {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}

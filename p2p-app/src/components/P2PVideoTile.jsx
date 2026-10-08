@@ -150,10 +150,10 @@ export default function P2PVideoTile({
         e.stopPropagation();
         onPinToggle?.();
       }}
-      className={`relative w-full h-full rounded-xl overflow-hidden bg-[#1E1E22] border-2 transition-all duration-200 flex items-center justify-center group select-none ${
+      className={`relative w-full h-full rounded-2xl overflow-hidden bg-[#161324] border-2 transition-all duration-200 flex items-center justify-center group select-none shadow-xl ${
         isSpeaking
-          ? 'border-[#10B981] shadow-[0_0_20px_rgba(16,185,129,0.5)] ring-2 ring-[#10B981]/40'
-          : 'border-white/5 hover:border-white/15'
+          ? 'border-[#FF6B35] shadow-[0_0_24px_rgba(255,107,53,0.5)] ring-2 ring-[#FF6B35]/40'
+          : 'border-[rgba(196,181,253,0.12)] hover:border-[rgba(196,181,253,0.25)]'
       }`}
     >
       {/* Dedicated always-on audio stream player for remote peers: MUST NOT use display: none! */}
@@ -180,24 +180,24 @@ export default function P2PVideoTile({
             transform: zoomLevel > 1 ? `scale(${zoomLevel})` : undefined,
             transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
           }}
-          className={`w-full h-full ${isScreenSharing && zoomLevel === 1 ? 'object-contain' : 'object-cover'} bg-[#1C1C1C] transition-all duration-300 ${
+          className={`w-full h-full ${isScreenSharing && zoomLevel === 1 ? 'object-contain' : 'object-cover'} bg-[#0D0B14] transition-all duration-300 ${
             isLocal && !isScreenSharing && videoFilter === 'none' ? 'scale-x-[-1]' : ''
           } ${((isVideoOn || isScreenSharing) && (isLocal ? stream?.getVideoTracks()?.length > 0 : true)) ? 'block' : 'hidden'}`}
         />
       )}
 
-      {/* Warm Avatar when camera is off or has no video tracks */}
+      {/* Frosted Avatar when camera is off or has no video tracks */}
       {((!isVideoOn || (isLocal && stream?.getVideoTracks()?.length === 0)) && !isScreenSharing) && (
-        <div className="flex flex-col items-center justify-center w-full h-full bg-[#18181B]">
-          <div className="w-18 h-18 rounded-full bg-[#27272A] border border-white/15 flex items-center justify-center text-white text-xl font-bold mb-2 shadow-inner">
+        <div className="flex flex-col items-center justify-center w-full h-full bg-[#0D0B14]">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#161324] to-[#221C35] border-2 border-[rgba(196,181,253,0.25)] flex items-center justify-center text-[#C4B5FD] text-2xl font-bold mb-2.5 shadow-xl">
             {initials}
           </div>
-          <span className="text-white text-sm font-medium">{name}</span>
+          <span className="text-[#F8F7FC] text-sm font-semibold tracking-wide">{name}</span>
           {!isVideoOn && (
-            <span className="text-white/40 text-xs mt-0.5">Camera off</span>
+            <span className="text-[#C4B5FD]/50 text-xs mt-0.5">Camera off</span>
           )}
           {isVideoOn && isLocal && stream?.getVideoTracks()?.length === 0 && (
-            <span className="text-amber-400/80 text-[11px] mt-0.5">Camera in use by another app</span>
+            <span className="text-[#FFA14A] text-[11px] mt-0.5">Camera in use by another app</span>
           )}
         </div>
       )}
@@ -207,18 +207,18 @@ export default function P2PVideoTile({
         {/* Left side: Hand Raised / Screen Sharing / Pinned indicator */}
         <div className="flex items-center gap-1.5">
           {isHandRaised && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-400 text-black text-[11px] font-bold shadow-lg border border-amber-300 animate-bounce">
+            <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] text-[11px] font-bold shadow-lg shadow-[#FF6B35]/30 border border-[#FF6B35]/40 animate-bounce">
               <span>✋ Hand Raised</span>
             </div>
           )}
           {isScreenSharing && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#0E72ED] text-white text-[11px] font-bold backdrop-blur-md shadow-md border border-[#0E72ED]/50">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[rgba(196,181,253,0.20)] text-[#C4B5FD] text-[11px] font-bold backdrop-blur-md shadow-md border border-[rgba(196,181,253,0.30)]">
               <Monitor className="w-3 h-3" />
               <span>Screen</span>
             </div>
           )}
           {isPinned && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#107C41] text-white text-[11px] font-bold backdrop-blur-md shadow-md border border-emerald-500/40">
+            <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-[#FF6B35] text-[#0D0B14] text-[11px] font-bold backdrop-blur-md shadow-md border border-[#FF6B35]/40">
               <Pin className="w-3 h-3 fill-current" />
               <span>Pinned</span>
             </div>
@@ -226,7 +226,7 @@ export default function P2PVideoTile({
         </div>
 
         {/* Right side: Zoom and Pin buttons */}
-        <div className="flex items-center gap-1 pointer-events-auto opacity-0 group-hover:opacity-100 sm:transition-opacity transition-all duration-150">
+        <div className="flex items-center gap-1.5 pointer-events-auto opacity-0 group-hover:opacity-100 sm:transition-opacity transition-all duration-150">
           {/* Zoom toggle button */}
           {(isVideoOn || isScreenSharing) && (
             <button
@@ -235,10 +235,10 @@ export default function P2PVideoTile({
                 setZoomLevel(z => z === 1 ? 1.6 : 1);
               }}
               title={zoomLevel > 1 ? "Zoom 100% Fit" : "Zoom In Focus (1.6x)"}
-              className={`p-1.5 rounded-lg backdrop-blur-md border transition text-xs shadow-md ${
+              className={`p-1.5 rounded-xl backdrop-blur-md border transition text-xs shadow-md ${
                 zoomLevel > 1
-                  ? 'bg-[#0E72ED] text-white border-[#0E72ED]'
-                  : 'bg-black/70 text-white hover:text-[#0E72ED] border-white/10'
+                  ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold border-[#FF6B35]'
+                  : 'bg-[#0D0B14]/80 text-[#C4B5FD] hover:text-[#F8F7FC] border-[rgba(196,181,253,0.20)]'
               }`}
             >
               {zoomLevel > 1 ? '1x' : '🔍 +'}
@@ -253,10 +253,10 @@ export default function P2PVideoTile({
                 onPinToggle();
               }}
               title={isPinned ? "Unpin video (Back to Grid)" : "Pin video to Main Stage (or Double-Click)"}
-              className={`p-1.5 rounded-lg backdrop-blur-md border transition shadow-md ${
+              className={`p-1.5 rounded-xl backdrop-blur-md border transition shadow-md ${
                 isPinned
-                  ? 'bg-emerald-600 text-white border-emerald-600'
-                  : 'bg-black/70 text-white hover:text-emerald-400 border-white/10'
+                  ? 'bg-[#FF6B35] text-[#0D0B14] border-[#FF6B35]'
+                  : 'bg-[#0D0B14]/80 text-[#C4B5FD] hover:text-[#FFA14A] border-[rgba(196,181,253,0.20)]'
               }`}
             >
               {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
@@ -265,18 +265,18 @@ export default function P2PVideoTile({
         </div>
       </div>
 
-      {/* Bottom Left Zoom-style Name tag with audio icon */}
-      <div className="absolute bottom-2.5 left-2.5 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/75 backdrop-blur-md text-white text-xs font-medium border border-white/10 shadow-md">
+      {/* Bottom Left Name tag with audio icon */}
+      <div className="absolute bottom-2.5 left-2.5 pointer-events-none flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0D0B14]/85 backdrop-blur-md text-[#F8F7FC] text-xs font-medium border border-[rgba(196,181,253,0.18)] shadow-lg">
         <div className="shrink-0">
           {isAudioOn ? (
-            <Mic className={`w-3.5 h-3.5 ${isSpeaking ? 'text-emerald-400 animate-pulse' : 'text-white/80'}`} />
+            <Mic className={`w-3.5 h-3.5 ${isSpeaking ? 'text-[#FF6B35] animate-pulse' : 'text-[#C4B5FD]/80'}`} />
           ) : (
-            <MicOff className="w-3.5 h-3.5 text-red-500" />
+            <MicOff className="w-3.5 h-3.5 text-[#FF6B35]" />
           )}
         </div>
-        <span className="truncate max-w-[130px]">{name} {isLocal && '(You)'}</span>
+        <span className="truncate max-w-[130px] font-semibold">{name} {isLocal && '(You)'}</span>
         {isHost && (
-          <span className="text-[9px] uppercase font-bold text-amber-400 bg-amber-400/15 border border-amber-400/30 px-1 rounded">
+          <span className="text-[9px] uppercase font-bold text-[#FFA14A] bg-[rgba(255,107,53,0.15)] border border-[#FF6B35]/30 px-1.5 py-0.5 rounded-md">
             Host
           </span>
         )}
