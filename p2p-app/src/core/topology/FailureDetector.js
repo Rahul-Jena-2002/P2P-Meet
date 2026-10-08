@@ -42,6 +42,11 @@ export class FailureDetector {
     }
   }
 
+  reportHeartbeatTimeout(peerId) {
+    this.emit('nodeFailed', { peerId, reason: 'heartbeat-timeout' });
+    this.peerHeartbeats.delete(peerId);
+  }
+
   checkHealth() {
     const now = Date.now();
     for (const [peerId, lastTime] of this.peerHeartbeats.entries()) {

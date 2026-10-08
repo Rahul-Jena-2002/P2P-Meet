@@ -13,6 +13,8 @@ import { DataChannelManager } from '../data/DataChannelManager.js';
 import { TopologyManager } from '../topology/TopologyManager.js';
 import { TrackManager } from '../media/TrackManager.js';
 import { ForwardingBridge } from '../rtc/ForwardingBridge.js';
+import { FailureDetector } from '../topology/FailureDetector.js';
+import { Rebalancer } from '../topology/Rebalancer.js';
 
 export class MeetingController {
   constructor({
@@ -57,6 +59,20 @@ export class MeetingController {
     this.forwardingBridge = new ForwardingBridge({
       trackManager: this.trackManager,
       rtc: this.rtc
+    });
+
+    this.failureDetector = new FailureDetector();
+    this.rebalancer = new Rebalancer({
+      overlayManager: this.topology.overlayManager,
+      relaySelector: this.topology.relaySelector,
+      localUserId: this.userId
+    });
+
+    this.failureDetector.on('nodeFailed', ({ peerId, reason }) => {
+      console.warn(`[MeetingController] Node failure detected for ${peerId} (${reason}), rebalancing...`);
+      this.rebalancer.handleNodeFailure(peerId);
+      this.topology?.removePeer?.(peerId);
+      this.emit('nodeRecovered', { failedPeerId: peerId });
     });
 
     this.topology.overlayManager?.on?.('forwardTrackRequired', ({ sourceId, childPeerId }) => {
@@ -140,11 +156,13 @@ export class MeetingController {
 
       try {
         if (type === 'offer' && offer) {
+          this.failureDetector.recordHeartbeat(senderId);
           const answerDesc = await this.rtc.handleOffer(senderId, offer);
           if (answerDesc) {
             this.signaling.sendSignal(senderId, { type: 'answer', answer: answerDesc });
           }
         } else if (type === 'answer' && answer) {
+          this.failureDetector.recordHeartbeat(senderId);
           await this.rtc.handleAnswer(senderId, answer);
         } else if (type === 'candidate' && candidate) {
           await this.rtc.handleCandidate(senderId, candidate);
@@ -155,6 +173,7 @@ export class MeetingController {
     });
 
     this.signaling.on('peer-left', ({ userId }) => {
+      this.failureDetector.removePeer(userId);
       this.topology?.removePeer?.(userId);
       this.rtc.removePeer(userId);
       this.participants.delete(userId);
@@ -170,6 +189,10 @@ export class MeetingController {
 
     this.rtc.on('signal', ({ peerId, msg }) => {
       this.signaling.sendSignal(peerId, msg);
+    });
+
+    this.rtc.on('connectionStateChange', ({ peerId, state }) => {
+      this.failureDetector.reportConnectionState(peerId, state);
     });
 
     this.rtc.on('track', ({ peerId, track, stream }) => {
@@ -233,11 +256,13 @@ export class MeetingController {
     this.signaling.on('disconnected', () => this.emit('disconnected'));
     this.signaling.connect();
     this.quality.start();
+    this.failureDetector.start();
     return true;
   }
 
   leave() {
     this.quality?.stop?.();
+    this.failureDetector?.destroy?.();
     this.signaling.disconnect();
     this.rtc.destroy();
     this.media.stop();

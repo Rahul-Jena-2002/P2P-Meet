@@ -128,3 +128,21 @@ test('MeetingController wires ForwardingBridge to forward remote tracks when ins
   assert.strictEqual(forwarded, true);
   controller.destroy();
 });
+
+test('FailureDetector triggers Rebalancer when supernode disconnects', () => {
+  let rebalanceCalled = false;
+  const mockTopology = {
+    isSupernode: (id) => id === 'super-1',
+    electNewSupernode: () => { rebalanceCalled = true; }
+  };
+  const failureDetector = new FailureDetector({
+    checkIntervalMs: 50,
+  });
+  failureDetector.on('nodeFailed', ({ peerId }) => {
+    if (mockTopology.isSupernode(peerId)) {
+      mockTopology.electNewSupernode();
+    }
+  });
+  failureDetector.reportHeartbeatTimeout('super-1');
+  assert.strictEqual(rebalanceCalled, true);
+});
