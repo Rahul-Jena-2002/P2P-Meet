@@ -41,7 +41,7 @@
 - Consumes: `sdp: string`
 - Produces: `mungeSdpForHighFidelityAudio(sdp: string): string` in `PeerConnectionManager.js`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `p2p-app/test/peerConnectionManager.test.mjs`, add tests for `mungeSdpForHighFidelityAudio`:
 ```javascript
@@ -61,12 +61,12 @@ test('mungeSdpForHighFidelityAudio handles SDP without existing fmtp line for op
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --test test/peerConnectionManager.test.mjs`
 Expected: FAIL with `PeerConnectionManager.mungeSdpForHighFidelityAudio is not a function`
 
-- [ ] **Step 3: Implement `mungeSdpForHighFidelityAudio` in `p2p-app/src/core/rtc/PeerConnectionManager.js`**
+- [x] **Step 3: Implement `mungeSdpForHighFidelityAudio` in `p2p-app/src/core/rtc/PeerConnectionManager.js`**
 
 Implement static method `PeerConnectionManager.mungeSdpForHighFidelityAudio(sdp)`:
 - Parse SDP lines, find payload number for `opus/48000/2`.
@@ -74,12 +74,12 @@ Implement static method `PeerConnectionManager.mungeSdpForHighFidelityAudio(sdp)
 - If `a=fmtp:<payload>` does not exist, insert `a=fmtp:<payload> stereo=1;sprop-stereo=1;maxaveragebitrate=510000;cbr=1` directly after `a=rtpmap:<payload> opus/48000/2`.
 - Hook this into `createOffer` and `createAnswer` in `PeerConnectionManager.js` before returning description.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --test test/peerConnectionManager.test.mjs`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add p2p-app/src/core/rtc/PeerConnectionManager.js p2p-app/test/peerConnectionManager.test.mjs
@@ -100,7 +100,7 @@ git commit -m "feat(audio): add high-fidelity opus SDP munging for 510kbps stere
 - Consumes: `MediaManager.startScreenShare({ audio: true })`
 - Produces: `screenAudioTrack: MediaStreamTrack | null`, `PeerConnectionManager.publishScreenAudioTrack(track)` and `PeerConnectionManager.on('screenAudioTrack', ({ peerId, track }))`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `p2p-app/test/mediaManager.test.mjs`:
 ```javascript
@@ -145,12 +145,12 @@ test('PeerConnectionManager identifies screen audio track and dispatches screenA
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `node --test test/mediaManager.test.mjs test/peerConnectionManager.test.mjs`
 Expected: FAIL on missing zero-latency constraints and missing `setPeerScreenAudioTrack`.
 
-- [ ] **Step 3: Implement Zero-Latency Screen Audio Capture & Dual-Track Audio in `MediaManager.js` and `PeerConnectionManager.js`**
+- [x] **Step 3: Implement Zero-Latency Screen Audio Capture & Dual-Track Audio in `MediaManager.js` and `PeerConnectionManager.js`**
 
 1. In `MediaManager.js`: Update `startScreenShare(options = {})`:
    - If audio requested, pass `{ echoCancellation: false, noiseSuppression: false, autoGainControl: false, latency: 0 }`.
@@ -162,12 +162,12 @@ Expected: FAIL on missing zero-latency constraints and missing `setPeerScreenAud
    - Implement `setPeerScreenAudioTrack(peerId, track)` and emit `'screenAudioTrack'` event.
    - In `track` event listener on `pc`: Distinguish screen audio from microphone audio (via stream ID, track label, or signaling metadata) and route to `setPeerScreenAudioTrack`.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `node --test test/mediaManager.test.mjs test/peerConnectionManager.test.mjs`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add p2p-app/src/core/media/MediaManager.js p2p-app/src/core/rtc/PeerConnectionManager.js p2p-app/test/mediaManager.test.mjs p2p-app/test/peerConnectionManager.test.mjs
@@ -186,12 +186,12 @@ git commit -m "feat(audio): support zero-latency screen audio acquisition and du
 - Consumes: `TopologyManager`, `TrackManager`, `DataChannelManager`
 - Produces: `controller.dataChannels`, `controller.topology`, `controller.trackManager` available on `MeetingController`
 
-- [ ] **Step 1: Write the failing test / Verify existing test failure**
+- [x] **Step 1: Write the failing test / Verify existing test failure**
 
 Run: `node --test test/meetingController.test.mjs`
 Expected: FAIL at `MeetingController integrates QualityController and DataChannelManager` (`assert.ok(controller.dataChannels)`).
 
-- [ ] **Step 2: Implement integration in `p2p-app/src/core/meeting/MeetingController.js`**
+- [x] **Step 2: Implement integration in `p2p-app/src/core/meeting/MeetingController.js`**
 
 1. Import `DataChannelManager` from `../data/DataChannelManager.js`.
 2. Import `TopologyManager` from `../topology/TopologyManager.js`.
@@ -205,12 +205,12 @@ Expected: FAIL at `MeetingController integrates QualityController and DataChanne
    - Clean up Web Audio / AudioContext mixing code from `MeetingController.js` (no longer needed since screen audio is sent directly as Track B).
 5. Ensure `destroy()` / `cleanup()` tears down `this.dataChannels`, `this.topology`, and `this.trackManager`.
 
-- [ ] **Step 3: Run test to verify it passes**
+- [x] **Step 3: Run test to verify it passes**
 
 Run: `node --test test/meetingController.test.mjs`
 Expected: PASS with 100% test passes in `meetingController.test.mjs`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add p2p-app/src/core/meeting/MeetingController.js p2p-app/test/meetingController.test.mjs
@@ -230,7 +230,7 @@ git commit -m "feat(core): integrate DataChannelManager, TopologyManager and Tra
 - Consumes: `TopologyManager.on('forwardRequest', ({ sourcePeerId, targetPeerId, trackKind }))`
 - Produces: `ForwardingBridge.forwardTrack(sourcePeerId, targetPeerId, track)` attaching forwarded tracks without local mixing
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `p2p-app/test/forwardingAndRecovery.test.mjs`:
 ```javascript
@@ -249,12 +249,12 @@ test('MeetingController wires ForwardingBridge to forward remote tracks when ins
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --test test/forwardingAndRecovery.test.mjs`
 Expected: FAIL with `handleForwardInstruction is not a function`.
 
-- [ ] **Step 3: Implement ForwardingBridge wiring in `MeetingController.js` and `ForwardingBridge.js`**
+- [x] **Step 3: Implement ForwardingBridge wiring in `MeetingController.js` and `ForwardingBridge.js`**
 
 1. In `ForwardingBridge.js`:
    - Support forwarding screen video, screen audio, camera, and mic tracks to target downstream peers using `addTrack` or transceiver matching.
@@ -263,12 +263,12 @@ Expected: FAIL with `handleForwardInstruction is not a function`.
    - Connect `this.topology.on('forwardInstruction', (inst) => this.handleForwardInstruction(inst))`.
    - When remote tracks arrive from sender `peerA`, register with `this.trackManager`. If relay is assigned to forward `peerA`'s tracks to `peerB`, call `this.forwardingBridge.forwardTrack(...)`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --test test/forwardingAndRecovery.test.mjs`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add p2p-app/src/core/rtc/ForwardingBridge.js p2p-app/src/core/meeting/MeetingController.js p2p-app/test/forwardingAndRecovery.test.mjs
@@ -289,7 +289,7 @@ git commit -m "feat(relay): wire ForwardingBridge to MeetingController for Super
 - Consumes: `FailureDetector.on('peerFailed', ({ peerId }))`
 - Produces: `Rebalancer.triggerRebalance(topology)` promoting next highest-scoring peer and updating routes
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `p2p-app/test/forwardingAndRecovery.test.mjs`:
 ```javascript
@@ -308,24 +308,24 @@ test('FailureDetector triggers Rebalancer when supernode disconnects', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --test test/forwardingAndRecovery.test.mjs`
 Expected: FAIL on `reportHeartbeatTimeout` or callback expectation.
 
-- [ ] **Step 3: Implement FailureDetector & Rebalancer linkage**
+- [x] **Step 3: Implement FailureDetector & Rebalancer linkage**
 
 1. In `FailureDetector.js`: Add `reportHeartbeatTimeout(peerId)` and connection state monitoring.
 2. In `MeetingController.js`:
    - Initialize `FailureDetector`.
    - When a peer leaves or their connection drops, notify `FailureDetector`. If the failed peer was a relay/supernode, trigger `rebalance()` via `Rebalancer.js`, notifying participants of updated routes via signaling.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --test test/forwardingAndRecovery.test.mjs`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add p2p-app/src/core/topology/FailureDetector.js p2p-app/src/core/topology/Rebalancer.js p2p-app/src/core/meeting/MeetingController.js p2p-app/test/forwardingAndRecovery.test.mjs
@@ -345,7 +345,7 @@ git commit -m "feat(topology): add failure detection and automatic supernode reb
 - Consumes: `MeetingController.on('participantScreenAudioStream')`, `MeetingController.topology.getMode()`, `isSupernode`
 - Produces: Rendered `<audio>` elements for stereo screen audio and dynamic status badges in Header ("Mesh P2P" vs "Supernode SFU")
 
-- [ ] **Step 1: Update UI Components**
+- [x] **Step 1: Update UI Components**
 
 1. In `P2PMeetingRoom.jsx`:
    - Add state for `participantScreenAudioStreams: Map<peerId, MediaStream>`.
@@ -356,17 +356,17 @@ git commit -m "feat(topology): add failure detection and automatic supernode reb
 3. In `P2PControls.jsx`:
    - When screen share is active with audio, display a badge/indicator: `"Hi-Fi Stereo Audio (510 kbps)"`.
 
-- [ ] **Step 2: Verify all unit tests pass**
+- [x] **Step 2: Verify all unit tests pass**
 
 Run: `node --test`
 Expected: PASS (all tests in test suite pass cleanly).
 
-- [ ] **Step 3: Build verification**
+- [x] **Step 3: Build verification**
 
 Run: `npm.cmd run build` (or `npx next build`) in `p2p-app/`
 Expected: Build succeeds with 0 errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add p2p-app/src/components/P2PMeetingRoom.jsx p2p-app/src/components/P2PHeader.jsx p2p-app/src/components/P2PControls.jsx
