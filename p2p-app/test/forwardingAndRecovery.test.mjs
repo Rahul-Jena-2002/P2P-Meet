@@ -112,3 +112,19 @@ test('Rebalancer reparents orphan sources to replacement relay upon parent node 
   assert.equal(overlay.getUpstreamParent('rahul:screen'), 'relay-backup');
   assert.ok(migrationEvent);
 });
+
+test('MeetingController wires ForwardingBridge to forward remote tracks when instructed by topology', async () => {
+  const { MeetingController } = await import('../src/core/meeting/MeetingController.js');
+  const controller = new MeetingController({ roomId: 'ROOM1', userId: 'supernode-1' });
+  let forwarded = false;
+  controller.forwardingBridge = {
+    forwardTrack: (sourceId, targetId) => {
+      forwarded = true;
+      assert.strictEqual(sourceId, 'peer-a:video');
+      assert.strictEqual(targetId, 'peer-b');
+    }
+  };
+  controller.handleForwardInstruction({ sourceId: 'peer-a:video', targetPeerId: 'peer-b' });
+  assert.strictEqual(forwarded, true);
+  controller.destroy();
+});

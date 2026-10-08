@@ -12,6 +12,7 @@ import { QualityController } from '../quality/QualityController.js';
 import { DataChannelManager } from '../data/DataChannelManager.js';
 import { TopologyManager } from '../topology/TopologyManager.js';
 import { TrackManager } from '../media/TrackManager.js';
+import { ForwardingBridge } from '../rtc/ForwardingBridge.js';
 
 export class MeetingController {
   constructor({
@@ -52,6 +53,17 @@ export class MeetingController {
     this.topology = new TopologyManager({
       localUserId: this.userId,
       rtc: this.rtc
+    });
+    this.forwardingBridge = new ForwardingBridge({
+      trackManager: this.trackManager,
+      rtc: this.rtc
+    });
+
+    this.topology.overlayManager?.on?.('forwardTrackRequired', ({ sourceId, childPeerId }) => {
+      this.forwardingBridge?.forwardTrack?.(sourceId, childPeerId);
+    });
+    this.topology.overlayManager?.on?.('forwardTrackStop', ({ sourceId, childPeerId }) => {
+      this.forwardingBridge?.stopForwarding?.(sourceId, childPeerId);
     });
 
     this.participants = new Map(); // userId -> { userId, userName, stream, screenStream, screenAudioStream }
@@ -161,6 +173,7 @@ export class MeetingController {
     });
 
     this.rtc.on('track', ({ peerId, track, stream }) => {
+      this.trackManager?.registerRemoteTrack?.({ peerId, track, stream, isScreen: false });
       const participant = this.participants.get(peerId);
       if (participant) {
         participant.stream = stream;
@@ -170,6 +183,11 @@ export class MeetingController {
     });
 
     this.rtc.on('screenTrack', ({ peerId, track, stream }) => {
+      if (track) {
+        this.trackManager?.registerRemoteTrack?.({ peerId, track, stream, isScreen: true });
+      } else {
+        this.trackManager?.unregisterRemoteSource?.(`${peerId}:screen`);
+      }
       const participant = this.participants.get(peerId);
       if (participant) {
         participant.screenStream = stream;
@@ -179,6 +197,9 @@ export class MeetingController {
     });
 
     this.rtc.on('screenAudioTrack', ({ peerId, track, stream }) => {
+      if (track) {
+        this.trackManager?.registerRemoteTrack?.({ peerId, track, stream, isScreen: true, kind: 'audio' });
+      }
       const participant = this.participants.get(peerId);
       if (participant) {
         participant.screenAudioStream = stream;
@@ -221,6 +242,7 @@ export class MeetingController {
     this.rtc.destroy();
     this.media.stop();
     this.cleanupAudioMixer();
+    this.forwardingBridge?.destroy?.();
     this.dataChannels?.destroy?.();
     this.trackManager?.destroy?.();
     this.participants.clear();
@@ -332,6 +354,11 @@ export class MeetingController {
 
   setPeerScreenTrack(peerId, screenTrackId) {
     this.rtc?.setPeerScreenTrack?.(peerId, screenTrackId);
+  }
+
+  handleForwardInstruction({ sourceId, targetPeerId }) {
+    if (!sourceId || !targetPeerId) return null;
+    return this.forwardingBridge?.forwardTrack?.(sourceId, targetPeerId);
   }
 
   destroy() {
