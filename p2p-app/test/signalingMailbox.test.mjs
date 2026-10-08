@@ -106,3 +106,70 @@ test('SignalingMailbox rejects envelope if SDP or DTLS fingerprint is tampered i
   assert.equal(result2.valid, false);
   assert.match(result2.error, /tamper|signature/i);
 });
+
+test('KeyManager derives root key tree: topic, room auth key, and initial media key', async () => {
+  const km = new KeyManager();
+  const rootKeys = await km.deriveRootKeys('room-101', 'secret-pass-abc');
+
+  assert.equal(typeof rootKeys.mailboxTopic, 'string');
+  assert.equal(rootKeys.mailboxTopic.length, 64);
+  assert.ok(rootKeys.roomAuthKey, 'roomAuthKey must be generated');
+  assert.ok(rootKeys.initialMediaKey instanceof Uint8Array);
+  assert.equal(rootKeys.initialMediaKey.byteLength, 16);
+
+  // Auth token generation and verification
+  const token = await km.createRoomAuthToken(rootKeys.roomAuthKey, {
+    peerId: 'peer-alice',
+    timestamp: 123456789
+  });
+  assert.equal(typeof token, 'string');
+
+  const isValid = await km.verifyRoomAuthToken(rootKeys.roomAuthKey, token, {
+    peerId: 'peer-alice',
+    timestamp: 123456789
+  });
+  assert.equal(isValid, true);
+
+  // Attacker with different key or tampered timestamp fails
+  const attackerKeys = await km.deriveRootKeys('room-101', 'attacker-wrong-secret');
+  const isAttackerValid = await km.verifyRoomAuthToken(attackerKeys.roomAuthKey, token, {
+    peerId: 'peer-alice',
+    timestamp: 123456789
+  });
+  assert.equal(isAttackerValid, false, 'Attacker with wrong room secret must fail auth token verification');
+});
+
+test('SignalingMailbox rejects unauthorized attacker envelope without roomSecret', async () => {
+  const km = new KeyManager();
+
+  // Legitimate user in the room with correct room secret
+  const bobMailbox = new SignalingMailbox({
+    roomId: 'room-secure',
+    roomSecret: 'correct-secret-456',
+    peerId: 'peer-bob',
+    keyManager: km
+  });
+  await bobMailbox.init();
+
+  // Attacker sniffing the public topic who generates their own SDP offer with their own ECDSA key,
+  // but lacks the roomSecret (or has wrong secret)
+  const attackerMailbox = new SignalingMailbox({
+    roomId: 'room-secure',
+    roomSecret: 'rogue-attacker-secret',
+    peerId: 'attacker-eve',
+    keyManager: km
+  });
+  await attackerMailbox.init();
+
+  const fakeSdp = 'v=0\r\na=fingerprint:sha-256 CC:CC:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\n';
+  const attackerEnvelope = await attackerMailbox.createEnvelope({
+    type: 'offer',
+    sdp: fakeSdp
+  });
+
+  // Bob receives attacker's envelope
+  const result = await bobMailbox.verifyAndUnwrapEnvelope(attackerEnvelope);
+  assert.equal(result.valid, false);
+  assert.match(result.error, /unauthorized|room auth/i, 'Bob must reject unauthorized peer');
+});
+

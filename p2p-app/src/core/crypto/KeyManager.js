@@ -46,6 +46,114 @@ export class KeyManager {
   }
 
   /**
+   * Derives hierarchical root keys from room secret using HKDF-SHA256:
+   * 1. mailboxTopic (public broker opaque routing channel)
+   * 2. roomAuthKey (HMAC-SHA256 key for authenticating peers)
+   * 3. initialMediaKey (16-byte raw AES-GCM media key for epoch 0)
+   */
+  async deriveRootKeys(roomId, secret) {
+    const enc = new TextEncoder();
+    const secretBytes = enc.encode(secret);
+    const saltBytes = enc.encode(`p2pmeet-root-salt-${roomId.toLowerCase()}`);
+
+    const baseKey = await this.crypto.subtle.importKey(
+      'raw',
+      secretBytes,
+      'HKDF',
+      false,
+      ['deriveBits', 'deriveKey']
+    );
+
+    // 1. Topic (256 bits)
+    const topicBits = await this.crypto.subtle.deriveBits(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: saltBytes,
+        info: enc.encode('p2pmeet-mailbox-topic')
+      },
+      baseKey,
+      256
+    );
+    const mailboxTopic = this.bufferToHex(topicBits);
+
+    // 2. Room Auth Key (HMAC-SHA256)
+    const roomAuthKey = await this.crypto.subtle.deriveKey(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: saltBytes,
+        info: enc.encode('p2pmeet-room-auth-key')
+      },
+      baseKey,
+      {
+        name: 'HMAC',
+        hash: 'SHA-256',
+        length: 256
+      },
+      false,
+      ['sign', 'verify']
+    );
+
+    // 3. Initial Epoch Media Key (128 bits AES-GCM)
+    const mediaKeyBits = await this.crypto.subtle.deriveBits(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: saltBytes,
+        info: enc.encode('p2pmeet-initial-epoch-key')
+      },
+      baseKey,
+      128
+    );
+    const initialMediaKey = new Uint8Array(mediaKeyBits);
+
+    return {
+      mailboxTopic,
+      roomAuthKey,
+      initialMediaKey
+    };
+  }
+
+  /**
+   * Creates an HMAC-SHA256 authentication token proving possession of the room secret.
+   */
+  async createRoomAuthToken(roomAuthKey, { peerId, timestamp, publicKeyJwk = null }) {
+    const enc = new TextEncoder();
+    const pubKeyStr = publicKeyJwk ? (typeof publicKeyJwk === 'string' ? publicKeyJwk : JSON.stringify(publicKeyJwk)) : '';
+    const authPayload = `${peerId}:${pubKeyStr}:${timestamp}`;
+
+    const signature = await this.crypto.subtle.sign(
+      'HMAC',
+      roomAuthKey,
+      enc.encode(authPayload)
+    );
+
+    return this.bufferToHex(signature);
+  }
+
+  /**
+   * Verifies an HMAC-SHA256 authentication token against the derived roomAuthKey.
+   */
+  async verifyRoomAuthToken(roomAuthKey, tokenHex, { peerId, timestamp, publicKeyJwk = null }) {
+    try {
+      const enc = new TextEncoder();
+      const pubKeyStr = publicKeyJwk ? (typeof publicKeyJwk === 'string' ? publicKeyJwk : JSON.stringify(publicKeyJwk)) : '';
+      const authPayload = `${peerId}:${pubKeyStr}:${timestamp}`;
+      const tokenBytes = this.hexToBuffer(tokenHex);
+
+      return await this.crypto.subtle.verify(
+        'HMAC',
+        roomAuthKey,
+        tokenBytes,
+        enc.encode(authPayload)
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Generates an ephemeral P-256 ECDSA keypair for signing DTLS fingerprints.
    */
   async generateSigningKeyPair() {

@@ -20,12 +20,17 @@ export class SignalingMailbox {
     this.keyManager = keyManager;
 
     this.topic = null;
+    this.roomAuthKey = null;
+    this.initialMediaKey = null;
     this.signingKeys = null;
     this.initialized = false;
   }
 
   async init() {
-    this.topic = await this.keyManager.deriveTopic(this.roomId, this.roomSecret);
+    const rootKeys = await this.keyManager.deriveRootKeys(this.roomId, this.roomSecret);
+    this.topic = rootKeys.mailboxTopic;
+    this.roomAuthKey = rootKeys.roomAuthKey;
+    this.initialMediaKey = rootKeys.initialMediaKey;
     this.signingKeys = await this.keyManager.generateSigningKeyPair();
     this.initialized = true;
     return this;
@@ -68,7 +73,17 @@ export class SignalingMailbox {
       signTarget = this.getSigningString(type, this.peerId, JSON.stringify(extra));
     }
 
+    const timestamp = Date.now();
     const signature = await this.keyManager.signPayload(this.signingKeys.privateKey, signTarget);
+
+    let roomAuthToken = null;
+    if (this.roomAuthKey) {
+      roomAuthToken = await this.keyManager.createRoomAuthToken(this.roomAuthKey, {
+        peerId: this.peerId,
+        timestamp,
+        publicKeyJwk: this.signingKeys.publicKeyJwk
+      });
+    }
 
     return {
       roomId: this.roomId,
@@ -80,7 +95,8 @@ export class SignalingMailbox {
       fingerprint,
       signature,
       publicKeyJwk: this.signingKeys.publicKeyJwk,
-      timestamp: Date.now(),
+      roomAuthToken,
+      timestamp,
       ...extra
     };
   }
@@ -91,6 +107,33 @@ export class SignalingMailbox {
   async verifyAndUnwrapEnvelope(envelope) {
     if (!envelope || !envelope.peerId || !envelope.publicKeyJwk || !envelope.signature) {
       return { valid: false, error: 'Malformed signaling envelope' };
+    }
+
+    // 0. Verify room authorization token (ensures peer knows the URL secret)
+    if (this.roomAuthKey) {
+      if (!envelope.roomAuthToken) {
+        return {
+          valid: false,
+          error: 'Unauthorized peer: missing room authentication token'
+        };
+      }
+
+      const isAuthValid = await this.keyManager.verifyRoomAuthToken(
+        this.roomAuthKey,
+        envelope.roomAuthToken,
+        {
+          peerId: envelope.peerId,
+          timestamp: envelope.timestamp,
+          publicKeyJwk: envelope.publicKeyJwk
+        }
+      );
+
+      if (!isAuthValid) {
+        return {
+          valid: false,
+          error: 'Unauthorized peer: invalid room authentication token (wrong room secret)'
+        };
+      }
     }
 
     // 1. If SDP is present, ensure embedded fingerprint matches envelope fingerprint
