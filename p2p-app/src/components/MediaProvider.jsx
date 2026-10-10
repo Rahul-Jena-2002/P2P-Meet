@@ -24,6 +24,8 @@ export function MediaProvider({ children }) {
   const [videoFilter, setVideoFilterState] = useState('none');
   const [mediaError, setMediaError] = useState(null);
   const [voiceFocusEnabled, setVoiceFocusEnabledState] = useState(true);
+  const [isEffectLoading, setIsEffectLoading] = useState(false);
+  const [effectLoadingText, setEffectLoadingText] = useState('');
 
   const mediaManagerRef = useRef(null);
   if (!mediaManagerRef.current) {
@@ -225,13 +227,23 @@ export function MediaProvider({ children }) {
 
     if (!aiFilters.includes(filter)) {
       videoProcessor.stopProcessing();
+      setIsEffectLoading(false);
+      setEffectLoadingText('');
       if (rawStreamRef.current) {
         setLocalStream(rawStreamRef.current);
       }
     } else if (rawStreamRef.current) {
-      const processed = await videoProcessor.start(rawStreamRef.current, filter, (updated) => {
-        setLocalStream(updated);
-      });
+      const processed = await videoProcessor.start(
+        rawStreamRef.current,
+        filter,
+        (updated) => {
+          setLocalStream(updated);
+        },
+        (loading, text) => {
+          setIsEffectLoading(loading);
+          setEffectLoadingText(text);
+        }
+      );
       if (processed) {
         setLocalStream(processed);
       }
@@ -253,6 +265,8 @@ export function MediaProvider({ children }) {
       audioLevel,
       videoFilter,
       setVideoFilter,
+      isEffectLoading,
+      effectLoadingText,
       mediaError,
       voiceFocusEnabled,
       toggleAudio,

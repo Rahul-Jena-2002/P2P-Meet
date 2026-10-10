@@ -2,11 +2,172 @@
  * p2pmeet - Decentralized Privacy-First Video Meetings
  * AI Virtual Background & Green Screen Segmentation Processor
  * Features:
- *  - MediaPipe Selfie Segmentation (Fast Model 0 with Inference Lock)
- *  - Smart Chroma Key & Soft Silhouette Fallback (No awkward circle cutouts!)
- *  - Astronaut Suit: 1.36x Zoom for prominent helmet, Auto-Framing Face Tracker,
- *    and multi-layered Curved Glass Jar Visor with reflections, depth, and HUD.
+ *  - Lazy-loaded AI models (loads on-demand only when user selects an effect)
+ *  - Multi-Tier Computer Vision Face Alignment & Auto-Zoom Engine
+ *    (Native window.FaceDetector, MediaPipe Face Detection, and Chrominance Tracking)
+ *  - Astronaut Helmet: Real-time face centroid tracking, optical sightline alignment,
+ *    and ~2.2x auto-zoom to fit helmet visor comfortably from forehead to chin
+ *  - Curved Glass Jar Visor with sunlight glares, Earth reflections, and HUD telemetry
  */
+
+class FaceAlignmentEngine {
+  constructor() {
+    this.isLoaded = false;
+    this.isLoading = false;
+    this.nativeDetector = null;
+    this.mpDetector = null;
+    this.isMpDetecting = false;
+    this.lastDetectedTime = 0;
+    // Smoothed face tracking coordinates (normalized 0..1)
+    this.state = {
+      cx: 0.5,
+      cy: 0.38,
+      width: 0.22,
+      height: 0.30,
+      hasFace: false
+    };
+  }
+
+  async load(onProgress) {
+    if (this.isLoaded || this.isLoading) return;
+    this.isLoading = true;
+    onProgress?.(true, 'Initializing Face Alignment & CV Models...');
+
+    try {
+      // 1. Native Chromium FaceDetector (Hardware Accelerated, Zero Download, 60fps)
+      if (typeof window !== 'undefined' && window.FaceDetector) {
+        try {
+          this.nativeDetector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+          this.isLoaded = true;
+          this.isLoading = false;
+          onProgress?.(false, '');
+          return;
+        } catch (_) {}
+      }
+
+      // 2. MediaPipe Face Detection (BlazeFace CDN)
+      if (typeof window !== 'undefined' && !window.FaceDetection) {
+        await new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js';
+          script.crossOrigin = 'anonymous';
+          script.onload = () => resolve();
+          script.onerror = () => resolve(); // Gracefully fall back to CV skin/feature clustering
+          document.head.appendChild(script);
+        });
+      }
+
+      if (typeof window !== 'undefined' && window.FaceDetection) {
+        const fd = new window.FaceDetection({
+          locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${f}`
+        });
+        fd.setOptions({ model: 'short', minDetectionConfidence: 0.5 });
+        fd.onResults((res) => {
+          if (res.detections && res.detections.length > 0) {
+            const b = res.detections[0].boundingBox;
+            this.updateFromBox(b.xCenter, b.yCenter, b.width, b.height);
+          }
+        });
+        await fd.initialize().catch(() => {});
+        this.mpDetector = fd;
+      }
+    } catch (e) {
+      console.warn('[FaceAlignment] Model load notice:', e);
+    } finally {
+      this.isLoaded = true;
+      this.isLoading = false;
+      onProgress?.(false, '');
+    }
+  }
+
+  updateFromBox(cx, cy, w, h) {
+    const alpha = 0.24; // Exponential moving average for silky smooth 60fps tracking
+    this.state.cx += (cx - this.state.cx) * alpha;
+    this.state.cy += (cy - this.state.cy) * alpha;
+    this.state.width += (w - this.state.width) * alpha;
+    this.state.height += (h - this.state.height) * alpha;
+    this.state.hasFace = true;
+  }
+
+  detect(videoElement, maskCanvas) {
+    if (!videoElement || videoElement.readyState < 2) return this.state;
+
+    // A. Native FaceDetector
+    if (this.nativeDetector) {
+      const now = performance.now();
+      if (now - this.lastDetectedTime > 66) {
+        this.lastDetectedTime = now;
+        this.nativeDetector.detect(videoElement).then((faces) => {
+          if (faces && faces.length > 0) {
+            const b = faces[0].boundingBox;
+            const vw = videoElement.videoWidth || 1280;
+            const vh = videoElement.videoHeight || 720;
+            const cx = (b.x + b.width * 0.5) / vw;
+            const cy = (b.y + b.height * 0.45) / vh;
+            const w = b.width / vw;
+            const h = b.height / vh;
+            this.updateFromBox(cx, cy, w, h);
+          }
+        }).catch(() => {});
+      }
+      return this.state;
+    }
+
+    // B. MediaPipe Face Detection
+    if (this.mpDetector && !this.isMpDetecting) {
+      const now = performance.now();
+      if (now - this.lastDetectedTime > 80) {
+        this.lastDetectedTime = now;
+        this.isMpDetecting = true;
+        this.mpDetector.send({ image: videoElement })
+          .catch(() => {})
+          .finally(() => { this.isMpDetecting = false; });
+      }
+      return this.state;
+    }
+
+    // C. Computer Vision Skin Tone & Facial Feature Cluster Centroid Detector (Fastest zero-dependency CV)
+    if (maskCanvas) {
+      const mw = maskCanvas.width;
+      const mh = maskCanvas.height;
+      const ctx = maskCanvas.getContext('2d', { willReadFrequently: true });
+      if (ctx) {
+        ctx.drawImage(videoElement, 0, 0, mw, mh);
+        const imgData = ctx.getImageData(0, 0, mw, mh).data;
+        let sumX = 0, sumY = 0, count = 0;
+        let minX = mw, maxX = 0, minY = mh, maxY = 0;
+
+        for (let y = 4; y < mh * 0.72; y += 2) {
+          for (let x = 4; x < mw - 4; x += 2) {
+            const i = (y * mw + x) * 4;
+            const r = imgData[i];
+            const g = imgData[i + 1];
+            const b = imgData[i + 2];
+            if (r > 60 && g > 40 && b > 20 && r > g && r > b && (r - g) > 12 && Math.abs(r - g) < 140) {
+              sumX += x;
+              sumY += y;
+              count++;
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+
+        if (count > 20) {
+          const cx = (sumX / count) / mw;
+          const cy = (sumY / count) / mh;
+          const w = Math.max(0.16, Math.min(0.48, (maxX - minX) / mw));
+          const h = Math.max(0.20, Math.min(0.55, (maxY - minY) / mh));
+          this.updateFromBox(cx, cy, w, h);
+        }
+      }
+    }
+
+    return this.state;
+  }
+}
 
 class VideoBackgroundProcessor {
   constructor() {
@@ -27,26 +188,17 @@ class VideoBackgroundProcessor {
     this.isInferencing = false;
     this.loadedImages = {};
     this.onStreamUpdate = null;
+    this.onLoadingProgress = null;
 
-    // Auto-Framing face tracker state for astronaut
-    this.faceTracker = {
-      x: 0.5,       // normalized camera x center (0..1)
-      y: 0.35,      // normalized camera y center (0..1)
-      scale: 1.0,   // face scale factor
-      hasFace: false
-    };
-
-    // Preload background images & MediaPipe immediately
-    if (typeof window !== 'undefined') {
-      this.preloadBackgrounds();
-      // Lazy init MediaPipe after DOM is ready
-      setTimeout(() => this.initMediaPipe().catch(() => {}), 800);
-    }
+    // Face alignment engine
+    this.faceAlignment = new FaceAlignmentEngine();
   }
 
-  // Preload background images
-  preloadBackgrounds() {
+  // Lazy load assets only when user chooses an effect
+  async lazyLoadFilterAssets(filter, onProgress) {
     if (typeof window === 'undefined') return;
+
+    // 1. Background image (lazy loaded on-demand)
     const bgs = {
       studio: '/backgrounds/studio.jpg',
       rocket: '/backgrounds/rocket.jpg',
@@ -55,15 +207,31 @@ class VideoBackgroundProcessor {
       astronaut: '/backgrounds/astronaut.jpg',
     };
 
-    Object.entries(bgs).forEach(([key, url]) => {
-      if (this.loadedImages[key]) return;
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = url;
-      img.onload = () => {
-        this.loadedImages[key] = img;
-      };
-    });
+    if (bgs[filter] && !this.loadedImages[filter]) {
+      const label = filter.charAt(0).toUpperCase() + filter.slice(1);
+      onProgress?.(true, `Loading ${label} Background...`);
+      await new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = bgs[filter];
+        img.onload = () => {
+          this.loadedImages[filter] = img;
+          resolve();
+        };
+        img.onerror = () => resolve();
+      });
+    }
+
+    // 2. Face Alignment & CV model (lazy loaded on-demand for astronaut / portrait)
+    if (filter === 'astronaut') {
+      await this.faceAlignment.load(onProgress);
+    }
+
+    // 3. MediaPipe Selfie Segmentation (lazy loaded on-demand)
+    if (!this.isSegmenterReady && !this.isSegmenterLoading) {
+      onProgress?.(true, 'Initializing AI Segmentation...');
+      await this.initMediaPipe();
+    }
   }
 
   // Dynamically load MediaPipe Selfie Segmentation via CDN
@@ -79,7 +247,7 @@ class VideoBackgroundProcessor {
           script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js';
           script.crossOrigin = 'anonymous';
           script.onload = () => resolve();
-          script.onerror = (e) => reject(new Error('Failed to load MediaPipe SelfieSegmentation script'));
+          script.onerror = () => reject(new Error('Failed to load MediaPipe SelfieSegmentation'));
           document.head.appendChild(script);
         });
       }
@@ -89,10 +257,8 @@ class VideoBackgroundProcessor {
           locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`,
         });
 
-        // modelSelection 0 = general selfie (1MB, fast 30-60fps, low memory)
-        // selfieMode false ensures standard orientation matching raw camera
         segmenter.setOptions({
-          modelSelection: 0,
+          modelSelection: 0, // Fast model, low memory
           selfieMode: false,
         });
 
@@ -104,27 +270,34 @@ class VideoBackgroundProcessor {
         await segmenter.initialize();
         this.segmenter = segmenter;
         this.isSegmenterReady = true;
-        console.log('[VideoProcessor] MediaPipe AI Selfie Segmentation ready');
+        console.log('[VideoProcessor] MediaPipe AI Segmentation ready');
       }
     } catch (err) {
-      console.warn('[VideoProcessor] MediaPipe failed to init, using Smart Chroma Fallback:', err);
+      console.warn('[VideoProcessor] MediaPipe fallback:', err);
     } finally {
       this.isSegmenterLoading = false;
     }
   }
 
   // Start processing a raw camera stream
-  async start(rawStream, filter = 'none', onStreamUpdate = null) {
+  async start(rawStream, filter = 'none', onStreamUpdate = null, onLoadingProgress = null) {
     this.rawStream = rawStream;
     this.activeFilter = filter;
     this.onStreamUpdate = onStreamUpdate;
-    this.preloadBackgrounds();
+    this.onLoadingProgress = onLoadingProgress;
 
-    // Non-AI filters or 'none' don't need canvas canvas pipeline
     const aiFilters = ['blur', 'blur-light', 'blur-heavy', 'studio', 'rocket', 'nature', 'moon', 'astronaut'];
     if (!aiFilters.includes(filter)) {
       this.stopProcessing();
       return rawStream;
+    }
+
+    // Lazy load the models and background assets for this chosen filter
+    try {
+      this.onLoadingProgress?.(true, 'Loading AI Model & Green Screen Effect...');
+      await this.lazyLoadFilterAssets(filter, this.onLoadingProgress);
+    } finally {
+      this.onLoadingProgress?.(false, '');
     }
 
     if (!this.canvas) {
@@ -155,11 +328,6 @@ class VideoBackgroundProcessor {
     this.videoElement.srcObject = rawStream;
     await this.videoElement.play().catch(() => {});
 
-    // Ensure MediaPipe is initialized
-    if (!this.isSegmenterReady && !this.isSegmenterLoading) {
-      this.initMediaPipe().catch(() => {});
-    }
-
     // Synchronize processedStream with live rawStream audio track
     const canvasTrack = this.canvas.captureStream(30).getVideoTracks()[0];
     const audioTrack = rawStream.getAudioTracks()[0];
@@ -170,7 +338,6 @@ class VideoBackgroundProcessor {
       if (audioTrack) combinedTracks.push(audioTrack);
       this.processedStream = new MediaStream(combinedTracks);
     } else {
-      // Remove stale audio tracks and attach the live microphone track
       this.processedStream.getAudioTracks().forEach(t => {
         try { this.processedStream.removeTrack(t); } catch (_) {}
       });
@@ -193,7 +360,7 @@ class VideoBackgroundProcessor {
       }
     } else {
       if (!this.animId && this.rawStream) {
-        this.start(this.rawStream, filter, this.onStreamUpdate).then((stream) => {
+        this.start(this.rawStream, filter, this.onStreamUpdate, this.onLoadingProgress).then((stream) => {
           if (this.onStreamUpdate) this.onStreamUpdate(stream);
         });
       }
@@ -217,7 +384,6 @@ class VideoBackgroundProcessor {
               this.renderChromaOrSilhouetteFallback();
             });
         } else if (!this.isSegmenterReady) {
-          // Render graceful smart fallback while model loads or if offline
           this.renderChromaOrSilhouetteFallback();
         }
       }
@@ -226,81 +392,6 @@ class VideoBackgroundProcessor {
     };
 
     this.animId = requestAnimationFrame(step);
-  }
-
-  // Analyze segmentation mask or downscaled video to auto-detect face bounding centroid
-  updateFaceTracking(sourceImage, maskImage = null) {
-    if (!this.maskCtx || !this.maskCanvas) return;
-    const mw = this.maskCanvas.width;
-    const mh = this.maskCanvas.height;
-
-    let targetX = 0.5;
-    let targetY = 0.35;
-    let targetScale = 1.0;
-    let detected = false;
-
-    if (maskImage) {
-      // Analyze segmentation mask: head is the topmost cluster of positive pixels
-      this.maskCtx.drawImage(maskImage, 0, 0, mw, mh);
-      const imgData = this.maskCtx.getImageData(0, 0, mw, mh).data;
-
-      let topY = -1;
-      let sumX = 0;
-      let count = 0;
-      let minX = mw;
-      let maxX = 0;
-
-      // Scan rows from top to find person head
-      for (let y = 4; y < mh * 0.65; y++) {
-        for (let x = 4; x < mw - 4; x++) {
-          const idx = (y * mw + x) * 4;
-          // In MediaPipe mask, white/alpha > 120 indicates person
-          if (imgData[idx] > 100 || imgData[idx + 3] > 100) {
-            if (topY === -1) topY = y;
-            if (topY !== -1 && y < topY + mh * 0.35) {
-              sumX += x;
-              count++;
-              if (x < minX) minX = x;
-              if (x > maxX) maxX = x;
-            }
-          }
-        }
-      }
-
-      if (count > 25 && topY !== -1) {
-        targetX = (sumX / count) / mw;
-        targetY = (topY + mh * 0.16) / mh;
-        const headSpan = Math.max(12, maxX - minX);
-        targetScale = Math.min(1.4, Math.max(0.75, 45 / headSpan));
-        detected = true;
-      }
-    }
-
-    if (!detected) {
-      // Native FaceDetector fallback if available
-      if (typeof window !== 'undefined' && window.FaceDetector && !this.nativeFaceCheck) {
-        this.nativeFaceCheck = true;
-        try {
-          const detector = new window.FaceDetector({ fastMode: true });
-          detector.detect(sourceImage).then(faces => {
-            if (faces && faces.length > 0) {
-              const f = faces[0].boundingBox;
-              const cx = (f.x + f.width * 0.5) / (sourceImage.videoWidth || sourceImage.width || 1280);
-              const cy = (f.y + f.height * 0.5) / (sourceImage.videoHeight || sourceImage.height || 720);
-              this.faceTracker.x += (cx - this.faceTracker.x) * 0.25;
-              this.faceTracker.y += (cy - this.faceTracker.y) * 0.25;
-            }
-          }).catch(() => {});
-        } catch (_) {}
-      }
-    }
-
-    // Smooth exponential interpolation (lerp) for smooth cinematic camera tracking
-    const smoothFactor = detected ? 0.18 : 0.06;
-    this.faceTracker.x += (targetX - this.faceTracker.x) * smoothFactor;
-    this.faceTracker.y += (targetY - this.faceTracker.y) * smoothFactor;
-    this.faceTracker.scale += (targetScale - this.faceTracker.scale) * smoothFactor;
-    this.faceTracker.hasFace = detected;
   }
 
   // Render segmented frame when MediaPipe result arrives
@@ -332,17 +423,13 @@ class VideoBackgroundProcessor {
         ctx.fillRect(0, 0, width, height);
       }
     } else if (this.activeFilter === 'astronaut') {
-      // Draw slightly zoomed Astronaut background
       this.drawZoomedAstronautBackground(ctx, width, height);
     }
 
     // 2. Render User
     if (this.activeFilter === 'astronaut') {
-      // Auto-frame face into astronaut helmet visor with glass shield
-      this.updateFaceTracking(results.image, results.segmentationMask);
       this.renderAstronautVisor(ctx, results.image, width, height, results.segmentationMask);
     } else {
-      // Standard Virtual Background / Blur: Extract person with mask and mirror face naturally
       pCtx.save();
       pCtx.clearRect(0, 0, width, height);
       pCtx.translate(width, 0);
@@ -352,7 +439,6 @@ class VideoBackgroundProcessor {
       pCtx.drawImage(results.segmentationMask, 0, 0, width, height);
       pCtx.restore();
 
-      // Composite extracted person over background
       ctx.drawImage(this.personCanvas, 0, 0);
     }
 
@@ -366,14 +452,11 @@ class VideoBackgroundProcessor {
       const iw = astroImg.naturalWidth;  // 1376
       const ih = astroImg.naturalHeight; // 768
       
-      // Visor in source astronaut.jpg is located at:
-      // Center X: 695, Center Y: 248, Radius X: 62, Radius Y: 86
-      // Cinematic portrait framing: 1.62x zoom focused on astronaut chest & helmet
       const zoom = 1.62;
       const sw = iw / zoom;
       const sh = ih / zoom;
       const sx = 695 - sw * 0.50; // Center visor horizontally
-      const sy = 248 - sh * 0.33; // Visor positioned at ~33% height (natural head level)
+      const sy = 248 - sh * 0.33; // Visor positioned at natural head level
 
       ctx.drawImage(astroImg, sx, sy, sw, sh, 0, 0, width, height);
 
@@ -385,7 +468,6 @@ class VideoBackgroundProcessor {
         vry: 86 * (height / sh)
       };
     } else {
-      // Space starry background fallback
       const grad = ctx.createRadialGradient(width * 0.5, height * 0.3, 50, width * 0.5, height * 0.5, width * 0.7);
       grad.addColorStop(0, '#101B2B');
       grad.addColorStop(1, '#05070B');
@@ -401,7 +483,7 @@ class VideoBackgroundProcessor {
     }
   }
 
-  // Render astronaut helmet visor: Only face visible, with curved glass shield & HUD
+  // Render astronaut helmet visor: Face centered, auto-zoomed to fill visor, with glass reflections & HUD
   renderAstronautVisor(ctx, imageSource, width, height, maskSource = null) {
     const visor = this.currentVisor || {
       vx: width * 0.50,
@@ -428,72 +510,53 @@ class VideoBackgroundProcessor {
     pCtx.fillStyle = innerCavity;
     pCtx.fillRect(vx - vrx * 1.2, vy - vry * 1.2, vrx * 2.4, vry * 2.4);
 
-    // 3. User Face Placement (Centered & ONLY Cover Face)
+    // 3. User Face Placement: AI Computer Vision Auto-Zoom & Visor Alignment
     const camW = imageSource.videoWidth || imageSource.width || 1280;
     const camH = imageSource.videoHeight || imageSource.height || 720;
 
-    const faceX = this.faceTracker.x;
-    const faceY = this.faceTracker.y;
-    const faceScale = Math.max(0.85, this.faceTracker.scale);
+    const face = this.faceAlignment.detect(this.videoElement, this.maskCanvas);
 
-    // Tight head crop (zoom in on head/face to fit inside helmet visor)
-    const cropW = Math.min(camW, (camW * 0.36) / faceScale);
-    const cropH = Math.min(camH, (camH * 0.44) / faceScale);
-    const cropX = Math.max(0, Math.min(camW - cropW, faceX * camW - cropW * 0.5));
-    const cropY = Math.max(0, Math.min(camH - cropH, faceY * camH - cropH * 0.46));
+    // Center of user's face in camera pixels
+    const fcx = face.cx * camW;
+    const fcy = face.cy * camH;
+    const fH = Math.max(camH * 0.16, Math.min(camH * 0.52, face.height * camH));
 
-    // Save context for mirrored face drawing
+    // Auto-zoom calculation: Tight crop from crown of hair to chin (1.35x face height)
+    // Scaled to match the exact aspect ratio of the helmet visor (vrx / vry)
+    const cropH = fH * 1.35;
+    const cropW = cropH * (vrx / vry);
+    const cropX = Math.max(0, Math.min(camW - cropW, fcx - cropW * 0.5));
+    const cropY = Math.max(0, Math.min(camH - cropH, fcy - cropH * 0.44)); // Align eyes at ~44% from top
+
     pCtx.save();
     pCtx.translate(vx, vy);
-    pCtx.scale(-1, 1); // Natural mirror orientation for user's face
+    pCtx.scale(-1, 1); // Natural mirror orientation
     pCtx.translate(-vx, -vy);
 
-    if (maskSource) {
-      // Use segmentation mask to extract ONLY person (no room / wall background)
-      // Draw segmented face
-      pCtx.drawImage(
-        imageSource,
-        cropX, cropY, cropW, cropH,
-        vx - vrx * 1.05, vy - vry * 1.02, vrx * 2.1, vry * 2.04
-      );
+    // Draw zoomed and centered face onto visor aperture
+    pCtx.drawImage(
+      imageSource,
+      cropX, cropY, cropW, cropH,
+      vx - vrx * 1.02, vy - vry * 1.02, vrx * 2.04, vry * 2.04
+    );
 
-      // Fade out torso & clothes below chin into the dark helmet neck collar
-      pCtx.globalCompositeOperation = 'destination-in';
-      const neckFade = pCtx.createLinearGradient(vx, vy - vry * 0.9, vx, vy + vry * 0.95);
-      neckFade.addColorStop(0.0, 'rgba(0,0,0,1)');
-      neckFade.addColorStop(0.70, 'rgba(0,0,0,1)');
-      neckFade.addColorStop(0.92, 'rgba(0,0,0,0.65)');
-      neckFade.addColorStop(1.0, 'rgba(0,0,0,0.0)');
-      pCtx.fillStyle = neckFade;
-      pCtx.fillRect(vx - vrx * 1.2, vy - vry * 1.2, vrx * 2.4, vry * 2.4);
-    } else {
-      // Fallback: Tight oval vignette around face only
-      pCtx.drawImage(
-        imageSource,
-        cropX, cropY, cropW, cropH,
-        vx - vrx * 1.05, vy - vry * 1.02, vrx * 2.1, vry * 2.04
-      );
+    // Soft gradient fade below chin into the dark helmet neck collar
+    pCtx.globalCompositeOperation = 'destination-in';
+    const neckFade = pCtx.createLinearGradient(vx, vy - vry * 0.95, vx, vy + vry * 0.95);
+    neckFade.addColorStop(0.0, 'rgba(0,0,0,1)');
+    neckFade.addColorStop(0.72, 'rgba(0,0,0,1)');
+    neckFade.addColorStop(0.92, 'rgba(0,0,0,0.6)');
+    neckFade.addColorStop(1.0, 'rgba(0,0,0,0.0)');
+    pCtx.fillStyle = neckFade;
+    pCtx.fillRect(vx - vrx * 1.2, vy - vry * 1.2, vrx * 2.4, vry * 2.4);
 
-      pCtx.globalCompositeOperation = 'destination-in';
-      const softFaceVignette = pCtx.createRadialGradient(
-        vx, vy - vry * 0.05, vrx * 0.55,
-        vx, vy, Math.max(vrx, vry) * 0.98
-      );
-      softFaceVignette.addColorStop(0.0, 'rgba(0,0,0,1)');
-      softFaceVignette.addColorStop(0.72, 'rgba(0,0,0,0.95)');
-      softFaceVignette.addColorStop(1.0, 'rgba(0,0,0,0.0)');
-      pCtx.fillStyle = softFaceVignette;
-      pCtx.fillRect(vx - vrx * 1.2, vy - vry * 1.2, vrx * 2.4, vry * 2.4);
-    }
     pCtx.restore();
     pCtx.restore();
 
-    // Composite face inside helmet onto main canvas
+    // Composite face onto main canvas
     ctx.drawImage(this.personCanvas, 0, 0);
 
-    // ============================================================
-    // 4. REALISTIC MULTI-LAYERED CURVED GLASS HELMET VISOR SHIELD
-    // ============================================================
+    // 4. Multi-Layered Curved Glass Helmet Visor Shield
     ctx.save();
     ctx.beginPath();
     ctx.ellipse(vx, vy, vrx, vry, 0, 0, Math.PI * 2);
@@ -513,21 +576,18 @@ class VideoBackgroundProcessor {
 
     // Glass Layer 2: Protective Apollo Gold & Celestial Blue Reflective Sheen
     const shieldSheen = ctx.createLinearGradient(vx - vrx, vy - vry, vx + vrx, vy + vry);
-    shieldSheen.addColorStop(0.0, 'rgba(235, 185, 45, 0.20)');  // Apollo gold coating
+    shieldSheen.addColorStop(0.0, 'rgba(235, 185, 45, 0.20)');
     shieldSheen.addColorStop(0.45, 'rgba(255, 220, 100, 0.08)');
-    shieldSheen.addColorStop(0.70, 'rgba(70, 190, 255, 0.06)'); // Earth reflection
+    shieldSheen.addColorStop(0.70, 'rgba(70, 190, 255, 0.06)');
     shieldSheen.addColorStop(1.0, 'rgba(220, 175, 40, 0.14)');
     ctx.fillStyle = shieldSheen;
     ctx.fill();
 
-    // Glass Layer 3: Primary Curved Specular Sunlight Glare Arc
+    // Glass Layer 3: Specular Sunlight Glare Arc
     ctx.save();
     ctx.beginPath();
     ctx.ellipse(vx - vrx * 0.32, vy - vry * 0.40, vrx * 0.62, vry * 0.42, -0.32, 0, Math.PI * 2);
-    const sunGlareArc = ctx.createLinearGradient(
-      vx - vrx * 0.70, vy - vry * 0.75,
-      vx, vy
-    );
+    const sunGlareArc = ctx.createLinearGradient(vx - vrx * 0.70, vy - vry * 0.75, vx, vy);
     sunGlareArc.addColorStop(0.0, 'rgba(255, 255, 255, 0.68)');
     sunGlareArc.addColorStop(0.25, 'rgba(255, 255, 255, 0.32)');
     sunGlareArc.addColorStop(0.65, 'rgba(210, 240, 255, 0.06)');
@@ -536,14 +596,11 @@ class VideoBackgroundProcessor {
     ctx.fill();
     ctx.restore();
 
-    // Glass Layer 4: Secondary Horizon / Earthlight Reflection (Bottom-Right Rim)
+    // Glass Layer 4: Earthlight Horizon Glow
     ctx.save();
     ctx.beginPath();
     ctx.ellipse(vx + vrx * 0.36, vy + vry * 0.44, vrx * 0.52, vry * 0.34, 0.36, 0, Math.PI * 2);
-    const earthGlow = ctx.createLinearGradient(
-      vx + vrx * 0.65, vy + vry * 0.70,
-      vx, vy
-    );
+    const earthGlow = ctx.createLinearGradient(vx + vrx * 0.65, vy + vry * 0.70, vx, vy);
     earthGlow.addColorStop(0.0, 'rgba(80, 210, 255, 0.36)');
     earthGlow.addColorStop(0.50, 'rgba(80, 200, 255, 0.10)');
     earthGlow.addColorStop(1.0, 'rgba(80, 190, 255, 0.0)');
@@ -551,18 +608,14 @@ class VideoBackgroundProcessor {
     ctx.fill();
     ctx.restore();
 
-    // Glass Layer 5: Futuristic Visor HUD Telemetry (100% Upright & Crisp)
+    // Glass Layer 5: Visor HUD Telemetry
     ctx.save();
     ctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
     ctx.fillStyle = '#00F0FF';
     ctx.shadowColor = 'rgba(0, 240, 255, 0.9)';
     ctx.shadowBlur = 5;
-
-    // Left HUD indicators
     ctx.fillText('● EVA ACTIVE', vx - vrx * 0.72, vy - vry * 0.66);
     ctx.fillText('O₂ 98.4%', vx - vrx * 0.72, vy + vry * 0.76);
-
-    // Right HUD telemetry
     ctx.fillText('P 4.3 PSI', vx + vrx * 0.18, vy + vry * 0.76);
     ctx.fillText('NOMINAL', vx + vrx * 0.18, vy - vry * 0.66);
     ctx.restore();
@@ -574,19 +627,17 @@ class VideoBackgroundProcessor {
     ctx.beginPath();
     ctx.ellipse(vx, vy, vrx, vry, 0, 0, Math.PI * 2);
     ctx.lineWidth = 5;
-    ctx.strokeStyle = '#12161D'; // Dark rubberized helmet seal gasket
+    ctx.strokeStyle = '#12161D';
     ctx.stroke();
 
     ctx.beginPath();
     ctx.ellipse(vx, vy, vrx + 2, vry + 2, 0, 0, Math.PI * 2);
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = 'rgba(218, 165, 32, 0.75)'; // Fine gold metallic bezel
+    ctx.strokeStyle = 'rgba(218, 165, 32, 0.75)';
     ctx.stroke();
     ctx.restore();
   }
 
-  // Smart Chroma Key & Soft Silhouette Fallback
-  // (Used when MediaPipe is loading or if offline - NO MORE CIRCLE CUTOUTS!)
   renderChromaOrSilhouetteFallback() {
     if (!this.ctx || !this.canvas || !this.videoElement) return;
     const { width, height } = this.canvas;
@@ -597,7 +648,6 @@ class VideoBackgroundProcessor {
     ctx.clearRect(0, 0, width, height);
 
     if (this.activeFilter.startsWith('blur')) {
-      // Smooth background blur: draw video with soft center depth
       ctx.drawImage(vid, 0, 0, width, height);
       const blurAmount = this.activeFilter === 'blur-heavy' ? '18px' : '10px';
       ctx.save();
@@ -605,7 +655,6 @@ class VideoBackgroundProcessor {
       ctx.drawImage(vid, 0, 0, width, height);
       ctx.restore();
 
-      // Sharp foreground portrait
       const pGrad = ctx.createRadialGradient(width * 0.5, height * 0.45, 120, width * 0.5, height * 0.5, width * 0.45);
       pGrad.addColorStop(0, 'rgba(255,255,255,1)');
       pGrad.addColorStop(0.7, 'rgba(255,255,255,0.7)');
@@ -619,11 +668,9 @@ class VideoBackgroundProcessor {
       this.personCtx.restore();
       ctx.drawImage(this.personCanvas, 0, 0);
     } else if (this.activeFilter === 'astronaut') {
-      // Fallback astronaut suit with auto-framed visor
       this.drawZoomedAstronautBackground(ctx, width, height);
       this.renderAstronautVisor(ctx, vid, width, height);
     } else if (['studio', 'rocket', 'nature', 'moon'].includes(this.activeFilter)) {
-      // Virtual background with smart foreground chroma/feathering
       const bgImg = this.loadedImages[this.activeFilter];
       if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
         ctx.drawImage(bgImg, 0, 0, width, height);
@@ -632,56 +679,20 @@ class VideoBackgroundProcessor {
         ctx.fillRect(0, 0, width, height);
       }
 
-      // Check if green screen is present in camera feed
-      const mw = 120;
-      const mh = 68;
-      this.maskCanvas.width = mw;
-      this.maskCanvas.height = mh;
-      this.maskCtx.drawImage(vid, 0, 0, mw, mh);
-      const sample = this.maskCtx.getImageData(0, 0, mw, mh).data;
-
-      let greenScreenCount = 0;
-      for (let i = 0; i < sample.length; i += 16) {
-        const r = sample[i];
-        const g = sample[i + 1];
-        const b = sample[i + 2];
-        if (g > 65 && g > r * 1.25 && g > b * 1.25) {
-          greenScreenCount++;
-        }
-      }
-
-      const isGreenScreen = greenScreenCount > (sample.length / 16) * 0.15;
-
       this.personCtx.save();
       this.personCtx.clearRect(0, 0, width, height);
       this.personCtx.drawImage(vid, 0, 0, width, height);
 
-      if (isGreenScreen) {
-        // High-speed Canvas Chroma Keying
-        const frame = this.personCtx.getImageData(0, 0, width, height);
-        const d = frame.data;
-        for (let i = 0; i < d.length; i += 4) {
-          const r = d[i];
-          const g = d[i + 1];
-          const b = d[i + 2];
-          if (g > 60 && g > r * 1.25 && g > b * 1.25) {
-            d[i + 3] = 0; // Transparent background
-          }
-        }
-        this.personCtx.putImageData(frame, 0, 0);
-      } else {
-        // Natural soft-edge silhouette blend (no circle cutout!)
-        const softMask = this.personCtx.createRadialGradient(
-          width * 0.5, height * 0.55, width * 0.22,
-          width * 0.5, height * 0.55, width * 0.46
-        );
-        softMask.addColorStop(0, 'rgba(0,0,0,1)');
-        softMask.addColorStop(0.75, 'rgba(0,0,0,0.85)');
-        softMask.addColorStop(1, 'rgba(0,0,0,0)');
-        this.personCtx.globalCompositeOperation = 'destination-in';
-        this.personCtx.fillStyle = softMask;
-        this.personCtx.fillRect(0, 0, width, height);
-      }
+      const softMask = this.personCtx.createRadialGradient(
+        width * 0.5, height * 0.55, width * 0.22,
+        width * 0.5, height * 0.55, width * 0.46
+      );
+      softMask.addColorStop(0, 'rgba(0,0,0,1)');
+      softMask.addColorStop(0.75, 'rgba(0,0,0,0.85)');
+      softMask.addColorStop(1, 'rgba(0,0,0,0)');
+      this.personCtx.globalCompositeOperation = 'destination-in';
+      this.personCtx.fillStyle = softMask;
+      this.personCtx.fillRect(0, 0, width, height);
       this.personCtx.restore();
 
       ctx.drawImage(this.personCanvas, 0, 0);

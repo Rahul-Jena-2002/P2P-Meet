@@ -828,7 +828,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     };
   } else if (pinnedIds.length === 2) {
     presentationInfo = {
-      name: '2 Pinned (50/50)',
+      name: '2 Pinned',
       isPinned: true,
       onUnpin: handleUnpinAll
     };
@@ -840,15 +840,20 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     };
   } else if (pinnedIds.length === 4) {
     presentationInfo = {
-      name: '4 Pinned (Quadrants)',
+      name: '4 Pinned',
       isPinned: true,
       onUnpin: handleUnpinAll
     };
   } else if (activeSharer) {
+    const sharerTileId = activeSharer.isLocal ? `${localUserObj.id}-screen` : `${activeSharer.id}-screen`;
+    const isSharerPinned = pinnedIds.includes(sharerTileId);
     presentationInfo = {
       name: activeSharer.name,
       isLocal: activeSharer.isLocal || false,
-      isScreenSharing: true
+      isScreenSharing: true,
+      isPinned: isSharerPinned,
+      onPin: () => handleTogglePin(sharerTileId),
+      onUnpin: () => handleTogglePin(sharerTileId)
     };
   } else if (watchTogetherState?.active) {
     presentationInfo = {
@@ -859,13 +864,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   }
 
   const isPresenting = pinnedIds.length > 0 || !!activeSharer || watchTogetherState?.active;
-  // Side tiles only exist in presentation mode when participants have live cameras ON!
-  const remotePeersWithCamera = Object.values(peers).filter(p => p.isVideoOn && p.stream?.getVideoTracks()?.length > 0);
-  const localHasCamera = videoEnabled && localStream?.getVideoTracks()?.length > 0;
-  const camerasActiveCount = (activeSharer?.isLocal ? (localHasCamera ? 1 : 0) : (localHasCamera ? 1 : 0)) +
-    remotePeersWithCamera.filter(p => p.id !== activeSharer?.id).length;
-  const hasPeopleSidebar = isPresenting && !isMobile && camerasActiveCount > 0;
-  const peopleSidebarWidth = hasPeopleSidebar ? 288 : 0;
+  const peopleSidebarWidth = 0;
 
   return (
     <div className="relative w-screen h-[100dvh] max-h-[100dvh] bg-[#0D0B14] text-[#F8F7FC] overflow-hidden flex select-none" style={{ height: '100dvh' }}>
@@ -933,12 +932,6 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           isSupernode={isSupernode}
           presentationInfo={presentationInfo}
           sidebarOffset={peopleSidebarWidth}
-        />
-
-        {/* Mouse proximity trigger for bottom dock */}
-        <div
-          onMouseEnter={() => setControlsVisible(true)}
-          className="absolute bottom-0 left-0 right-0 h-20 z-30 pointer-events-auto"
         />
 
         {/* 3. Floating Bottom Controls Dock (centered within video stage area) */}

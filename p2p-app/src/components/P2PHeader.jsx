@@ -92,8 +92,8 @@ export default function P2PHeader({
       style={{
         right: sidebarOffset ? `${sidebarOffset + 24}px` : undefined
       }}
-      className={`fixed sm:absolute top-3 sm:top-5 left-3 sm:left-6 right-3 sm:right-6 z-30 flex items-center justify-between select-none pointer-events-none transition-all duration-300 ${
-        isVisible ? 'opacity-100' : 'opacity-0'
+      className={`fixed sm:absolute top-3 sm:top-5 left-3 sm:left-6 right-3 sm:right-6 z-30 flex items-center justify-between select-none transition-all duration-300 ease-in-out ${
+        isVisible ? 'translate-y-0 opacity-100' : '-translate-y-16 opacity-0 pointer-events-none'
       }`}
     >
       {/* 1. LEFT: Iconic Security Shield (Meeting Info) + Viewing Message + Recording Badge */}
@@ -101,10 +101,10 @@ export default function P2PHeader({
         <button
           id="zoom-info-btn"
           onClick={() => setShowInfoModal(v => !v)}
-          className={`pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition text-xs font-semibold border border-white/10 backdrop-blur-xl cursor-pointer ${
+          className={`pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition text-xs font-semibold border border-white/20 backdrop-blur-2xl cursor-pointer ${
             showInfoModal
-              ? 'bg-[#FF6B35] text-[#0D0B14]'
-              : 'bg-[#0D0B14]/60 hover:bg-[#0D0B14]/85 text-[#F8F7FC]'
+              ? 'bg-white/30 text-white'
+              : 'bg-white/[0.10] hover:bg-white/[0.20] text-white'
           }`}
           title="Meeting Information (E2EE Direct Security)"
         >
@@ -114,7 +114,7 @@ export default function P2PHeader({
 
         {/* Viewing message replaces Direct Mesh */}
         {presentationInfo && (
-          <div className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-white/10 bg-[#0D0B14]/60 backdrop-blur-xl text-white/90 shadow-md">
+          <div className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-white/20 bg-white/[0.10] backdrop-blur-2xl text-white shadow-none">
             <Monitor className="w-3.5 h-3.5 text-[#FFA14A]" />
             <span className="font-medium truncate max-w-[180px] sm:max-w-none">
               {presentationInfo.isPinned
@@ -129,10 +129,10 @@ export default function P2PHeader({
             {presentationInfo.isPinned && presentationInfo.onUnpin && (
               <button
                 onClick={presentationInfo.onUnpin}
-                className="ml-1 text-[10px] text-white/60 hover:text-white"
-                title="Unpin All"
+                className="ml-1.5 px-2 py-0.5 rounded-full bg-white/20 hover:bg-white/35 text-white text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                title="Unpin"
               >
-                ✕
+                <span>✕ Unpin</span>
               </button>
             )}
           </div>
@@ -239,7 +239,7 @@ export default function P2PHeader({
       </div>
 
       {/* 2. CENTER: Meeting Clock Duration with Orange Live Indicator */}
-      <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#0D0B14]/60 border border-white/10 text-xs font-mono text-[#F8F7FC] backdrop-blur-xl pointer-events-auto">
+      <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.12] border border-white/20 text-xs font-mono text-white backdrop-blur-2xl pointer-events-auto">
         <span className="w-2 h-2 rounded-full bg-[#FF6B35] animate-pulse" />
         <Clock className="w-3.5 h-3.5 text-[#FFA14A]" />
         <span className="font-bold">{formatTimer(secondsElapsed)}</span>
@@ -261,17 +261,17 @@ export default function P2PHeader({
           <button
             id="zoom-view-btn"
             onClick={() => setShowViewDropdown(v => !v)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0D0B14]/60 hover:bg-[#0D0B14]/85 border border-white/10 text-[#F8F7FC] text-xs font-semibold backdrop-blur-xl transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.12] hover:bg-white/[0.22] border border-white/20 text-white text-xs font-semibold backdrop-blur-2xl transition cursor-pointer"
           >
-            <LayoutGrid className="w-3.5 h-3.5 text-[#FF6B35]" />
+            <LayoutGrid className="w-3.5 h-3.5 text-[#FFA14A]" />
             <span>View</span>
-            <ChevronDown className="w-3 h-3 text-[#FF6B35]" />
+            <ChevronDown className="w-3 h-3 text-white/80" />
           </button>
 
           {showViewDropdown && (
             <div
               ref={viewMenuRef}
-              className="absolute right-0 top-12 w-48 rounded-2xl bg-[#161324]/95 border border-white/10 p-1.5 text-xs shadow-2xl shadow-black/90 text-[#F8F7FC] z-50 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100"
+              className="absolute right-0 top-12 w-48 rounded-2xl bg-[#161324]/85 border border-white/20 p-1.5 text-xs text-[#F8F7FC] z-50 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100"
             >
               <button
                 onClick={() => { onToggleViewMode?.('speaker'); setShowViewDropdown(false); }}

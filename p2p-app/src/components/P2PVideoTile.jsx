@@ -41,11 +41,15 @@ export default function P2PVideoTile({
 
   let videoFilter = 'none';
   let selectedSpeaker = '';
+  let isEffectLoading = false;
+  let effectLoadingText = '';
   try {
     const media = useMedia();
     if (media) {
       videoFilter = media.videoFilter || 'none';
       selectedSpeaker = media.selectedSpeaker || '';
+      isEffectLoading = media.isEffectLoading || false;
+      effectLoadingText = media.effectLoadingText || '';
     }
   } catch (e) {}
 
@@ -376,64 +380,67 @@ export default function P2PVideoTile({
         </div>
       )}
 
-      {/* Top Indicators & Quick Action Controls (Only rendered on individual tiles, not fullscreen hero to prevent View collision) */}
-      {/* Top Indicators & Quick Action Controls (Rendered on tiles or when pinned) */}
-      {(!isSingle || isPinned) && (
-        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-20">
-          {/* Left side: Hand Raised / Screen Sharing / Pinned */}
-          <div className="flex items-center gap-1.5">
-            {isHandRaised && (
-              <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FF6B35]/80 text-[#0D0B14] text-[10px] font-bold shadow-md backdrop-blur-xl border border-[#FF6B35] animate-bounce">
-                <span>✋ Raised</span>
-              </div>
-            )}
-            {isScreenSharing && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0D0B14]/60 text-[#C4B5FD] text-[10px] font-bold backdrop-blur-xl border border-white/15 shadow-md">
-                <Monitor className="w-3.5 h-3.5 text-[#FF6B35]" />
-                <span>Screen</span>
-              </div>
-            )}
-            {isPinned && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FF6B35] text-[#0D0B14] text-[10px] font-bold backdrop-blur-xl border border-[#FF6B35] shadow-md">
-                <Pin className="w-3 h-3 fill-current" />
-                <span>Pinned</span>
-              </div>
-            )}
-          </div>
+      {/* Google Meet-Style Centered Hover Action Overlay (Pin / Unpin) */}
+      {onPinToggle && !isEffectLoading && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPinToggle();
+            }}
+            className={`pointer-events-auto flex items-center gap-1.5 px-4 py-2 rounded-full backdrop-blur-2xl border text-xs font-semibold shadow-md transition-transform hover:scale-105 active:scale-95 cursor-pointer ${
+              isPinned
+                ? 'bg-[#FF6B35] text-[#0D0B14] border-[#FF6B35] hover:bg-[#FFA14A]'
+                : 'bg-white/20 hover:bg-white/35 text-white border-white/30'
+            }`}
+            title={isPinned ? 'Unpin from main screen' : 'Pin to main screen'}
+          >
+            {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+            <span>{isPinned ? 'Unpin' : 'Pin'}</span>
+          </button>
+        </div>
+      )}
 
-          {/* Right side: Connection signal strength & Pin toggle button */}
-          <div className="flex items-center gap-1.5 pointer-events-auto opacity-80 hover:opacity-100 transition-opacity">
-            {/* Zoom 3-Bar Signal Health Meter */}
-            <div
-              className="flex items-end gap-[2px] px-1.5 py-1 rounded-full bg-[#0D0B14]/60 backdrop-blur-xl border border-white/10"
-              title="P2P Connection Quality (STUN: Excellent)"
-            >
-              <span className="w-[2.5px] h-1.5 rounded-sm bg-emerald-400" />
-              <span className="w-[2.5px] h-2.5 rounded-sm bg-emerald-400" />
-              <span className="w-[2.5px] h-3.5 rounded-sm bg-emerald-400" />
-            </div>
-
-            {onPinToggle && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPinToggle();
-                }}
-                title={isPinned ? "Unpin video" : "Pin video (Up to 4)"}
-                className={`p-1.5 rounded-full backdrop-blur-xl border transition shadow-md cursor-pointer ${
-                  isPinned
-                    ? 'bg-[#FF6B35] border-[#FF6B35] text-[#0D0B14]'
-                    : 'bg-[#0D0B14]/60 border-white/15 hover:bg-[#FF6B35]/30 text-[#F8F7FC]'
-                }`}
-              >
-                {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
-              </button>
-            )}
+      {/* AI Model Loading & Face Alignment Floating Pill Overlay */}
+      {isLocal && isEffectLoading && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full ios-glass-pill shadow-xl text-xs font-semibold text-white pointer-events-auto">
+            <div className="w-3.5 h-3.5 border-2 border-[#FF6B35] border-t-transparent rounded-full animate-spin shrink-0" />
+            <span>{effectLoadingText || 'Aligning Face & Loading AI Effect...'}</span>
           </div>
         </div>
       )}
 
-      {/* Bottom Left Name tag with audio icon - hidden on fullscreen screen-share to prevent content obstruction */}
+      {/* Top Indicators - Only on non-single grid tiles, never on full-screen hero stage to avoid header overlap */}
+      {!isSingle && (
+        <div className="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-none z-20">
+          <div className="flex items-center gap-1.5">
+            {isHandRaised && (
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FF6B35]/90 text-[#0D0B14] text-[10px] font-bold shadow-sm backdrop-blur-xl border border-[#FF6B35] animate-bounce">
+                <span>✋ Raised</span>
+              </div>
+            )}
+            {isScreenSharing && (
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 text-[#C4B5FD] text-[10px] font-bold backdrop-blur-xl border border-white/15">
+                <Monitor className="w-3 h-3 text-[#FF6B35]" />
+                <span>Screen</span>
+              </div>
+            )}
+          </div>
+
+          {/* Signal health meter */}
+          <div
+            className="flex items-end gap-[2px] px-1.5 py-1 rounded-full bg-black/50 backdrop-blur-xl border border-white/10 ml-auto"
+            title="P2P Connection Quality (STUN: Excellent)"
+          >
+            <span className="w-[2px] h-1 rounded-sm bg-emerald-400" />
+            <span className="w-[2px] h-2 rounded-sm bg-emerald-400" />
+            <span className="w-[2px] h-3 rounded-sm bg-emerald-400" />
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Left Name tag with audio icon and status badges */}
       {!(isScreenSharing && isSingle) && (
         <div className="absolute bottom-2.5 left-2.5 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[#F8F7FC] text-xs font-medium border border-white/10 shadow-md z-20">
           <div className="shrink-0">
@@ -444,6 +451,12 @@ export default function P2PVideoTile({
             )}
           </div>
           <span className="truncate max-w-[120px] font-medium text-[11px] text-white/90">{name} {isLocal && '(You)'}</span>
+          {isPinned && (
+            <Pin className="w-3 h-3 text-[#FFA14A] fill-[#FFA14A] shrink-0" title="Pinned" />
+          )}
+          {isHandRaised && (
+            <span className="text-[10px]">✋</span>
+          )}
           {isHost && (
             <span className="text-[9px] uppercase font-bold text-[#FFA14A] bg-[#FF6B35]/25 border border-[#FF6B35]/40 px-1.5 py-0.5 rounded shadow-sm">
               HOST
