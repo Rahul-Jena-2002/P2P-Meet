@@ -116,7 +116,7 @@ export default function P2PChatDrawer({
   return (
     <aside
       style={{ width: `${drawerWidth}px` }}
-      className="relative max-w-[90vw] h-full border-l border-white/10 flex flex-col z-30 select-text bg-[#13111E] text-[#F8F7FC] shadow-2xl shrink-0 animate-in slide-in-from-right duration-150"
+      className="relative max-w-[90vw] h-full border-l border-white/15 flex flex-col z-30 select-text liquid-glass-panel text-[#F8F7FC] shadow-2xl shrink-0 animate-in slide-in-from-right duration-150"
     >
       {/* Draggable resize handle on left border */}
       <div
@@ -127,7 +127,7 @@ export default function P2PChatDrawer({
         <div className="w-0.5 h-10 rounded-full bg-white/20 group-hover:bg-[#FF6B35] transition" />
       </div>
       {/* Header with Clean Separated Context Tabs */}
-      <div className="h-12 px-3 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-[#161324] shrink-0">
+      <div className="h-12 px-3 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-transparent shrink-0">
         <div className="flex items-center gap-1.5">
           {onSwitchPanel && (
             <button

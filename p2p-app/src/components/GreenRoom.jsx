@@ -86,9 +86,11 @@ export default function GreenRoom({ onJoinMeeting }) {
 
   return (
     <div className="relative min-h-screen w-full bg-[#0D0B14] text-[#F8F7FC] flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 overflow-y-auto select-none">
-      {/* Ambient background glows */}
-      <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#C4B5FD]/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-96 h-96 bg-[#FF6B35]/5 rounded-full blur-3xl pointer-events-none" />
+      {/* Ambient Optical Liquid Glass Refraction Glows */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-[10%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-[radial-gradient(circle,rgba(196,181,253,0.15)_0%,transparent_70%)] blur-[90px]" />
+        <div className="absolute -bottom-[15%] -right-[10%] w-[55vw] h-[55vw] rounded-full bg-[radial-gradient(circle,rgba(255,107,53,0.14)_0%,rgba(167,139,250,0.06)_40%,transparent_70%)] blur-[100px]" />
+      </div>
 
       {/* Header */}
       <div className="w-full max-w-4xl flex items-center justify-between py-3 mb-2 sm:mb-6 md:absolute md:top-8 md:left-8 md:w-auto md:py-0 z-20">
@@ -106,7 +108,7 @@ export default function GreenRoom({ onJoinMeeting }) {
       <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 items-center z-10 my-auto pb-6 sm:pb-0">
         {/* Left: Camera & Mic Hardware Preview Box */}
         <div className="flex flex-col items-center">
-          <div className="relative w-full aspect-video rounded-3xl overflow-hidden bg-[#161324] border border-[rgba(196,181,253,0.16)] shadow-2xl flex items-center justify-center">
+          <div className="relative w-full aspect-video rounded-3xl overflow-hidden liquid-glass-panel shadow-2xl flex items-center justify-center">
             {videoEnabled && localStream ? (
               <video
                 ref={videoRef}
@@ -243,7 +245,7 @@ export default function GreenRoom({ onJoinMeeting }) {
 
         {/* Right: Join / Create Meeting Form */}
         <div className="flex flex-col space-y-5">
-          <div className="flex p-1 rounded-2xl bg-[#161324] border border-[rgba(196,181,253,0.14)] shadow-inner">
+          <div className="flex p-1 rounded-2xl liquid-glass-dock shadow-inner">
             <button
               onClick={() => setMode('new')}
               className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
@@ -266,7 +268,7 @@ export default function GreenRoom({ onJoinMeeting }) {
             </button>
           </div>
 
-          <form onSubmit={handleStart} className="p-7 rounded-3xl bg-[#161324] border border-[rgba(196,181,253,0.14)] shadow-2xl space-y-4.5">
+          <form onSubmit={handleStart} className="p-7 rounded-3xl liquid-glass-panel shadow-2xl space-y-4.5">
             <div>
               <label className="block text-xs font-semibold text-[#C4B5FD] mb-1.5">
                 Your Display Name

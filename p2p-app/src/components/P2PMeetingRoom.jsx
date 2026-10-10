@@ -869,8 +869,14 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
 
   return (
     <div className="relative w-screen h-[100dvh] max-h-[100dvh] bg-[#0D0B14] text-[#F8F7FC] overflow-hidden flex select-none" style={{ height: '100dvh' }}>
+      {/* Ambient Liquid Glass Optical Light Spheres */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-[10%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-[radial-gradient(circle,rgba(196,181,253,0.14)_0%,transparent_70%)] blur-[90px]" />
+        <div className="absolute -bottom-[15%] -right-[10%] w-[55vw] h-[55vw] rounded-full bg-[radial-gradient(circle,rgba(255,107,53,0.12)_0%,rgba(167,139,250,0.06)_40%,transparent_70%)] blur-[100px]" />
+      </div>
+
       {/* 1. Main Video Stage & Floating Overlay Area (resizes flexibly when drawers open) */}
-      <div onClick={handleStageClick} className="flex-1 h-full w-full relative overflow-hidden flex flex-col bg-[#0D0B14]">
+      <div onClick={handleStageClick} className="flex-1 h-full w-full relative overflow-hidden flex flex-col bg-transparent z-10">
         {/* Fullscreen Video Canvas */}
         <div className="w-full h-full relative">
           <P2PGrid
