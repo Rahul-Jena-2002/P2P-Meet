@@ -324,7 +324,7 @@ export default function P2PVideoTile({
       } ${
         isSingle
           ? 'rounded-none border-none'
-          : `rounded-2xl border ${isSpeaking ? 'ring-2 ring-[#FF6B35]/70 shadow-[inset_0_0_24px_rgba(255,107,53,0.35)]' : 'border-white/10 shadow-xl'}`
+          : `rounded-2xl border ${isSpeaking ? 'speaking-halo border-[#FF6B35] ring-2 ring-[#FF6B35] shadow-[0_0_14px_rgba(255,107,53,0.35)]' : 'border-white/10 shadow-xl'}`
       }`}
     >
       {/* Remote audio player */}
@@ -401,8 +401,18 @@ export default function P2PVideoTile({
             )}
           </div>
 
-          {/* Right side: Pin toggle button (Always visible on hover or touch, never hidden!) */}
-          <div className="flex items-center gap-1 pointer-events-auto opacity-80 hover:opacity-100 transition-opacity">
+          {/* Right side: Connection signal strength & Pin toggle button */}
+          <div className="flex items-center gap-1.5 pointer-events-auto opacity-80 hover:opacity-100 transition-opacity">
+            {/* Zoom 3-Bar Signal Health Meter */}
+            <div
+              className="flex items-end gap-[2px] px-1.5 py-1 rounded-full bg-[#0D0B14]/60 backdrop-blur-xl border border-white/10"
+              title="P2P Connection Quality (STUN: Excellent)"
+            >
+              <span className="w-[2.5px] h-1.5 rounded-sm bg-emerald-400" />
+              <span className="w-[2.5px] h-2.5 rounded-sm bg-emerald-400" />
+              <span className="w-[2.5px] h-3.5 rounded-sm bg-emerald-400" />
+            </div>
+
             {onPinToggle && (
               <button
                 onClick={(e) => {

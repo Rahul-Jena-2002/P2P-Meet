@@ -238,8 +238,8 @@ export class MediaManager {
         cursor: 'never',
         displaySurface: surface,
         frameRate: { ideal: 60, max: 60 },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+        width: { ideal: 1920, max: 3840 },
+        height: { ideal: 1080, max: 2160 }
       },
       audio: audioConstraints,
       systemAudio: 'include',
@@ -253,7 +253,7 @@ export class MediaManager {
       console.warn('[MediaManager] Primary display constraints failed, trying standard fallback:', err);
       try {
         stream = await nav.mediaDevices.getDisplayMedia({
-          video: { cursor: 'never' },
+          video: { cursor: 'never', width: { ideal: 1920, max: 3840 }, height: { ideal: 1080, max: 2160 } },
           audio: audioConstraints,
           systemAudio: 'include'
         });
@@ -267,7 +267,7 @@ export class MediaManager {
 
     const videoTrack = stream.getVideoTracks()[0];
     if (videoTrack && 'contentHint' in videoTrack) {
-      videoTrack.contentHint = 'motion';
+      videoTrack.contentHint = 'detail';
     }
 
     this.localScreenAudioTrack = stream.getAudioTracks()[0] || null;

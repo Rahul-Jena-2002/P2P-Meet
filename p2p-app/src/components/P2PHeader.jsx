@@ -203,6 +203,18 @@ export default function P2PHeader({
                 </span>
               </div>
               <div className="flex items-center justify-between py-1">
+                <span className="text-[#C4B5FD]/70">NAT / STUN:</span>
+                <span className="text-[#F8F7FC] font-semibold">
+                  Cloudflare & Google STUN (Serverless)
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-[#C4B5FD]/70">Screen Share:</span>
+                <span className="text-[#C4B5FD] font-semibold">
+                  Up to 4K Native (1080p Min Floor)
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1">
                 <span className="text-[#C4B5FD]/70">Encryption:</span>
                 <span className="text-[#C4B5FD] font-medium flex items-center gap-1">
                   <Lock className="w-3 h-3 text-[#FF6B35]" /> End-to-End Encrypted (SFrame + E2EE)

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PeerConnectionManager } from '../src/core/rtc/PeerConnectionManager.js';
+import { PeerConnectionManager, DEFAULT_RTC_CONFIG } from '../src/core/rtc/PeerConnectionManager.js';
 
 class MockRTCPeerConnection {
   constructor(config) {
@@ -265,5 +265,16 @@ test('PeerConnectionManager identifies screen audio track and dispatches screenA
   const mockTrack = { id: 'screen-audio-1', kind: 'audio' };
   manager.setPeerScreenAudioTrack('peer-1', mockTrack);
   assert.strictEqual(emitted, true);
+});
+
+test('DEFAULT_RTC_CONFIG contains Cloudflare and Google STUN servers with zero TURN requirement', () => {
+  const stunUrls = DEFAULT_RTC_CONFIG.iceServers.map(s => s.urls).flat();
+  assert.ok(stunUrls.includes('stun:stun.cloudflare.com:3478'));
+  assert.ok(stunUrls.includes('stun:stun.l.google.com:19302'));
+  const hasTurn = DEFAULT_RTC_CONFIG.iceServers.some(s => {
+    const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
+    return urls.some(u => u.startsWith('turn:'));
+  });
+  assert.strictEqual(hasTurn, false);
 });
 

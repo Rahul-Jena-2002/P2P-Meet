@@ -5,20 +5,14 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-const TURN_URL = process.env.NEXT_PUBLIC_TURN_URL;
-
 export const DEFAULT_RTC_CONFIG = {
   iceServers: [
+    { urls: 'stun:stun.cloudflare.com:3478' },
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
-    ...(TURN_URL ? [{
-      urls: TURN_URL.split(','),
-      username: process.env.NEXT_PUBLIC_TURN_USER,
-      credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
-    }] : []),
   ],
-  iceCandidatePoolSize: 0,
+  iceCandidatePoolSize: 2,
 };
 
 export class PeerConnectionManager {

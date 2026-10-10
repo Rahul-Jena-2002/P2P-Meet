@@ -94,3 +94,34 @@ test('MediaManager requests screen share with zero latency and raw audio constra
   });
   assert.equal(manager.getLocalScreenAudioTrack().id, 'screen-audio');
 });
+
+test('startScreenShare enforces 1080p minimum ideal resolution, 4k max, and applies contentHint detail', async () => {
+  let capturedConstraints = null;
+  const mockTrack = {
+    kind: 'video',
+    id: 'screen-video-highres',
+    contentHint: '',
+    stop: () => {}
+  };
+  const mockNavigator = {
+    mediaDevices: {
+      getDisplayMedia: async (constraints) => {
+        capturedConstraints = constraints;
+        return {
+          getVideoTracks: () => [mockTrack],
+          getAudioTracks: () => [],
+          getTracks: () => [mockTrack]
+        };
+      }
+    }
+  };
+
+  const manager = new MediaManager({ navigator: mockNavigator });
+  await manager.startScreenShare({ audio: false });
+
+  assert.strictEqual(capturedConstraints.video.width.ideal, 1920);
+  assert.strictEqual(capturedConstraints.video.width.max, 3840);
+  assert.strictEqual(capturedConstraints.video.height.ideal, 1080);
+  assert.strictEqual(capturedConstraints.video.height.max, 2160);
+  assert.strictEqual(mockTrack.contentHint, 'detail');
+});
