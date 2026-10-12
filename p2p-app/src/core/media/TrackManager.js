@@ -189,18 +189,39 @@ export class TrackManager {
     await this.setLocalScreenTrack(screenTrack);
   }
 
+  syncLocalTracks({ localStream = null, screenStream = null } = {}) {
+    const tracks = {
+      audio: localStream?.getAudioTracks?.()[0] || null,
+      camera: localStream?.getVideoTracks?.()[0] || null,
+      screen: screenStream?.getVideoTracks?.()[0] || null,
+      screenAudio: screenStream?.getAudioTracks?.()[0] || null
+    };
+    for (const [type, track] of Object.entries(tracks)) {
+      const sourceId = this.createSourceId(this.userId, type);
+      const previous = this.localSources.get(sourceId);
+      if (!track) {
+        if (previous) {
+          this.localSources.delete(sourceId);
+          this.emit('sourceRemoved', { sourceId, type, isLocal: true });
+        }
+        continue;
+      }
+      if (previous?.track === track) continue;
+      if (previous) this.emit('sourceRemoved', { sourceId, type, isLocal: true });
+      const source = { sourceId, publisherId: this.userId, type, track, enabled: track.enabled !== false, isLocal: true, updatedAt: Date.now() };
+      this.localSources.set(sourceId, source);
+      this.emit('sourceAdded', { sourceId, source, isLocal: true });
+    }
+    this.emit('sourcesChanged', this.getAllSources());
+  }
+
   // -------------------------------------------------------------
   // REMOTE TRACK MANAGEMENT
   // -------------------------------------------------------------
-  registerRemoteTrack({ peerId, track, stream = null, isScreen = false }) {
+  registerRemoteTrack({ peerId, track, stream = null, isScreen = false, type: explicitType = null }) {
     if (!peerId || !track) return null;
 
-    let type = 'camera';
-    if (isScreen) {
-      type = 'screen';
-    } else if (track.kind === 'audio') {
-      type = 'audio';
-    }
+    const type = explicitType || (isScreen ? (track.kind === 'audio' ? 'screenAudio' : 'screen') : (track.kind === 'audio' ? 'audio' : 'camera'));
 
     const sourceId = this.createSourceId(peerId, type);
 
@@ -208,7 +229,7 @@ export class TrackManager {
       if (typeof track.removeEventListener === 'function') {
         track.removeEventListener('ended', onEndedHandler);
       }
-      this.unregisterRemoteSource(sourceId);
+      if (this.remoteSources.get(sourceId)?.track === track) this.unregisterRemoteSource(sourceId);
     };
     if (typeof track.addEventListener === 'function') {
       track.addEventListener('ended', onEndedHandler);

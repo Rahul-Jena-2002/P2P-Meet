@@ -544,8 +544,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
       if (mesh.topology) {
         const mode = mesh.topology.getMode();
         setTopologyMode(prev => prev === mode ? prev : mode);
-        const bestPeer = mesh.topology.relaySelector?.selectBestRelayCandidate?.();
-        const isSupernode = bestPeer?.id === meetingInfo.userId;
+        const relayIds = mesh.topology.getRelayIds?.(2) || [];
+        const isSupernode = relayIds.includes(meetingInfo.userId);
         setIsSupernode(prev => prev === isSupernode ? prev : isSupernode);
       }
     };

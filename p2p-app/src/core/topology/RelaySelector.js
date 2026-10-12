@@ -54,6 +54,7 @@ export class RelaySelector {
     const candidates = [];
     for (const [peerId, record] of this.nodes.entries()) {
       if (excludes.has(peerId)) continue;
+      if (Date.now() - record.updatedAt > 15_000) continue;
       if (candidatePeerIds && !candidatePeerIds.includes(peerId)) continue;
       if (!record.evaluation.isEligible || record.evaluation.availableFanout <= 0) continue;
 
@@ -81,12 +82,17 @@ export class RelaySelector {
 
     for (const [peerId, record] of this.nodes.entries()) {
       if (excludes.has(peerId)) continue;
+      if (Date.now() - record.updatedAt > 15_000) continue;
       if (record.evaluation.isEligible && record.evaluation.availableFanout > 0) {
         eligible.push(record);
       }
     }
 
-    eligible.sort((a, b) => b.evaluation.relayScore - a.evaluation.relayScore);
+    eligible.sort((a, b) =>
+      (b.evaluation.relayScore - a.evaluation.relayScore) ||
+      (b.evaluation.availableFanout - a.evaluation.availableFanout) ||
+      String(a.peerId).localeCompare(String(b.peerId))
+    );
     return eligible.slice(0, count).map((r) => r.peerId);
   }
 

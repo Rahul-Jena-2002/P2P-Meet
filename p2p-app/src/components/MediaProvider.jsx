@@ -206,6 +206,7 @@ export function MediaProvider({ children }) {
 
   const startScreenShare = useCallback(async (options = {}) => {
     try {
+      setMediaError(null);
       const stream = await mediaManager.acquireDisplayMedia(options);
       if (screenStream) {
         screenStream.getTracks().forEach(t => t.stop());
@@ -225,6 +226,10 @@ export function MediaProvider({ children }) {
       return stream;
     } catch (err) {
       console.warn('Screen share canceled or denied:', err);
+      const canCapture = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia;
+      setMediaError(canCapture
+        ? 'Screen sharing did not start. Check the browser permission and choose a display to share.'
+        : 'This mobile browser does not support screen sharing here. Start sharing from a computer browser instead.');
       return null;
     }
   }, [mediaManager, screenStream]);

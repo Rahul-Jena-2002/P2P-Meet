@@ -116,6 +116,42 @@ export class TopologyManager {
     return this.relaySelector.updatePeerCapacity(peerId, capacityData);
   }
 
+  getRelayIds(limit = 2) {
+    const ids = this.relaySelector.selectTopRelays(limit, []);
+    // Stable ordering gives every browser the same subscriber hash buckets.
+    return ids.sort((a, b) => String(a).localeCompare(String(b)));
+  }
+
+  getRelaySubscribers(relayIds, peerIds = Array.from(this.activePeers.keys())) {
+    const relays = [...new Set(relayIds || [])].sort((a, b) => String(a).localeCompare(String(b)));
+    const subscribers = new Map(relays.map((id) => [id, []]));
+    if (!relays.length) return subscribers;
+
+    for (const peerId of [...new Set(peerIds)].sort((a, b) => String(a).localeCompare(String(b)))) {
+      if (!peerId || relays.includes(peerId)) continue;
+      const hash = Array.from(String(peerId)).reduce((value, char) => ((value * 31) + char.charCodeAt(0)) >>> 0, 7);
+      const startIndex = hash % relays.length;
+      for (let offset = 0; offset < relays.length; offset += 1) {
+        const relayId = relays[(startIndex + offset) % relays.length];
+        const capacity = this.relaySelector.getPeerCapacity(relayId)?.evaluation?.availableFanout || 0;
+        if ((subscribers.get(relayId)?.length || 0) < capacity) {
+          subscribers.get(relayId).push(peerId);
+          break;
+        }
+      }
+    }
+    return subscribers;
+  }
+
+  getDirectFallbackPeers(relayIds, relayAssignments, peerIds = Array.from(this.activePeers.keys())) {
+    const relays = new Set(relayIds || []);
+    const assigned = new Set();
+    for (const children of relayAssignments?.values?.() || []) {
+      for (const peerId of children) assigned.add(peerId);
+    }
+    return [...new Set(peerIds)].filter((peerId) => !relays.has(peerId) && !assigned.has(peerId));
+  }
+
   handleRelayAssign(assignment) {
     return this.overlayManager.assignRelay(assignment);
   }

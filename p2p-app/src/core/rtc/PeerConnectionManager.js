@@ -33,6 +33,7 @@ export class PeerConnectionManager {
     this.localScreenStream = null; // screen stream
     this.senderTransformFactory = options.senderTransformFactory || null;
     this.receiverTransformFactory = options.receiverTransformFactory || null;
+    this.peerMediaPolicy = options.peerMediaPolicy || null;
     this.natClassifier = options.natClassifier || null;
     this.natType = 'unknown';
   }
@@ -72,7 +73,7 @@ export class PeerConnectionManager {
     return { natType: this.natType };
   }
 
-  createPeer(peerId, isInitiator = false, isPolite = undefined) {
+  createPeer(peerId, isInitiator = false, isPolite = undefined, options = {}) {
     if (this.peers.has(peerId)) {
       return this.peers.get(peerId);
     }
@@ -91,14 +92,22 @@ export class PeerConnectionManager {
       remoteScreenStream: typeof window !== 'undefined' && window.MediaStream ? new window.MediaStream() : null,
       pendingCandidates: [],
       dataChannel: null,
-      senders: {} // slot -> RTCRtpSender
+      mediaEnabled: options.mediaEnabled ?? this.peerMediaPolicy?.(peerId) ?? true,
+      expectedRelay: false,
+      senders: {}, // slot -> RTCRtpSender
+      remoteTrackMetadata: new Map(),
+      pendingRelayTracks: new Map(),
+      forwardedTrackMetadata: new Map(),
+      forwardedStreams: new Map()
     };
 
     // Attach existing local tracks to new connection
-    if (this.local.audio) this.attachTrack(peerEntry, this.local.audio, 'audio');
-    if (this.local.video) this.attachTrack(peerEntry, this.local.video, 'video');
-    if (this.local.screen) this.attachTrack(peerEntry, this.local.screen, 'screen');
-    if (this.local.screenAudio) this.attachTrack(peerEntry, this.local.screenAudio, 'screenAudio');
+    if (peerEntry.mediaEnabled) {
+      if (this.local.audio) this.attachTrack(peerEntry, this.local.audio, 'audio');
+      if (this.local.video) this.attachTrack(peerEntry, this.local.video, 'video');
+      if (this.local.screen) this.attachTrack(peerEntry, this.local.screen, 'screen');
+      if (this.local.screenAudio) this.attachTrack(peerEntry, this.local.screenAudio, 'screenAudio');
+    }
 
     // Renegotiate whenever tracks are added later (late mic/camera/screen share)
     pc.onnegotiationneeded = async () => {
@@ -122,6 +131,62 @@ export class PeerConnectionManager {
       if (event.receiver) {
         this.applyTransformToReceiver(event.receiver, track?.kind);
       }
+      const streamId = event.streams?.[0]?.id;
+      const relayMetadata = streamId ? peerEntry.remoteTrackMetadata.get(streamId) : null;
+      if (relayMetadata?.publisherId && relayMetadata?.sourceType) {
+        this.routeForwardedTrack(peerEntry, relayMetadata, track);
+        return;
+      }
+      if (peerEntry.expectedRelay && streamId) {
+        const pending = peerEntry.pendingRelayTracks.get(streamId) || [];
+        pending.push(event);
+        peerEntry.pendingRelayTracks.set(streamId, pending);
+        const timeout = setTimeout(() => {
+          const stillPending = peerEntry.pendingRelayTracks.get(streamId);
+          if (!stillPending) return;
+          peerEntry.pendingRelayTracks.delete(streamId);
+          stillPending.forEach((queuedEvent) => this.processIncomingTrack(peerEntry, queuedEvent));
+        }, 1200);
+        pending[pending.length - 1]._relayMetadataTimeout = timeout;
+        return;
+      }
+      this.processIncomingTrack(peerEntry, event);
+    };
+
+    pc.onconnectionstatechange = () => {
+      this.emit('connectionStateChange', { peerId, state: pc.connectionState });
+      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        this.removePeer(peerId);
+      }
+    };
+
+    if (isInitiator) {
+      try {
+        const dc = pc.createDataChannel('meet-chat');
+        this.setupDataChannel(peerId, dc, peerEntry);
+      } catch (e) {
+        console.warn(`[PeerConnection] Failed to create data channel for ${peerId}:`, e);
+      }
+    } else {
+      pc.ondatachannel = (event) => {
+        if (event && event.channel) {
+          this.setupDataChannel(peerId, event.channel, peerEntry);
+        }
+      };
+    }
+
+    this.peers.set(peerId, peerEntry);
+    this.emit('peerCreated', { peerId, isInitiator });
+    return peerEntry;
+  }
+
+  processIncomingTrack(peerEntry, event, relayMetadata = null) {
+    const { peerId } = peerEntry;
+    const track = event.track;
+    if (relayMetadata?.publisherId && relayMetadata?.sourceType) {
+      this.routeForwardedTrack(peerEntry, relayMetadata, track);
+      return;
+    }
       const stream = event.streams?.[0];
       const isExpectedScreen = !!(peerEntry.expectedScreenTrackId && track.id === peerEntry.expectedScreenTrackId);
       const isExpectedScreenAudio = !!(peerEntry.expectedScreenAudioTrackId && track.id === peerEntry.expectedScreenAudioTrackId);
@@ -157,33 +222,130 @@ export class PeerConnectionManager {
         }
         this.emit('track', { peerId, track, stream: event.streams?.[0] || peerEntry.remoteStream });
       }
-    };
+  }
 
-    pc.onconnectionstatechange = () => {
-      this.emit('connectionStateChange', { peerId, state: pc.connectionState });
-      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-        this.removePeer(peerId);
-      }
-    };
-
-    if (isInitiator) {
-      try {
-        const dc = pc.createDataChannel('meet-chat');
-        this.setupDataChannel(peerId, dc, peerEntry);
-      } catch (e) {
-        console.warn(`[PeerConnection] Failed to create data channel for ${peerId}:`, e);
-      }
-    } else {
-      pc.ondatachannel = (event) => {
-        if (event && event.channel) {
-          this.setupDataChannel(peerId, event.channel, peerEntry);
-        }
-      };
+  setRemoteStreamMetadata(relayPeerId, streamId, metadata) {
+    const peer = this.peers.get(relayPeerId);
+    if (!peer || !streamId || !metadata?.publisherId || !metadata?.sourceType) return false;
+    peer.remoteTrackMetadata.set(streamId, metadata);
+    const pending = peer.pendingRelayTracks.get(streamId) || [];
+    if (pending.length) {
+      peer.pendingRelayTracks.delete(streamId);
+      pending.forEach((event) => {
+        clearTimeout(event._relayMetadataTimeout);
+        this.processIncomingTrack(peer, event, metadata);
+      });
     }
+    return true;
+  }
 
-    this.peers.set(peerId, peerEntry);
-    this.emit('peerCreated', { peerId, isInitiator });
-    return peerEntry;
+  setRemoteTrackMetadata(relayPeerId, streamId, metadata) {
+    return this.setRemoteStreamMetadata(relayPeerId, streamId, metadata);
+  }
+
+  setPeerExpectedRelay(peerId, expected) {
+    const peer = this.peers.get(peerId);
+    if (!peer) return;
+    peer.expectedRelay = !!expected;
+    if (!peer.expectedRelay) {
+      for (const [streamId, events] of peer.pendingRelayTracks.entries()) {
+        peer.pendingRelayTracks.delete(streamId);
+        const metadata = peer.remoteTrackMetadata.get(streamId);
+        events.forEach((event) => {
+          clearTimeout(event._relayMetadataTimeout);
+          this.processIncomingTrack(peer, event, metadata);
+        });
+      }
+    }
+  }
+
+  removeForwardedTrack(relayPeerId, publisherId, sourceType) {
+    const peer = this.peers.get(relayPeerId);
+    if (!peer) return false;
+    const isScreen = sourceType === 'screen' || sourceType === 'screenAudio';
+    const streamKey = `${publisherId}:${isScreen ? 'screen' : 'camera'}`;
+    const stream = peer.forwardedStreams.get(streamKey);
+    if (!stream) return false;
+    for (const track of stream.getTracks()) {
+      const metadata = peer.forwardedTrackMetadata.get(track.id);
+      if (metadata?.publisherId === publisherId && metadata?.sourceType === sourceType) {
+        stream.removeTrack(track);
+        peer.forwardedTrackMetadata.delete(track.id);
+        try { track.stop(); } catch (_) {}
+      }
+    }
+    for (const [streamId, metadata] of peer.remoteTrackMetadata.entries()) {
+      if (metadata.publisherId === publisherId && metadata.sourceType === sourceType) peer.remoteTrackMetadata.delete(streamId);
+    }
+    if (!stream.getTracks().length) peer.forwardedStreams.delete(streamKey);
+
+    const eventName = sourceType === 'screen'
+      ? 'screenTrack'
+      : sourceType === 'screenAudio'
+        ? 'screenAudioTrack'
+        : 'track';
+    this.emit(eventName, {
+      peerId: publisherId,
+      relayPeerId,
+      track: null,
+      stream: eventName === 'track' && stream.getTracks().length ? stream : null,
+      isForwarded: true,
+      sourceType
+    });
+    return true;
+  }
+
+  async setPeerMediaEnabled(peerId, enabled) {
+    const peer = this.peers.get(peerId);
+    if (!peer || peer.mediaEnabled === enabled) return;
+    peer.mediaEnabled = enabled;
+    const slots = ['audio', 'video', 'screen', 'screenAudio'];
+    for (const slot of slots) {
+      const track = this.local[slot];
+      let sender = peer.senders?.[slot];
+      if (enabled && track) {
+        if (sender) {
+          try { await sender.replaceTrack(track); } catch (_) {}
+        } else {
+          sender = this.attachTrack(peer, track, slot);
+        }
+      } else if (!enabled && sender?.track) {
+        try { await sender.replaceTrack(null); } catch (_) {}
+      }
+    }
+  }
+
+  routeForwardedTrack(peer, metadata, track) {
+    const { publisherId, sourceType } = metadata;
+    peer.forwardedTrackMetadata.set(track.id, metadata);
+    const isScreen = sourceType === 'screen' || sourceType === 'screenAudio';
+    const streamKey = `${publisherId}:${isScreen ? 'screen' : 'camera'}`;
+    let stream = peer.forwardedStreams.get(streamKey);
+    const MediaStreamClass = typeof window !== 'undefined' ? window.MediaStream : globalThis.MediaStream;
+    if (!stream && MediaStreamClass) {
+      stream = new MediaStreamClass();
+      peer.forwardedStreams.set(streamKey, stream);
+    }
+    if (stream && !stream.getTracks().includes(track)) stream.addTrack(track);
+
+    const eventName = sourceType === 'screen'
+      ? 'screenTrack'
+      : sourceType === 'screenAudio'
+        ? 'screenAudioTrack'
+        : 'track';
+    const emitTrack = (ended = false) => {
+      if (ended) stream?.removeTrack?.(track);
+      this.emit(eventName, {
+        peerId: publisherId,
+        relayPeerId: peer.peerId,
+        track: ended ? null : track,
+        stream: ended ? (isScreen ? null : (stream?.getTracks?.().length ? stream : null)) : stream,
+        isForwarded: true,
+        sourceType
+      });
+    };
+    track.addEventListener?.('ended', () => emitTrack(true), { once: true });
+    emitTrack();
   }
 
   setupDataChannel(peerId, channel, peerEntry) {
@@ -276,6 +438,7 @@ export class PeerConnectionManager {
 
   // Add track to one peer by slot ('audio' | 'video' | 'screen')
   attachTrack(peer, track, slot = track.kind) {
+    if (peer.mediaEnabled === false) return null;
     const isScreen = slot === 'screen';
     let stream;
     if (isScreen) {
@@ -364,6 +527,7 @@ export class PeerConnectionManager {
 
     for (const peer of this.peers.values()) {
       if (!peer.senders) peer.senders = {};
+      if (!peer.mediaEnabled) continue;
       let sender = peer.senders[slot];
       // Only fallback to findSender if slot sender wasn't recorded and it's NOT screen sharing
       // (Screen sharing video & screen audio must have dedicated transceivers/senders)
@@ -466,6 +630,11 @@ export class PeerConnectionManager {
   removePeer(peerId) {
     const peer = this.peers.get(peerId);
     if (!peer) return;
+
+    for (const events of peer.pendingRelayTracks.values()) {
+      events.forEach((event) => clearTimeout(event._relayMetadataTimeout));
+    }
+    peer.pendingRelayTracks.clear();
 
     try {
       if (peer.dataChannel) {

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Decentralized, Privacy-First Video Conferencing & Direct P2P File Sharing</strong><br>
-  <em>No intermediate relays • Zero cloud storage • Full End-to-End Encryption (E2EE)</em>
+  <em>Peer-relayed WebRTC media • No cloud file storage • Encrypted transport</em>
 </p>
 
 <p align="center">
@@ -20,9 +20,10 @@
 
 ## 🌟 Key Features
 
-- **🔒 100% Direct Peer-to-Peer (WebRTC E2EE)**:
-  - Video streams, audio tracks, chat messages, and file payloads are transmitted **directly between peers** using WebRTC DataChannels and DTLS-SRTP encryption (AES-128/256 GCM).
-  - Even when hosted on Cloudflare Pages, Cloudflare only serves static assets and the initial handshake. **Zero media or chat data passes through or touches any server.**
+- **🔒 Peer-to-Peer WebRTC**:
+  - Small meetings send media directly between participants. In larger meetings, up to two eligible desktop peers are elected to forward media to assigned participants; no dedicated media server is used.
+  - WebRTC encrypts each network connection. A peer forwarding media receives decoded tracks, so this relay mode is **not end-to-end encrypted against the elected relay peers**.
+  - MQTT signaling coordinates room discovery and connection setup. Selected-file bytes travel over direct WebRTC data channels and are never uploaded to Pages or MQTT.
 - **📁 Universal Direct P2P File Sharing & Requests**:
   - Share files of **ANY format** directly inside the meeting chat.
   - Interactive file cards with file size, direct P2P badge, and one-click instant download.
@@ -70,6 +71,31 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 `p2pmeet` is pre-configured for static export to Cloudflare Pages:
 
+Meeting signaling prefers a Cloudflare Durable Object WebSocket. Deploy the
+`p2pmeet-signaling` Worker first, then deploy Pages so the configured
+`MEETING_ROOMS` binding can resolve. This Worker coordinates room presence and
+WebRTC offers/candidates only; media and file bytes stay on WebRTC peer
+connections. If the Pages Function or Durable Object is unavailable, the
+browser falls back to the existing public MQTT broker. The Durable Object uses
+the Free Workers plan's SQLite-backed namespace and WebSocket hibernation; free
+usage has daily limits (100,000 requests and 13,000 GB-s per day, shared with
+other Durable Objects/Workers usage on the account). Incoming WebSocket
+messages are counted at 20 messages per request. See
+[Cloudflare Durable Objects pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/);
+the MQTT fallback remains enabled.
+
+```bash
+# From the repository root; requires a Cloudflare account logged into Wrangler.
+npm run deploy:signaling
+npm run build
+npm run deploy
+```
+
+The Pages project must be deployed from this repository root so Wrangler uses
+the root `wrangler.toml` and `functions/` directory. If the Pages project is
+configured with `p2p-app` as its root directory, change it to the repository
+root before deploying the Durable Object binding.
+
 ### Method 1: Connect GitHub Repository to Cloudflare Pages (Recommended)
 1. Go to the [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Compute (Workers & Pages)** → **Create** → **Pages** → **Connect to Git**.
 2. Select repository: `Rahul-Jena-2002/P2P-Meet`.
@@ -86,7 +112,8 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ```bash
 # From repository root
 npm run build
-npx wrangler deploy
+npm run deploy:signaling
+npm run deploy
 ```
 
 ---

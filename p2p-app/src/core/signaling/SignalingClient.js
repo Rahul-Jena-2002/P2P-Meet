@@ -7,13 +7,24 @@
 import mqtt from 'mqtt';
 
 export const DEFAULT_BROKER_URL = process.env.NEXT_PUBLIC_MQTT_URL || 'wss://broker.emqx.io:8084/mqtt';
+export const DEFAULT_SIGNALING_TIMEOUT_MS = 5000;
 
 export class SignalingClient {
-  constructor({ roomId, userId, userName, brokerUrl = DEFAULT_BROKER_URL, transport = null }) {
+  constructor({
+    roomId,
+    userId,
+    userName,
+    brokerUrl = DEFAULT_BROKER_URL,
+    signalingUrl = process.env.NEXT_PUBLIC_SIGNALING_WS_URL || null,
+    signalingTimeoutMs = DEFAULT_SIGNALING_TIMEOUT_MS,
+    transport = null
+  }) {
     this.roomId = (roomId || 'default').trim().toUpperCase();
     this.userId = userId;
     this.userName = userName;
     this.brokerUrl = brokerUrl;
+    this.signalingUrl = signalingUrl;
+    this.signalingTimeoutMs = signalingTimeoutMs;
     this.transport = transport;
 
     this.broadcastTopic = `p2pmeet/r/${this.roomId}/all`;
@@ -22,6 +33,8 @@ export class SignalingClient {
     this.listeners = new Map();
     this.isConnected = false;
     this.isDestroyed = false;
+    this.activeTransport = null;
+    this.mqttStarted = false;
   }
 
   on(event, handler) {
@@ -55,6 +68,109 @@ export class SignalingClient {
     }
 
     if (typeof window === 'undefined') return;
+
+    const localDevelopment = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+    if (typeof window.WebSocket === 'function' && (!localDevelopment || this.signalingUrl)) {
+      this.connectDurableSignaling();
+      return;
+    }
+    this.connectMqtt();
+  }
+
+  resolveSignalingUrl() {
+    if (this.signalingUrl) {
+      const url = new URL(this.signalingUrl, window.location.href);
+      url.searchParams.set('room', this.roomId);
+      return url.toString();
+    }
+    const url = new URL('/api/signaling', window.location.href);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    url.searchParams.set('room', this.roomId);
+    return url.toString();
+  }
+
+  connectDurableSignaling() {
+    if (this.isDestroyed || this.mqttStarted) return;
+    let socket;
+    try {
+      socket = new window.WebSocket(this.resolveSignalingUrl());
+    } catch (error) {
+      this.startMqttFallback(error);
+      return;
+    }
+    this.socket = socket;
+    let opened = false;
+    const timeout = setTimeout(() => {
+      if (!opened) this.startMqttFallback(new Error('Durable Object signaling connection timed out'));
+    }, this.signalingTimeoutMs);
+
+    socket.addEventListener('open', () => {
+      if (this.isDestroyed || socket !== this.socket) return;
+      opened = true;
+      clearTimeout(timeout);
+      this.activeTransport = 'durable-object';
+      this.isConnected = true;
+      this.emit('transportChanged', { transport: this.activeTransport });
+      this.emit('connected');
+      socket.send(JSON.stringify({
+        type: 'join',
+        userId: this.userId,
+        userName: this.userName
+      }));
+    });
+
+    socket.addEventListener('message', (event) => {
+      if (this.isDestroyed || socket !== this.socket) return;
+      try {
+        const envelope = JSON.parse(event.data);
+        if (envelope.type === 'broadcast') this.handleMessage(this.broadcastTopic, envelope.payload);
+        else if (envelope.type === 'direct') this.handleMessage(this.peerTopic, envelope.payload);
+        else if (envelope.type === 'error') this.emit('error', new Error(envelope.message || 'Signaling error'));
+      } catch (error) {
+        console.warn('[Signaling] Malformed Durable Object payload:', error);
+      }
+    });
+
+    socket.addEventListener('error', () => {
+      clearTimeout(timeout);
+      if (!this.isDestroyed && socket === this.socket) {
+        this.startMqttFallback(new Error('Durable Object signaling transport failed'));
+      }
+    });
+
+    socket.addEventListener('close', () => {
+      clearTimeout(timeout);
+      if (this.isDestroyed || socket !== this.socket) return;
+      this.isConnected = false;
+      if (!this.mqttStarted) {
+        this.startMqttFallback(new Error('Durable Object signaling connection closed'));
+      } else {
+        this.emit('disconnected');
+      }
+    });
+  }
+
+  startMqttFallback(reason) {
+    if (this.isDestroyed || this.mqttStarted) return;
+    this.mqttStarted = true;
+    this.isConnected = false;
+    this.activeTransport = 'mqtt';
+    if (this.socket && this.socket.readyState < 2) {
+      const socket = this.socket;
+      this.socket = null;
+      try { socket.close(); } catch (_) {}
+    }
+    console.warn('[Signaling] Durable Object unavailable; falling back to MQTT.', reason);
+    this.emit('transportChanged', { transport: this.activeTransport, fallback: true });
+    this.connectMqtt();
+  }
+
+  connectMqtt() {
+    if (this.isDestroyed) return;
+    if (this.activeTransport !== 'mqtt') {
+      this.activeTransport = 'mqtt';
+      this.emit('transportChanged', { transport: this.activeTransport });
+    }
 
     const clientId = `p2p_${this.userId}_${Math.random().toString(16).slice(2, 8)}`;
     try {
@@ -154,17 +270,26 @@ export class SignalingClient {
   }
 
   sendDirect(targetId, payload) {
+    if (this.activeTransport === 'durable-object' && this.socket?.readyState === 1) {
+      this.socket.send(JSON.stringify({ type: 'direct', targetId, payload }));
+      return;
+    }
     const topic = `p2pmeet/r/${this.roomId}/p/${targetId}`;
     this.publish(topic, payload);
   }
 
   broadcast(payload) {
-    this.publish(this.broadcastTopic, {
+    const message = {
       roomId: this.roomId,
       senderId: this.userId,
       senderName: this.userName,
       ...payload
-    });
+    };
+    if (this.activeTransport === 'durable-object' && this.socket?.readyState === 1) {
+      this.socket.send(JSON.stringify({ type: 'broadcast', payload: message }));
+      return;
+    }
+    this.publish(this.broadcastTopic, message);
   }
 
   publish(topic, payload) {
@@ -175,9 +300,21 @@ export class SignalingClient {
 
   disconnect() {
     this.isDestroyed = true;
+    if (this.socket) {
+      try {
+        this.socket.close();
+      } catch (_) {}
+      this.socket = null;
+    }
     if (this.client) {
       try {
-        this.broadcast({ type: 'user-left', userId: this.userId });
+        this.client.publish(this.broadcastTopic, JSON.stringify({
+          type: 'user-left',
+          roomId: this.roomId,
+          userId: this.userId,
+          senderId: this.userId,
+          senderName: this.userName
+        }), { qos: 0, retain: false });
         this.client.end(true);
       } catch (_) {}
       this.client = null;

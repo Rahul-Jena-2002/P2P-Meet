@@ -72,6 +72,7 @@ export class ForwardingBridge {
       childPeerId,
       track: source.track,
       sender,
+      streamId: stream?.id || null,
       forwardedAt: Date.now()
     };
 
@@ -87,6 +88,7 @@ export class ForwardingBridge {
     const key = `${sourceId}->${childPeerId}`;
     const record = this.forwarded.get(key);
     if (!record) return false;
+    this.forwarded.delete(key);
 
     const peer = this.rtc?.getPeer(childPeerId);
     if (peer && peer.pc && record.sender) {
@@ -101,7 +103,6 @@ export class ForwardingBridge {
       }
     }
 
-    this.forwarded.delete(key);
     this.emit('trackForwardStopped', { sourceId, childPeerId });
     return true;
   }

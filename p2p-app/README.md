@@ -21,8 +21,10 @@
 ## 🌟 Key Features
 
 - **🔒 Peer-to-Peer WebRTC**:
-  - Video streams, audio tracks, chat messages, and file payloads use WebRTC peer connections. File bytes are chunked as binary data and sent through the peer data channel; they are never uploaded to Pages or the signaling broker.
-  - WebRTC uses public STUN servers only. The call and file transfer require networks that permit a direct peer connection; no TURN relay or cloud file storage is used.
+  - Meeting signaling prefers a Cloudflare Durable Object WebSocket and falls back to the existing public MQTT broker if unavailable. It carries presence and WebRTC negotiation only; media and file bytes remain on peer-to-peer WebRTC connections.
+  - Small meetings send audio/video directly between participants. Larger meetings can elect up to two capable desktop peers to forward media to assigned participants.
+  - WebRTC uses public STUN servers only. Direct and peer-relayed connections still require ICE connectivity between each sender and its peer/relay; no TURN service or cloud file storage is used. Some mobile-carrier and restrictive NAT combinations will not connect.
+  - WebRTC encrypts each transport connection, but an elected browser relay receives decoded media tracks. Relay mode is not end-to-end encrypted against those relay participants.
 - **📁 Direct P2P File Sharing & Requests**:
   - Share files up to 500 MB directly inside the meeting chat.
   - Interactive file cards with file size, direct P2P badge, and one-click instant download.
@@ -42,7 +44,17 @@
 
 ## Cloudflare Pages networking setup
 
-The Pages build is a static export (`out/`). Cloudflare serves the application and the existing signaling service coordinates peer discovery and WebRTC handshakes. Audio, video, and selected-file bytes travel over WebRTC peer connections; file data is never posted to Pages or signaling. This deployment intentionally uses public STUN only, with no TURN credentials, paid relay, or upload path. Some restrictive NAT/firewall combinations will prevent calls or transfers from connecting.
+Deploy the `p2pmeet-signaling` Worker from `signaling-worker/wrangler.toml`
+before deploying the Pages site. The root `wrangler.toml` binds the Pages
+Function at `/api/signaling` to that Worker. Durable Objects are available on
+Cloudflare Workers Free with daily request and compute limits. The Worker uses
+WebSocket hibernation so idle room sockets can hibernate; if the free quota is
+exceeded or signaling is unavailable, clients can fall back to MQTT. Current
+free allotments include 100,000 Durable Object requests and 13,000 GB-s per
+day; WebSocket messages count at 20 incoming messages per request. See
+[Cloudflare's pricing and quota details](https://developers.cloudflare.com/durable-objects/platform/pricing/).
+
+The Pages build is a static export (`out/`). Cloudflare serves the application; Durable Objects or the MQTT fallback coordinate peer discovery and WebRTC handshakes. Audio/video travel over WebRTC peer connections, sometimes through elected participant browsers. File bytes travel over direct WebRTC data channels and are never posted to Pages or signaling. This deployment intentionally uses public STUN only, with no TURN credentials, paid media relay, or file upload path. Some restrictive NAT/firewall combinations will prevent calls or transfers from connecting.
 
 Received files are assembled in the recipient's browser and downloaded from there. Both participants must stay in the meeting until transfer completes. Use the browser's file picker; a web page cannot access a local path supplied as text. Files up to 500 MB are sent in 16 KiB binary chunks with data-channel backpressure instead of being base64 encoded in memory or sent through MQTT/signaling.
 

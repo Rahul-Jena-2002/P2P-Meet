@@ -58,10 +58,15 @@ export class MeetingController {
       localUserId: this.userId,
       rtc: this.rtc
     });
+    this.rtc.peerMediaPolicy = (peerId) => this.shouldSendDirectMedia(peerId);
     this.forwardingBridge = new ForwardingBridge({
       trackManager: this.trackManager,
       rtc: this.rtc
     });
+    this.relayHeartbeatTimer = null;
+    this.relayPeerIds = [];
+    this.relayChildren = new Map();
+    this.relayDirectFallbackIds = [];
 
     this.keyManager = keyManager;
     this.failureDetector = new FailureDetector();
@@ -79,10 +84,25 @@ export class MeetingController {
     });
 
     this.topology.overlayManager?.on?.('forwardTrackRequired', ({ sourceId, childPeerId }) => {
-      this.forwardingBridge?.forwardTrack?.(sourceId, childPeerId);
+      this.forwardSourceToChild(sourceId, childPeerId);
     });
     this.topology.overlayManager?.on?.('forwardTrackStop', ({ sourceId, childPeerId }) => {
       this.forwardingBridge?.stopForwarding?.(sourceId, childPeerId);
+    });
+    this.trackManager.on('sourceRemoved', ({ sourceId, type }) => {
+      const source = this.trackManager?.getSource?.(sourceId);
+      const identity = this.trackManager?.parseSourceId?.(sourceId);
+      for (const record of this.forwardingBridge?.forwarded?.values?.() || []) {
+        if (record.sourceId !== sourceId) continue;
+        this.signaling.sendDirect(record.childPeerId, {
+          type: 'RELAY_TRACK_STOP',
+          senderId: this.userId,
+          relayId: this.userId,
+          publisherId: source?.publisherId || identity?.publisherId,
+          sourceType: source?.type || type || identity?.type
+        });
+      }
+      this.forwardingBridge?.stopAllForSource?.(sourceId);
     });
 
     this.participants = new Map(); // userId -> { userId, userName, stream, screenStream, screenAudioStream }
@@ -144,6 +164,7 @@ export class MeetingController {
       } catch (err) {
         console.warn(`[MeetingController] Failed creating offer for ${userId}:`, err);
       }
+      this.reconcileRelayMesh();
     });
 
     this.signaling.on('peer-signal', async ({ senderId, senderName, signalData }) => {
@@ -174,6 +195,7 @@ export class MeetingController {
       } catch (err) {
         console.warn(`[MeetingController] Error handling signal from ${senderId}:`, err);
       }
+      this.reconcileRelayMesh();
     });
 
     this.signaling.on('peer-left', ({ userId }) => {
@@ -181,10 +203,16 @@ export class MeetingController {
       this.topology?.removePeer?.(userId);
       this.keyManager?.handlePeerLeave?.(userId);
       this.rtc.removePeer(userId);
+      this.trackManager?.unregisterPeerSources?.(userId);
       this.participants.delete(userId);
+      this.forwardingBridge?.stopAllForPeer?.(userId);
       this.emit('participantsChanged', this.getParticipants());
       this.emit('peerLeft', { userId });
+      this.reconcileRelayMesh();
     });
+
+    this.signaling.on('data', (data) => this.handleRelayControlMessage(data));
+    this.signaling.on('peer-direct', (data) => this.handleRelayControlMessage(data));
   }
 
   setupRtcBridges() {
@@ -198,10 +226,16 @@ export class MeetingController {
 
     this.rtc.on('connectionStateChange', ({ peerId, state }) => {
       this.failureDetector.reportConnectionState(peerId, state);
+      if (state === 'connected') this.forwardRelaySourcesToChildren();
     });
 
-    this.rtc.on('track', ({ peerId, track, stream }) => {
-      this.trackManager?.registerRemoteTrack?.({ peerId, track, stream, isScreen: false });
+    this.rtc.on('track', ({ peerId, track, stream, sourceType, isForwarded }) => {
+      if (track) {
+        const source = this.trackManager?.registerRemoteTrack?.({ peerId, track, stream, isScreen: false });
+        if (source) this.forwardRelaySource(source);
+      } else if (isForwarded && sourceType) {
+        this.trackManager?.unregisterRemoteSource?.(`${peerId}:${sourceType}`);
+      }
       const participant = this.participants.get(peerId);
       if (participant) {
         participant.stream = stream;
@@ -212,7 +246,8 @@ export class MeetingController {
 
     this.rtc.on('screenTrack', ({ peerId, track, stream }) => {
       if (track) {
-        this.trackManager?.registerRemoteTrack?.({ peerId, track, stream, isScreen: true });
+        const source = this.trackManager?.registerRemoteTrack?.({ peerId, track, stream, isScreen: true });
+        if (source) this.forwardRelaySource(source);
       } else {
         this.trackManager?.unregisterRemoteSource?.(`${peerId}:screen`);
       }
@@ -226,8 +261,9 @@ export class MeetingController {
 
     this.rtc.on('screenAudioTrack', ({ peerId, track, stream }) => {
       if (track) {
-        this.trackManager?.registerRemoteTrack?.({ peerId, track, stream, isScreen: true, kind: 'audio' });
-      }
+        const source = this.trackManager?.registerRemoteTrack?.({ peerId, track, stream, isScreen: true, type: 'screenAudio' });
+        if (source) this.forwardRelaySource(source);
+      } else this.trackManager?.unregisterRemoteSource?.(`${peerId}:screenAudio`);
       const participant = this.participants.get(peerId);
       if (participant) {
         participant.screenAudioStream = stream;
@@ -246,6 +282,7 @@ export class MeetingController {
 
     this.rtc.on('peerRemoved', ({ peerId }) => {
       this.dataChannels.detachChannel(peerId);
+      this.forwardingBridge?.stopAllForPeer?.(peerId);
     });
 
     this.rtc.on('dataChannelOpen', ({ peerId }) => {
@@ -261,7 +298,10 @@ export class MeetingController {
   }
 
   async join() {
-    this.signaling.on('connected', () => this.emit('connected'));
+    this.signaling.on('connected', () => {
+      this.emit('connected');
+      this.startRelayCoordination();
+    });
     this.signaling.on('disconnected', () => this.emit('disconnected'));
     this.signaling.connect();
     this.quality.start();
@@ -270,6 +310,8 @@ export class MeetingController {
   }
 
   leave() {
+    if (this.relayHeartbeatTimer) clearInterval(this.relayHeartbeatTimer);
+    this.relayHeartbeatTimer = null;
     this.quality?.stop?.();
     this.failureDetector?.destroy?.();
     this.signaling.disconnect();
@@ -380,14 +422,19 @@ export class MeetingController {
       const screenTrack = newStream.screenStream?.getVideoTracks?.()[0] || null;
       const screenAudioTrack = newStream.screenStream?.getAudioTracks?.()[0] || null;
 
-      return this.rtc.replaceTracks?.({ audioTrack, videoTrack, screenTrack, screenAudioTrack });
+      await this.rtc.replaceTracks?.({ audioTrack, videoTrack, screenTrack, screenAudioTrack });
+      this.trackManager.syncLocalTracks?.({ localStream: newStream.localStream, screenStream: newStream.screenStream });
+      this.forwardRelaySourcesToChildren();
+      return;
     }
 
     // Legacy plain-stream path
     const videoTrack = newStream?.getVideoTracks?.()[0] || null;
     const audioTrack = fallbackAudioStream?.getAudioTracks?.()[0] || newStream?.getAudioTracks?.()[0] || null;
     const screenTrack = isScreenSharing ? videoTrack : null;
-    return this.rtc.replaceTracks?.({ audioTrack, videoTrack, screenTrack, isScreenSharing });
+    await this.rtc.replaceTracks?.({ audioTrack, videoTrack, screenTrack, isScreenSharing });
+    this.trackManager.syncLocalTracks?.({ localStream: isScreenSharing ? null : newStream, screenStream: isScreenSharing ? newStream : null });
+    this.forwardRelaySourcesToChildren();
   }
 
   setPeerScreenTrack(peerId, screenTrackId) {
@@ -397,6 +444,179 @@ export class MeetingController {
   handleForwardInstruction({ sourceId, targetPeerId }) {
     if (!sourceId || !targetPeerId) return null;
     return this.forwardingBridge?.forwardTrack?.(sourceId, targetPeerId);
+  }
+
+  async collectRelayCapacity() {
+    const nav = typeof navigator !== 'undefined' ? navigator : {};
+    const ua = nav.userAgent || '';
+    const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+    const cores = Number(nav.hardwareConcurrency) || 4;
+    let measuredUploadBps = 0;
+    let avgRttMs = Infinity;
+    const samples = [];
+
+    for (const peer of this.rtc?.peers?.values?.() || []) {
+      try {
+        const stats = await peer.pc.getStats();
+        stats.forEach((stat) => {
+          if (stat.type === 'candidate-pair' && (stat.state === 'succeeded' || stat.nominated)) {
+            if (Number.isFinite(stat.availableOutgoingBitrate) && stat.availableOutgoingBitrate > 0) samples.push(stat.availableOutgoingBitrate);
+            if (Number.isFinite(stat.currentRoundTripTime) && stat.currentRoundTripTime > 0) avgRttMs = Math.min(avgRttMs, stat.currentRoundTripTime * 1000);
+          }
+        });
+      } catch (_) {}
+    }
+    if (samples.length) measuredUploadBps = Math.min(...samples);
+
+    return {
+      deviceType: mobile ? 'mobile' : (cores >= 8 ? 'desktop' : 'laptop'),
+      isCharging: true,
+      batteryLevel: 1,
+      cpuLoad: cores >= 8 ? 0.25 : cores >= 4 ? 0.45 : 0.7,
+      measuredUploadBps: measuredUploadBps || (mobile ? 1_000_000 : 5_000_000),
+      avgRttMs: Number.isFinite(avgRttMs) ? avgRttMs : 45,
+      packetLossPercent: 0,
+      currentAssignedRelays: 0
+    };
+  }
+
+  async publishRelayHeartbeat() {
+    const capacity = await this.collectRelayCapacity();
+    this.topology.handleRelayHeartbeat(this.userId, capacity);
+    this.signaling.broadcast({ type: 'RELAY_HEARTBEAT', userId: this.userId, capacity });
+    this.reconcileRelayMesh();
+  }
+
+  startRelayCoordination() {
+    if (this.relayHeartbeatTimer) return;
+    this.publishRelayHeartbeat();
+    this.relayHeartbeatTimer = setInterval(() => this.publishRelayHeartbeat(), 4000);
+  }
+
+  handleRelayControlMessage(data) {
+    if (!data || data.senderId === this.userId) return;
+    if (data.type === 'RELAY_HEARTBEAT' && data.capacity) {
+      const peerId = data.userId || data.senderId;
+      if (!peerId || peerId === this.userId) return;
+      this.topology.evaluatePeer({ id: peerId, name: data.userName || peerId });
+      this.topology.handleRelayHeartbeat(peerId, data.capacity);
+      this.reconcileRelayMesh();
+    } else if (data.type === 'RELAY_TRACK_META' && data.relayId && data.streamId) {
+      this.rtc.setRemoteStreamMetadata?.(data.relayId, data.streamId, data);
+    } else if (data.type === 'RELAY_TRACK_STOP' && data.relayId && data.publisherId && data.sourceType) {
+      this.rtc.removeForwardedTrack?.(data.relayId, data.publisherId, data.sourceType);
+    }
+  }
+
+  shouldSendDirectMedia(peerId) {
+    if (this.topology?.getMode?.() === 'mesh' || !this.relayPeerIds?.length) return true;
+    if (this.relayPeerIds.includes(peerId)) return true;
+    if (this.relayPeerIds.includes(this.userId)) {
+      return (this.relayChildren.get(this.userId) || []).includes(peerId);
+    }
+    return this.relayDirectFallbackIds.includes(this.userId) || this.relayDirectFallbackIds.includes(peerId);
+  }
+
+  async ensureRelayConnection(peerId) {
+    if (!peerId || peerId === this.userId) return;
+    if (this.rtc.getPeer(peerId)) return;
+    const shouldInitiate = String(this.userId).localeCompare(String(peerId)) < 0;
+    this.rtc.createPeer(peerId, shouldInitiate);
+    if (!shouldInitiate) return;
+    try {
+      const offer = await this.rtc.createOffer(peerId);
+      this.signaling.sendSignal(peerId, { type: 'offer', offer });
+    } catch (error) {
+      console.warn(`[MeetingController] Could not connect to elected relay ${peerId}:`, error);
+    }
+  }
+
+  reconcileRelayMesh() {
+    const activeIds = Array.from(this.topology.activePeers.keys());
+    if (activeIds.length + 1 <= 8) {
+      this.relayPeerIds = [];
+      this.relayDirectFallbackIds = [];
+      this.relayChildren.forEach((children) => children.forEach((childId) => this.forwardingBridge.stopAllForPeer(childId)));
+      this.relayChildren.clear();
+      for (const peerId of this.rtc.peers.keys()) {
+        this.rtc.setPeerExpectedRelay?.(peerId, false);
+        this.rtc.setPeerMediaEnabled?.(peerId, true);
+      }
+      return;
+    }
+    const relayIds = this.topology.getRelayIds(2);
+    if (!relayIds.length) {
+      this.relayChildren.forEach((children) => children.forEach((childId) => this.forwardingBridge.stopAllForPeer(childId)));
+      this.relayChildren.clear();
+      this.relayPeerIds = [];
+      this.relayDirectFallbackIds = [];
+      for (const peerId of this.rtc.peers.keys()) {
+        this.rtc.setPeerExpectedRelay?.(peerId, false);
+        this.rtc.setPeerMediaEnabled?.(peerId, true);
+      }
+      return;
+    }
+    const previousChildren = this.relayChildren.get(this.userId) || [];
+    this.relayPeerIds = relayIds;
+    const peers = [...activeIds, this.userId];
+    const assignments = this.topology.getRelaySubscribers(relayIds, peers);
+    this.relayDirectFallbackIds = this.topology.getDirectFallbackPeers(relayIds, assignments, peers);
+    this.relayChildren = assignments;
+
+    const nextChildren = new Set(assignments.get(this.userId) || []);
+    for (const childId of previousChildren) {
+      if (!nextChildren.has(childId)) this.forwardingBridge.stopAllForPeer(childId);
+    }
+
+    // Keep full-mesh data channels for chat/files/control. Send media upstream
+    // to elected relays only; each relay forwards to its deterministic audience.
+    for (const peerId of this.rtc.peers.keys()) {
+      this.rtc.setPeerMediaEnabled?.(peerId, this.shouldSendDirectMedia(peerId));
+    }
+    for (const peerId of this.rtc.peers.keys()) {
+      this.rtc.setPeerExpectedRelay?.(peerId, relayIds.includes(peerId));
+    }
+    for (const relayId of relayIds) {
+      this.ensureRelayConnection(relayId);
+      this.rtc.setPeerExpectedRelay?.(relayId, true);
+    }
+    if (relayIds.includes(this.userId)) this.forwardRelaySourcesToChildren();
+  }
+
+  forwardRelaySource(source) {
+    if (!source || !this.relayPeerIds.includes(this.userId)) return;
+    const children = this.relayChildren.get(this.userId) || [];
+    for (const childPeerId of children) {
+      if (childPeerId === source.publisherId) continue;
+      this.forwardSourceToChild(source.sourceId, childPeerId);
+    }
+  }
+
+  forwardRelaySourcesToChildren() {
+    if (!this.relayPeerIds.includes(this.userId)) return;
+    for (const source of this.trackManager?.getAllSources?.() || []) this.forwardRelaySource(source);
+  }
+
+  async forwardSourceToChild(sourceId, childPeerId) {
+    const source = this.trackManager?.getSource(sourceId);
+    if (!source?.track || !childPeerId || childPeerId === source.publisherId) return null;
+    if (this.forwardingBridge?.forwarded?.has?.(`${sourceId}->${childPeerId}`)) {
+      return this.forwardingBridge.forwarded.get(`${sourceId}->${childPeerId}`);
+    }
+    const record = await this.forwardingBridge?.forwardTrack?.(sourceId, childPeerId);
+    if (!record) return null;
+    // WebRTC assigns a different receiver track ID at each hop. The stream ID
+    // survives forwarding, so use it to associate the incoming track with its
+    // original publisher even when MQTT metadata arrives after ontrack.
+    this.signaling.sendDirect(childPeerId, {
+      type: 'RELAY_TRACK_META',
+      senderId: this.userId,
+      relayId: this.userId,
+      streamId: record.streamId,
+      publisherId: source.publisherId,
+      sourceType: source.type
+    });
+    return record;
   }
 
   destroy() {

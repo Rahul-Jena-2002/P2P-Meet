@@ -1,0 +1,14 @@
+name = "p2pmeet-signaling"
+main = "index.js"
+compatibility_date = "2026-10-12"
+
+[observability]
+enabled = true
+
+[[durable_objects.bindings]]
+name = "MEETING_ROOMS"
+class_name = "MeetingRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MeetingRoom"]

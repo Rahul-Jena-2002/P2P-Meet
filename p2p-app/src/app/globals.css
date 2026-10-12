@@ -419,19 +419,41 @@
     width: 100%;
     max-width: 100%;
     min-height: 50px;
-    gap: 2px;
-    overflow-x: auto;
+    gap: 0;
+    overflow-x: hidden;
     overflow-y: hidden;
-    justify-content: flex-start;
-    border-radius: 16px;
-    padding: 5px 8px;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    justify-content: space-between;
+    border-radius: 14px;
+    padding: 4px 5px;
   }
 
-  .meeting-controls-dock::-webkit-scrollbar { display: none; }
   .meeting-controls-dock > * { flex: 0 0 auto; }
-  .meeting-controls-dock button { min-height: 44px; }
+  .meeting-controls-dock .meeting-label { display: none !important; }
+  .meeting-controls-dock .meeting-av-control-group { gap: 0; }
+  .meeting-controls-dock .meeting-av-control-group > .meeting-control-button {
+    width: 34px;
+    min-width: 34px;
+    min-height: 42px;
+    justify-content: center;
+    padding: 0 !important;
+  }
+  .meeting-controls-dock .meeting-av-control-group > button:not(.meeting-control-button) {
+    width: 9px;
+    min-width: 9px;
+    min-height: 42px;
+  }
+  .meeting-controls-dock > .meeting-control-button:not(.meeting-end-button) {
+    width: 34px;
+    min-width: 34px;
+    min-height: 42px;
+    justify-content: center;
+    padding: 0 !important;
+  }
+  .meeting-controls-dock > .meeting-end-button {
+    min-width: 46px;
+    min-height: 40px;
+    padding: 0 8px !important;
+  }
 }
 
 /* Custom frosted lavender scrollbar */
