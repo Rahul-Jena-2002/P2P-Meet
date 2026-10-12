@@ -267,7 +267,7 @@ test('PeerConnectionManager identifies screen audio track and dispatches screenA
   assert.strictEqual(emitted, true);
 });
 
-test('DEFAULT_RTC_CONFIG contains Cloudflare and Google STUN servers with zero TURN requirement', () => {
+test('DEFAULT_RTC_CONFIG contains the public STUN servers for direct ICE connectivity', () => {
   const stunUrls = DEFAULT_RTC_CONFIG.iceServers.map(s => s.urls).flat();
   assert.ok(stunUrls.includes('stun:stun.cloudflare.com:3478'));
   assert.ok(stunUrls.includes('stun:stun.l.google.com:19302'));

@@ -41,28 +41,25 @@ test('DataChannelManager routes chat and whiteboard messages to handlers', () =>
   assert.deepEqual(boardReceived, { type: 'whiteboard', stroke: [1, 2, 3] });
 });
 
-test('DataChannelManager chunks files and handles reassembly with backpressure check', async () => {
-  const dcm = new DataChannelManager({ chunkSize: 16 }); // small chunk size for testing
+test('DataChannelManager transfers raw file bytes in chunks and reassembles a Blob', async () => {
+  const dcm = new DataChannelManager({ chunkSize: 16 });
   const mockDc = new MockDataChannel();
   dcm.attachChannel('peer-1', mockDc);
 
-  const filePayload = '1234567890abcdefghijklmnopqrstuvwxyz'; // 36 chars > 16
+  const filePayload = new TextEncoder().encode('1234567890abcdefghijklmnopqrstuvwxyz');
+  const file = new Blob([filePayload], { type: 'text/plain' });
+  Object.defineProperty(file, 'name', { value: 'test.txt' });
+  await dcm.sendFile('peer-1', file);
 
-  await dcm.sendFile('peer-1', {
-    fileId: 'f-1',
-    name: 'test.txt',
-    size: filePayload.length,
-    data: filePayload
-  });
+  assert.equal(mockDc.sentMessages.length, 3);
+  assert.ok(mockDc.sentMessages.every(packet => packet instanceof ArrayBuffer));
+  const firstPacket = new Uint8Array(mockDc.sentMessages[0]);
+  assert.deepEqual(Array.from(firstPacket.subarray(0, 4)), [0x50, 0x32, 0x50, 0x46]);
+  const headerSize = new DataView(firstPacket.buffer).getUint32(4);
+  const firstHeader = JSON.parse(new TextDecoder().decode(firstPacket.subarray(8, 8 + headerSize)));
+  assert.equal(firstHeader.name, 'test.txt');
+  assert.equal(firstHeader.chunkIndex, 0);
 
-  // Verify chunks were sent
-  assert.ok(mockDc.sentMessages.length >= 3); // 36 / 16 = 3 chunks
-  const firstChunk = JSON.parse(mockDc.sentMessages[0]);
-  assert.equal(firstChunk.type, 'file-chunk');
-  assert.equal(firstChunk.fileId, 'f-1');
-  assert.equal(firstChunk.chunkIndex, 0);
-
-  // Now simulate receiver side reassembly
   const receiverDcm = new DataChannelManager();
   let completedFile = null;
   receiverDcm.on('fileComplete', (file) => {
@@ -77,6 +74,23 @@ test('DataChannelManager chunks files and handles reassembly with backpressure c
   }
 
   assert.ok(completedFile);
-  assert.equal(completedFile.fileId, 'f-1');
-  assert.equal(completedFile.data, filePayload);
+  assert.equal(completedFile.peerId, 'sender-1');
+  assert.equal(completedFile.name, 'test.txt');
+  assert.equal(completedFile.size, filePayload.length);
+  assert.deepEqual(new Uint8Array(await completedFile.blob.arrayBuffer()), filePayload);
+});
+
+test('DataChannelManager sends zero-byte files and rejects a missing peer connection', async () => {
+  const dcm = new DataChannelManager();
+  const channel = new MockDataChannel();
+  dcm.attachChannel('peer-1', channel);
+  const empty = new Blob([]);
+  Object.defineProperty(empty, 'name', { value: 'empty.txt' });
+  await dcm.sendFile('peer-1', empty);
+  assert.equal(channel.sentMessages.length, 1);
+
+  await assert.rejects(
+    dcm.sendFile('not-connected', empty),
+    /not connected for direct file sharing/,
+  );
 });

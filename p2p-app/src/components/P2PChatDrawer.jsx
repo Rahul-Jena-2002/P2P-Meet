@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Users, Paperclip, Download, FileText, ArrowDownToLine, ShieldCheck, FileQuestion, MessageSquare } from 'lucide-react';
+import { X, Send, Users, Paperclip, Download, FileText, ArrowDownToLine, ShieldCheck, FileQuestion, MessageSquare, PictureInPicture2 } from 'lucide-react';
 
 export default function P2PChatDrawer({
   messages,
@@ -17,6 +17,9 @@ export default function P2PChatDrawer({
   activeVideoStream,
   activeSpeakerName,
   onSwitchPanel,
+  isDetached = false,
+  onToggleDetach,
+  isClosing = false,
   onClose
 }) {
   const [text, setText] = useState('');
@@ -48,17 +51,14 @@ export default function P2PChatDrawer({
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      onSendMessage({
-        type: 'file',
-        name: file.name,
-        size: file.size,
-        data: reader.result
-      });
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 500 * 1024 * 1024) {
+      window.alert('Files must be 500 MB or smaller.');
+      e.target.value = '';
+      return;
+    }
+    Promise.resolve(onSendFile?.(file)).catch((error) => {
+      window.alert(error?.message || 'Could not send this file directly to the participants.');
+    });
     e.target.value = '';
   };
 
@@ -86,7 +86,28 @@ export default function P2PChatDrawer({
   };
 
   const [drawerWidth, setDrawerWidth] = useState(384);
+  const [detachedFrame, setDetachedFrame] = useState(null);
   const isResizingRef = useRef(false);
+
+  const handleStartDrag = (e) => {
+    if (!isDetached || e.button !== 0 || e.target.closest('button')) return;
+    e.preventDefault();
+    const rect = e.currentTarget.parentElement.getBoundingClientRect();
+    const start = { x: e.clientX, y: e.clientY, left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+    const onMove = (event) => {
+      const left = Math.max(8, Math.min(window.innerWidth - start.width - 8, start.left + event.clientX - start.x));
+      const top = Math.max(56, Math.min(window.innerHeight - start.height - 72, start.top + event.clientY - start.y));
+      setDetachedFrame({ left, top, width: start.width, height: start.height });
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
 
   const handleStartResize = (e) => {
     e.preventDefault();
@@ -115,8 +136,10 @@ export default function P2PChatDrawer({
 
   return (
     <aside
-      style={{ width: `${drawerWidth}px` }}
-      className="relative max-w-[90vw] h-full border-l border-white/15 flex flex-col z-30 select-text liquid-glass-panel text-[#F8F7FC] shadow-2xl shrink-0 animate-in slide-in-from-right duration-150"
+      style={isDetached
+        ? detachedFrame ? { left: detachedFrame.left, top: detachedFrame.top, right: 'auto', bottom: 'auto', width: detachedFrame.width, height: detachedFrame.height } : undefined
+        : { width: `${drawerWidth}px` }}
+      className={`meeting-drawer ${isDetached ? 'meeting-drawer-detached' : 'fixed inset-y-0 right-0 md:relative md:inset-auto'} ${isClosing ? 'is-closing' : ''} max-w-[90vw] h-full border-l border-white/15 flex flex-col z-30 select-text liquid-glass-panel text-[#F8F7FC] shadow-2xl shrink-0`}
     >
       {/* Draggable resize handle on left border */}
       <div
@@ -127,36 +150,37 @@ export default function P2PChatDrawer({
         <div className="w-0.5 h-10 rounded-full bg-white/20 group-hover:bg-[#FF6B35] transition" />
       </div>
       {/* Header with Clean Separated Context Tabs */}
-      <div className="h-12 px-3 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-transparent shrink-0">
+      <div onPointerDown={handleStartDrag} className={`h-12 px-3 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-transparent shrink-0 ${isDetached ? 'cursor-grab active:cursor-grabbing touch-none' : ''}`}>
         <div className="flex items-center gap-1.5">
           {onSwitchPanel && (
             <button
               onClick={() => onSwitchPanel('participants')}
-              className="text-xs px-2.5 py-1 rounded-full text-[#C4B5FD]/70 hover:text-[#F8F7FC] hover:bg-white/10 transition cursor-pointer flex items-center gap-1"
+              className="text-xs px-2.5 py-1 text-white/55 hover:text-white transition cursor-pointer flex items-center gap-1.5"
             >
               <Users className="w-3.5 h-3.5" />
               <span>People ({participants.length})</span>
             </button>
           )}
-          <span className="text-xs px-2.5 py-1 rounded-full bg-[#FF6B35]/20 text-[#FFA14A] font-bold border border-[#FF6B35]/40 flex items-center gap-1">
+          <span className="text-xs px-2.5 py-1 text-white font-semibold flex items-center gap-1.5">
             <MessageSquare className="w-3.5 h-3.5" />
             <span>Chat</span>
           </span>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-xl text-[#C4B5FD]/60 hover:text-[#F8F7FC] hover:bg-[rgba(196,181,253,0.10)] transition cursor-pointer"
-          title="Close Sidebar"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={onToggleDetach} className="p-1.5 rounded-lg text-white/65 hover:text-white hover:bg-white/10 transition" title={isDetached ? 'Dock chat' : 'Float chat'} aria-label={isDetached ? 'Dock chat' : 'Float chat'}>
+            <PictureInPicture2 className="w-4 h-4" />
+          </button>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-white/65 hover:text-white hover:bg-white/10 transition cursor-pointer" title="Close Chat" aria-label="Close chat">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Recipient & Action Bar */}
-      <div className="px-4 py-2 border-b border-[rgba(196,181,253,0.14)] bg-[#0D0B14]/40 flex items-center justify-between text-xs text-[#C4B5FD]/70">
+      <div className="px-4 py-2 border-b border-white/10 bg-white/[0.025] flex items-center justify-between text-xs text-white/60">
         <div className="flex items-center gap-1.5">
           <span>To:</span>
-          <span className="flex items-center gap-1 font-semibold text-[#C4B5FD] bg-[rgba(196,181,253,0.12)] border border-[rgba(196,181,253,0.20)] px-2 py-0.5 rounded-lg text-[11px]">
+          <span className="flex items-center gap-1.5 font-semibold text-white/85 bg-white/[0.08] border border-white/15 px-2 py-0.5 rounded-lg text-[11px]">
             <Users className="w-3 h-3 text-[#FF6B35]" /> Everyone
           </span>
         </div>
@@ -201,7 +225,7 @@ export default function P2PChatDrawer({
             <button
               type="submit"
               disabled={!requestTarget}
-              className="w-full py-2 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 disabled:opacity-40 text-[#0D0B14] font-bold transition shadow-md shadow-[#FF6B35]/20"
+              className="w-full py-2 rounded-xl bg-[#FF6B35] hover:brightness-110 disabled:opacity-40 text-[#0D0B14] font-bold transition shadow-md shadow-[#FF6B35]/20"
             >
               Send Request
             </button>
@@ -216,7 +240,7 @@ export default function P2PChatDrawer({
             <FileText className="w-8 h-8 opacity-40 mb-2" />
             <p className="text-[#F8F7FC]/70">No messages or files shared yet.</p>
             <p className="mt-1 text-[11px] text-[#C4B5FD]/40">
-              Send messages or attach any file to share directly via P2P.
+              Send a message or share a file with everyone in the meeting.
             </p>
           </div>
         ) : (
@@ -244,14 +268,16 @@ export default function P2PChatDrawer({
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-[#F8F7FC] truncate">{m.name}</p>
-                        <p className="text-[10px] text-[#C4B5FD]/60">{formatFileSize(m.size)} • Direct P2P</p>
+                        <p className="text-[10px] text-[#C4B5FD]/60">{formatFileSize(m.size)}</p>
                       </div>
                     </div>
 
                     <a
-                      href={m.data}
+                      href={m.url || undefined}
+                      aria-disabled={!m.url}
+                      onClick={(event) => { if (!m.url) event.preventDefault(); }}
                       download={m.name}
-                      className="w-full py-1.5 px-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-[#FF6B35]/20 transition"
+                      className="w-full py-1.5 px-3 rounded-xl bg-[#FF6B35] hover:brightness-110 text-[#0D0B14] font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-[#FF6B35]/20 transition"
                     >
                       <ArrowDownToLine className="w-3.5 h-3.5" />
                       <span>Download File</span>
@@ -269,7 +295,7 @@ export default function P2PChatDrawer({
                     {m.targetId === currentUserId && (
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-full py-1.5 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold text-xs flex items-center justify-center gap-1.5 transition shadow"
+                        className="w-full py-1.5 rounded-xl bg-[#FF6B35] hover:brightness-110 text-[#0D0B14] font-bold text-xs flex items-center justify-center gap-1.5 transition shadow"
                       >
                         <Paperclip className="w-3.5 h-3.5" />
                         <span>Send Requested File</span>
@@ -278,10 +304,10 @@ export default function P2PChatDrawer({
                   </div>
                 ) : (
                   /* 3. Regular Text Message */
-                  <div className={`px-4 py-2 rounded-2xl text-xs max-w-[85%] break-words leading-relaxed shadow-sm ${
+                  <div className={`chat-message-bubble px-4 py-2 rounded-2xl text-xs max-w-[85%] break-words leading-relaxed shadow-sm ${
                     isMe
-                      ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-semibold rounded-tr-none shadow-[#FF6B35]/20'
-                      : 'bg-[#221C35] text-[#F8F7FC] rounded-tl-none border border-[rgba(196,181,253,0.18)]'
+                      ? 'chat-message-bubble-sent font-semibold rounded-tr-none'
+                      : 'chat-message-bubble-received rounded-tl-none'
                   }`}>
                     {m.text}
                   </div>
@@ -294,20 +320,20 @@ export default function P2PChatDrawer({
       </div>
 
       {/* Message & Attachment Input */}
-      <form onSubmit={handleSubmit} className="p-3 border-t border-[rgba(196,181,253,0.14)] bg-[#161324]">
+      <form onSubmit={handleSubmit} className="p-3 border-t border-white/10 bg-white/[0.035]">
         <input
           ref={fileInputRef}
           type="file"
           className="hidden"
           onChange={handleFileChange}
         />
-        <div className="flex items-center gap-2 bg-[#0D0B14] rounded-2xl px-3 py-2 border border-[rgba(196,181,253,0.18)] focus-within:border-[#FF6B35] transition shadow-inner">
+        <div className="flex items-center gap-2 bg-white/[0.07] rounded-2xl px-3 py-2 border border-white/15 focus-within:border-white/35 transition shadow-inner backdrop-blur-xl">
           {/* File Attachment Button */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="p-1.5 rounded-xl text-[#C4B5FD]/70 hover:text-[#FFA14A] hover:bg-[rgba(196,181,253,0.08)] transition"
-            title="Attach & Send Any File (Encrypted Direct P2P)"
+            title="Attach and send a file"
           >
             <Paperclip className="w-4 h-4" />
           </button>

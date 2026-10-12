@@ -89,6 +89,27 @@ test('SFrameTransform pipeline: sender encrypts, relay passes raw ciphertext, re
   assert.deepEqual(new Uint8Array(decryptedFrame.data), originalPlaintext, 'Receiver decrypts back to original payload');
 });
 
+test('SFrameTransform sender drops a frame when encryption fails instead of forwarding plaintext', async () => {
+  const sframe = new SFrameTransform();
+  const mediaKey = await sframe.generateMediaKey();
+  const transform = sframe.createSenderTransform(mediaKey);
+  const writer = transform.writable.getWriter();
+  const reader = transform.readable.getReader();
+  const frame = { data: new Uint8Array([1, 2, 3]).buffer };
+
+  const originalEncryptPayload = sframe.encryptPayload;
+  sframe.encryptPayload = async () => { throw new Error('simulated encryption failure'); };
+  try {
+    const output = reader.read();
+    const write = writer.write(frame);
+    await assert.rejects(output, /simulated encryption failure/);
+    await write;
+  } finally {
+    sframe.encryptPayload = originalEncryptPayload;
+    await writer.close().catch(() => {});
+  }
+});
+
 test('ForwardingBridge pipes encoded streams from source to child without decrypting', async () => {
   const bridge = new ForwardingBridge();
 

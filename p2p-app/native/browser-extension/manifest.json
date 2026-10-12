@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "P2PMeet Desktop Control Bridge",
+  "version": "1.0.0",
+  "description": "Consent-gated bridge between P2PMeet and its Windows input helper.",
+  "permissions": ["nativeMessaging"],
+  "host_permissions": ["http://localhost:3000/*", "https://*.pages.dev/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{
+    "matches": ["http://localhost:3000/*", "https://*.pages.dev/*"],
+    "js": ["content.js"],
+    "run_at": "document_start"
+  }]
+}

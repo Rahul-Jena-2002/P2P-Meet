@@ -88,10 +88,7 @@ export default function P2PFilesDrawer({
       {/* Header */}
       <div className="p-4 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-[#161324]">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-bold text-[#F8F7FC] tracking-tight">Direct P2P Files</h3>
-          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[rgba(196,181,253,0.14)] text-[#C4B5FD] border border-[rgba(196,181,253,0.25)] font-bold">
-            Zero Cloud
-          </span>
+          <h3 className="text-sm font-bold text-[#F8F7FC] tracking-tight">File sharing</h3>
         </div>
         <button
           onClick={onClose}
@@ -153,7 +150,7 @@ export default function P2PFilesDrawer({
             <Upload className="w-5 h-5" />
           </div>
           <p className="text-xs font-semibold text-[#F8F7FC]">Click or Drag files to transfer</p>
-          <p className="text-[10px] text-[#C4B5FD]/60 mt-0.5">Direct encrypted browser-to-browser pipe</p>
+          <p className="text-[10px] text-[#C4B5FD]/60 mt-0.5">Share files with people in this meeting</p>
         </div>
 
         {/* Request File from Peer Section */}
@@ -184,7 +181,7 @@ export default function P2PFilesDrawer({
               <button
                 type="submit"
                 disabled={!requestTargetId}
-                className="w-full py-1.5 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 disabled:opacity-40 text-[#0D0B14] font-bold text-xs transition shadow-md shadow-[#FF6B35]/20"
+                className="w-full py-1.5 rounded-xl bg-[#FF6B35] hover:brightness-110 disabled:opacity-40 text-[#0D0B14] font-bold text-xs transition shadow-md shadow-[#FF6B35]/20"
               >
                 Send Request Prompt
               </button>
@@ -203,10 +200,10 @@ export default function P2PFilesDrawer({
                 <p className="font-medium text-[#F8F7FC]">
                   <strong className="text-[#FFA14A]">{req.requesterName}</strong> requested a file
                 </p>
-                {req.note && <p className="text-[11px] text-[#C4B5FD]/80 italic">"{req.note}"</p>}
+                {req.note && <p className="text-[11px] text-[#C4B5FD]/80 italic">&quot;{req.note}&quot;</p>}
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-1.5 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold text-[11px] flex items-center justify-center gap-1.5 shadow"
+                  className="w-full py-1.5 rounded-xl bg-[#FF6B35] hover:brightness-110 text-[#0D0B14] font-bold text-[11px] flex items-center justify-center gap-1.5 shadow"
                 >
                   <Upload className="w-3.5 h-3.5" />
                   <span>Choose File to Send</span>
@@ -230,7 +227,7 @@ export default function P2PFilesDrawer({
                 </div>
                 <div className="w-full h-1.5 bg-[#0D0B14] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] transition-all duration-150"
+                    className="h-full bg-[#FF6B35] transition-all duration-150"
                     style={{ width: `${t.progress || 0}%` }}
                   />
                 </div>
@@ -275,7 +272,7 @@ export default function P2PFilesDrawer({
                 <a
                   href={file.url}
                   download={sanitizeFilename(file.name)}
-                  className="p-2 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold transition shrink-0 shadow-md shadow-[#FF6B35]/20"
+                  className="p-2 rounded-xl bg-[#FF6B35] hover:brightness-110 text-[#0D0B14] font-bold transition shrink-0 shadow-md shadow-[#FF6B35]/20"
                   title="Download File"
                 >
                   <ArrowDownToLine className="w-4 h-4" />
@@ -286,11 +283,6 @@ export default function P2PFilesDrawer({
         </div>
       </div>
 
-      {/* Footer Info */}
-      <div className="p-3 border-t border-[rgba(196,181,253,0.14)] bg-[#161324] flex items-center justify-center gap-1.5 text-[11px] text-[#C4B5FD]">
-        <ShieldCheck className="w-3.5 h-3.5 text-[#FF6B35]" />
-        <span>End-to-End Encrypted Wire (DTLS/SRTP)</span>
-      </div>
     </aside>
   );
 }

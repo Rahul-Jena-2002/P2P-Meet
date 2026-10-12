@@ -144,7 +144,9 @@ export class SFrameTransform {
           controller.enqueue(frame);
         } catch (err) {
           console.error('[SFrameTransform] Sender transform error:', err);
-          controller.enqueue(frame); // fail-open fallback if supported
+          // Never put the original cleartext frame on the wire when encryption fails.
+          // Error the stream so its pipe shuts down instead of stalling on an unwritten frame.
+          controller.error(err);
         }
       }
     });

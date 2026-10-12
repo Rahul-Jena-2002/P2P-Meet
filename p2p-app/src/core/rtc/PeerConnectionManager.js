@@ -451,6 +451,18 @@ export class PeerConnectionManager {
     });
   }
 
+  sendDataToPeer(peerId, data) {
+    const channel = this.peers.get(peerId)?.dataChannel;
+    if (!channel || channel.readyState !== 'open') return false;
+    try {
+      channel.send(typeof data === 'string' ? data : JSON.stringify(data));
+      return true;
+    } catch (error) {
+      console.warn(`[PeerConnection] Failed to send data to ${peerId}:`, error);
+      return false;
+    }
+  }
+
   removePeer(peerId) {
     const peer = this.peers.get(peerId);
     if (!peer) return;

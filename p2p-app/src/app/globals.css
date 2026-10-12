@@ -57,29 +57,191 @@
 
 /* Floating Liquid Glass Dock (Zoom Control Bar) */
 .p2p-dock, .zoom-dock, .liquid-glass-dock {
-  background: rgba(255, 255, 255, 0.12) !important;
-  backdrop-filter: blur(28px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
-  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.45) !important;
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(125deg, rgba(196, 181, 253, 0.14), rgba(255, 255, 255, 0.025) 42%, rgba(255, 107, 53, 0.08)), rgba(22, 18, 34, 0.36) !important;
+  backdrop-filter: blur(30px) saturate(175%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(175%) !important;
+  border: 1px solid rgba(220, 211, 255, 0.22) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(196, 181, 253, 0.14) !important;
 }
 
 /* Floating Liquid Glass Panels & Drawers (Chat & Participants) */
 .p2p-panel, .zoom-panel, .liquid-glass-panel {
-  background: rgba(22, 19, 36, 0.70) !important;
-  backdrop-filter: blur(32px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.20) !important;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
+  isolation: isolate;
+  background: linear-gradient(145deg, rgba(196, 181, 253, 0.13), rgba(255, 255, 255, 0.018) 44%, rgba(255, 107, 53, 0.045)), rgba(22, 18, 34, 0.28) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  border: 1px solid rgba(230, 224, 255, 0.30) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), inset 0 -1px 0 rgba(196, 181, 253, 0.16), 0 18px 44px rgba(0, 0, 0, 0.26) !important;
+}
+
+.chat-message-bubble {
+  background: rgba(255, 255, 255, 0.075);
+  -webkit-backdrop-filter: blur(8px) saturate(125%);
+  backdrop-filter: blur(8px) saturate(125%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13);
+}
+
+.chat-message-bubble-sent {
+  border: 1px solid rgba(255, 161, 74, 0.38);
+  color: #FFAD68;
+}
+
+.chat-message-bubble-received {
+  border: 1px solid rgba(196, 181, 253, 0.34);
+  color: #D7C9FF;
+}
+
+.meeting-drawer.liquid-glass-panel {
+  background: rgba(22, 18, 34, 0.24) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+  backdrop-filter: blur(18px) saturate(150%) !important;
+  border-color: rgba(220, 211, 255, 0.28) !important;
+}
+
+.meeting-drawer.liquid-glass-panel::after {
+  background: transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.meeting-glass-pin:not(.meeting-glass-pin-active) {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0.11) 48%, rgba(196, 181, 253, 0.16)) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(190%);
+  backdrop-filter: blur(16px) saturate(190%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(196, 181, 253, 0.28), 0 8px 22px rgba(0, 0, 0, 0.24);
+}
+
+.meeting-glass-pin:not(.meeting-glass-pin-active):hover {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.16) 48%, rgba(196, 181, 253, 0.20)) !important;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .p2p-panel, .zoom-panel, .liquid-glass-panel {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .p2p-panel, .zoom-panel, .liquid-glass-panel { background: rgba(25, 21, 38, 0.94) !important; }
+}
+
+.p2p-dock::after, .zoom-dock::after, .liquid-glass-dock::after,
+.liquid-glass-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09), transparent 38%, rgba(255, 107, 53, 0.025));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), inset 1px 0 0 rgba(196, 181, 253, 0.14);
+}
+
+.p2p-dock > *, .zoom-dock > *, .liquid-glass-dock > *,
+.liquid-glass-panel > :not([class*="absolute"]) {
+  position: relative;
+  z-index: 1;
 }
 
 /* Floating Liquid Glass Dropdowns & Popovers (Virtual Backgrounds, Security, Audio Menus) */
 .p2p-dropdown, .zoom-dropdown, .liquid-glass-dropdown {
-  background: rgba(26, 22, 42, 0.80) !important;
-  backdrop-filter: blur(30px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(190%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.40) !important;
+  background: linear-gradient(145deg, rgba(196, 181, 253, 0.15), rgba(255, 255, 255, 0.025) 50%, rgba(255, 107, 53, 0.06)), rgba(24, 20, 36, 0.76) !important;
+  backdrop-filter: blur(28px) saturate(175%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(175%) !important;
+  border: 1px solid rgba(220, 211, 255, 0.24) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), 0 18px 42px rgba(0, 0, 0, 0.38) !important;
+}
+
+.meeting-info-glass {
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(196, 181, 253, 0.16), rgba(255, 255, 255, 0.025) 48%, rgba(255, 107, 53, 0.07)), rgba(22, 18, 34, 0.62) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(220, 211, 255, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 18px 48px rgba(0, 0, 0, 0.38);
+}
+
+.meeting-info-glass > * { position: relative; z-index: 1; }
+
+.meeting-info-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(132deg, rgba(255, 255, 255, 0.10), transparent 42%, rgba(255, 107, 53, 0.025));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), inset 1px 0 0 rgba(196, 181, 253, 0.16);
+}
+
+.meeting-drawer {
+  animation: meetingPanelEnter 180ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  will-change: transform, opacity;
+}
+
+.meeting-drawer.is-closing,
+.meeting-whiteboard.is-closing {
+  animation: meetingPanelExit 160ms cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+
+.meeting-drawer-detached {
+  position: fixed;
+  top: 56px;
+  right: 16px;
+  bottom: 72px;
+  width: min(25rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  height: auto;
+  border-radius: 20px;
+  overflow: hidden;
+  z-index: 45;
+}
+
+.meeting-whiteboard {
+  animation: meetingPanelEnter 180ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  will-change: transform, opacity;
+}
+
+.meeting-whiteboard-embedded {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  border: 1px solid rgba(220, 211, 255, 0.20);
+  border-radius: 14px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.34);
+}
+
+@keyframes meetingPanelEnter {
+  from { opacity: 0; transform: translate3d(10px, 0, 0) scale(0.992); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes meetingPanelExit {
+  from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: 0; transform: translate3d(8px, 0, 0) scale(0.994); }
+}
+
+@media (max-width: 767px) {
+  .meeting-drawer-detached {
+    top: auto;
+    right: 12px;
+    bottom: 82px;
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    height: min(72dvh, 40rem);
+    border-radius: 18px;
+  }
+
+  .meeting-whiteboard-embedded { inset: 0; border-radius: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meeting-drawer, .meeting-whiteboard, .meeting-drawer.is-closing, .meeting-whiteboard.is-closing {
+    animation-duration: 1ms;
+    will-change: auto;
+  }
 }
 
 /* Reusable Interactive iOS Glass Pill */
@@ -143,6 +305,133 @@
 .speaking-halo {
   border-color: #FF6B35 !important;
   box-shadow: 0 0 8px rgba(255, 107, 53, 0.25) !important;
+}
+
+/* Compact meeting chrome, leaving the stage as the visual focus. */
+.meeting-control-button {
+  min-width: 44px;
+  min-height: 44px;
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.meeting-control-button:active {
+  transform: scale(0.96);
+}
+
+/* Keep the dock itself glassy while leaving each action visually unboxed. */
+.meeting-controls-dock .meeting-control-button:not(.meeting-end-button) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.meeting-controls-dock .meeting-control-button:not(.meeting-end-button):hover {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.meeting-controls-dock .meeting-control-active:not(.meeting-end-button),
+.meeting-controls-dock .meeting-control-active:not(.meeting-end-button) svg {
+  color: #FFA14A !important;
+}
+
+.meeting-tile {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+/* Responsive presentation rail: wider viewports get a larger camera column,
+   bringing the shared 16:9 surface closer to the stage's natural aspect ratio. */
+.presentation-participant-rail {
+  width: clamp(15rem, 18vw, 21.25rem);
+}
+
+@media (max-width: 1100px) {
+  .presentation-participant-rail {
+    width: clamp(13rem, 22vw, 16rem);
+  }
+}
+
+@media (min-width: 768px) {
+  .meeting-controls-dock {
+    gap: 2px;
+    padding: 2px 4px;
+    border-radius: 9px;
+  }
+
+  .meeting-controls-dock .meeting-label { display: none !important; }
+
+  .meeting-controls-dock .meeting-control-button {
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0 6px !important;
+    border: 0 !important;
+    border-radius: 12px !important;
+  }
+
+  .meeting-controls-dock .meeting-av-control-group > .meeting-control-button {
+    width: 32px;
+    min-width: 32px !important;
+    padding: 0 3px !important;
+    gap: 0 !important;
+  }
+
+  .meeting-controls-dock .meeting-av-control-group > button:not(.meeting-control-button) {
+    width: 10px;
+    min-width: 10px;
+    padding: 0;
+  }
+
+  .meeting-controls-dock > .meeting-end-button {
+    min-width: 46px;
+    min-height: 38px;
+    border-radius: 11px !important;
+    background: #d93025 !important;
+    color: white !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meeting-control-button { transition: none; }
+  .meeting-control-button:active { transform: none; }
+}
+
+/* Keep primary meeting controls reachable in narrow mobile webviews. */
+@media (max-width: 767px) {
+  .meeting-header-row {
+    top: max(8px, env(safe-area-inset-top));
+    left: 10px;
+    right: 10px;
+    gap: 6px;
+  }
+
+  .meeting-controls {
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: auto;
+    max-width: none;
+    transform: none;
+  }
+
+  .meeting-controls-dock {
+    width: 100%;
+    max-width: 100%;
+    min-height: 50px;
+    gap: 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    justify-content: flex-start;
+    border-radius: 16px;
+    padding: 5px 8px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .meeting-controls-dock::-webkit-scrollbar { display: none; }
+  .meeting-controls-dock > * { flex: 0 0 auto; }
+  .meeting-controls-dock button { min-height: 44px; }
 }
 
 /* Custom frosted lavender scrollbar */

@@ -86,12 +86,6 @@ export default function GreenRoom({ onJoinMeeting }) {
 
   return (
     <div className="relative min-h-screen w-full bg-[#0D0B14] text-[#F8F7FC] flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 overflow-y-auto select-none">
-      {/* Ambient Optical Liquid Glass Refraction Glows */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-[10%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-[radial-gradient(circle,rgba(196,181,253,0.15)_0%,transparent_70%)] blur-[90px]" />
-        <div className="absolute -bottom-[15%] -right-[10%] w-[55vw] h-[55vw] rounded-full bg-[radial-gradient(circle,rgba(255,107,53,0.14)_0%,rgba(167,139,250,0.06)_40%,transparent_70%)] blur-[100px]" />
-      </div>
-
       {/* Header */}
       <div className="w-full max-w-4xl flex items-center justify-between py-3 mb-2 sm:mb-6 md:absolute md:top-8 md:left-8 md:w-auto md:py-0 z-20">
         <div className="flex items-center gap-3">
@@ -99,7 +93,7 @@ export default function GreenRoom({ onJoinMeeting }) {
           <div>
             <h1 className="text-base sm:text-lg font-bold text-[#F8F7FC] tracking-tight">p2pmeet</h1>
             <span className="text-[11px] sm:text-xs text-[#C4B5FD] flex items-center gap-1.5 font-medium">
-              <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#C4B5FD]" /> Direct Peer-to-Peer Encrypted
+              <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#C4B5FD]" /> Ready when you are
             </span>
           </div>
         </div>
@@ -141,7 +135,7 @@ export default function GreenRoom({ onJoinMeeting }) {
                 <Volume2 className={`w-3.5 h-3.5 ${audioLevel > 10 ? 'text-[#FF6B35]' : 'text-[#C4B5FD]/60'}`} />
                 <div className="w-16 h-1.5 bg-[rgba(196,181,253,0.15)] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] transition-all duration-75 rounded-full"
+                    className="h-full bg-[#FF6B35] transition-all duration-75 rounded-full"
                     style={{ width: `${audioLevel}%` }}
                   />
                 </div>
@@ -250,7 +244,7 @@ export default function GreenRoom({ onJoinMeeting }) {
               onClick={() => setMode('new')}
               className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                 mode === 'new'
-                  ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold shadow-md shadow-[#FF6B35]/25'
+                  ? 'bg-[#FF6B35] text-[#0D0B14] font-bold shadow-md shadow-[#FF6B35]/25'
                   : 'text-[#C4B5FD]/70 hover:text-[#F8F7FC]'
               }`}
             >
@@ -260,7 +254,7 @@ export default function GreenRoom({ onJoinMeeting }) {
               onClick={() => setMode('join')}
               className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                 mode === 'join'
-                  ? 'bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold shadow-md shadow-[#FF6B35]/25'
+                  ? 'bg-[#FF6B35] text-[#0D0B14] font-bold shadow-md shadow-[#FF6B35]/25'
                   : 'text-[#C4B5FD]/70 hover:text-[#F8F7FC]'
               }`}
             >
@@ -314,7 +308,7 @@ export default function GreenRoom({ onJoinMeeting }) {
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] hover:brightness-110 text-[#0D0B14] font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#FF6B35]/25 transition duration-150"
+              className="w-full py-3.5 rounded-2xl bg-[#FF6B35] hover:brightness-110 text-[#0D0B14] font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#FF6B35]/25 transition duration-150"
             >
               <span>{mode === 'new' ? 'Launch Meeting' : 'Join Call'}</span>
               <ArrowRight className="w-4 h-4" />

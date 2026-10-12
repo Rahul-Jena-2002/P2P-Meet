@@ -48,6 +48,13 @@ export function MediaProvider({ children }) {
       const stream = await mediaManager.acquireUserMedia({ camId, micId });
       rawStreamRef.current = stream;
 
+      const hasCameraTrack = stream?.getVideoTracks().some((track) => track.readyState === 'live');
+      if (!hasCameraTrack) {
+        mediaManager.setVideoEnabled(false);
+        setVideoEnabled(false);
+        setMediaError('Camera unavailable. Check browser permission or close another app using it.');
+      }
+
       // acquireUserMedia -> setStream already applies mediaManager's enabled flags
 
       const aiFilters = ['blur', 'blur-light', 'blur-heavy', 'studio', 'rocket', 'nature', 'moon', 'astronaut'];
@@ -117,9 +124,10 @@ export function MediaProvider({ children }) {
     if (next && !hasLiveVideo) {
       // No usable camera track (viewer mode / ended track): acquire it now
       const stream = await initMedia(selectedCam, selectedMic);
-      if (!stream?.getVideoTracks().length) {
+      if (!stream?.getVideoTracks().some((track) => track.readyState === 'live')) {
         mediaManager.setVideoEnabled(false);
         setVideoEnabled(false);
+        setMediaError('Camera unavailable. Check browser permission or close another app using it.');
         return false;
       }
     }
@@ -268,6 +276,7 @@ export function MediaProvider({ children }) {
       isEffectLoading,
       effectLoadingText,
       mediaError,
+      setMediaError,
       voiceFocusEnabled,
       toggleAudio,
       toggleVideo,

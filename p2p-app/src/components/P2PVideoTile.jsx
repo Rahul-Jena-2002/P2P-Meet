@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, MicOff, Pin, PinOff, Monitor, Shield, Volume2, Sparkles } from 'lucide-react';
+import { Mic, MicOff, Pin, PinOff, Monitor, Shield, Volume2, Sparkles, PictureInPicture2 } from 'lucide-react';
 import { useMedia } from './MediaProvider';
 
 export default function P2PVideoTile({
@@ -20,6 +20,7 @@ export default function P2PVideoTile({
   isPinned = false,
   isHandRaised = false,
   isSingle = false,
+  hideDetachControl = false,
   onPinToggle
 }) {
   const containerRef = useRef(null);
@@ -30,6 +31,7 @@ export default function P2PVideoTile({
   const [zoomLevel, setZoomLevel] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [isDetached, setIsDetached] = useState(false);
 
   // Gesture tracking refs
   const dragStartRef = useRef({ x: 0, y: 0 });
@@ -98,6 +100,34 @@ export default function P2PVideoTile({
       stream.removeEventListener('addtrack', playVideo);
     };
   }, [stream, isVideoOn, isScreenSharing]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const handleEnter = () => setIsDetached(true);
+    const handleLeave = () => setIsDetached(false);
+    video.addEventListener('enterpictureinpicture', handleEnter);
+    video.addEventListener('leavepictureinpicture', handleLeave);
+    return () => {
+      video.removeEventListener('enterpictureinpicture', handleEnter);
+      video.removeEventListener('leavepictureinpicture', handleLeave);
+    };
+  }, [stream]);
+
+  const toggleDetachedScreen = async (event) => {
+    event.stopPropagation();
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      if (document.pictureInPictureElement === video) {
+        await document.exitPictureInPicture();
+      } else if (document.pictureInPictureEnabled && video.requestPictureInPicture) {
+        await video.requestPictureInPicture();
+      }
+    } catch (error) {
+      console.warn('Unable to detach the shared screen:', error);
+    }
+  };
 
   // Remote audio playback
   useEffect(() => {
@@ -328,7 +358,7 @@ export default function P2PVideoTile({
       } ${
         isSingle
           ? 'rounded-none border-none'
-          : `rounded-2xl border ${isSpeaking ? 'speaking-halo border-[#FF6B35] ring-2 ring-[#FF6B35] shadow-[0_0_14px_rgba(255,107,53,0.35)]' : 'border-white/10 shadow-xl'}`
+          : `meeting-tile ${isSpeaking ? 'speaking-halo ring-1 ring-[#FF6B35]/70 shadow-[0_0_18px_rgba(255,107,53,0.22)]' : ''}`
       }`}
     >
       {/* Remote audio player */}
@@ -364,10 +394,22 @@ export default function P2PVideoTile({
         />
       )}
 
+      {isScreenSharing && !hideDetachControl && (
+        <button
+          type="button"
+          onClick={toggleDetachedScreen}
+          className="absolute right-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-xl border border-white/20 bg-[#171323]/55 text-white/85 shadow-lg backdrop-blur-xl transition-colors hover:bg-[#2b2440]/75 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C4B5FD]"
+          title={isDetached ? 'Return screen to meeting' : 'Detach screen'}
+          aria-label={isDetached ? 'Return screen to meeting' : 'Detach screen'}
+        >
+          <PictureInPicture2 className="h-4 w-4" />
+        </button>
+      )}
+
       {/* Frosted Avatar when camera is off (Clean minimalist avatar, no redundant 'Camera off' text) */}
       {((!isVideoOn || (isLocal && stream?.getVideoTracks()?.length === 0)) && !isScreenSharing) && (
         <div className="flex flex-col items-center justify-center w-full h-full bg-[#0D0B14]">
-          <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-[#221C35] to-[#2C2442] border border-[rgba(196,181,253,0.25)] backdrop-blur-xl flex items-center justify-center text-[#C4B5FD] text-xl sm:text-2xl font-bold shadow-xl">
+          <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-[#221C35] border border-[rgba(196,181,253,0.25)] backdrop-blur-xl flex items-center justify-center text-[#C4B5FD] text-xl sm:text-2xl font-bold shadow-xl">
             {initials}
           </div>
         </div>
@@ -382,16 +424,16 @@ export default function P2PVideoTile({
 
       {/* Google Meet-Style Centered Hover Action Overlay (Pin / Unpin) */}
       {onPinToggle && !isEffectLoading && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="absolute bottom-3 right-3 pointer-events-none z-30 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onPinToggle();
             }}
-            className={`pointer-events-auto flex items-center gap-1.5 px-4 py-2 rounded-full backdrop-blur-2xl border text-xs font-semibold shadow-md transition-transform hover:scale-105 active:scale-95 cursor-pointer ${
+            className={`meeting-glass-pin pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-xl border text-xs font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_8px_24px_rgba(0,0,0,0.22)] transition-[transform,background-color,border-color] duration-200 hover:scale-105 active:scale-95 cursor-pointer ${
               isPinned
-                ? 'bg-[#FF6B35] text-[#0D0B14] border-[#FF6B35] hover:bg-[#FFA14A]'
-                : 'bg-white/20 hover:bg-white/35 text-white border-white/30'
+                ? 'meeting-glass-pin-active bg-[#FF6B35]/90 text-[#0D0B14] border-[#FFB27A]/70 hover:bg-[#FFA14A]/95'
+                : 'text-white border-white/35'
             }`}
             title={isPinned ? 'Unpin from main screen' : 'Pin to main screen'}
           >
@@ -431,7 +473,7 @@ export default function P2PVideoTile({
           {/* Signal health meter */}
           <div
             className="flex items-end gap-[2px] px-1.5 py-1 rounded-full bg-black/50 backdrop-blur-xl border border-white/10 ml-auto"
-            title="P2P Connection Quality (STUN: Excellent)"
+            title="Connection quality"
           >
             <span className="w-[2px] h-1 rounded-sm bg-emerald-400" />
             <span className="w-[2px] h-2 rounded-sm bg-emerald-400" />
@@ -442,7 +484,7 @@ export default function P2PVideoTile({
 
       {/* Bottom Left Name tag with audio icon and status badges */}
       {!(isScreenSharing && isSingle) && (
-        <div className="absolute bottom-2.5 left-2.5 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[#F8F7FC] text-xs font-medium border border-white/10 shadow-md z-20">
+        <div className="absolute bottom-2.5 left-2.5 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/65 text-[#F8F7FC] text-xs font-medium border border-white/10 z-20">
           <div className="shrink-0">
             {isAudioOn ? (
               <Mic className={`w-3.5 h-3.5 ${isSpeaking ? 'text-[#FF6B35] animate-pulse' : 'text-[#C4B5FD]'}`} />

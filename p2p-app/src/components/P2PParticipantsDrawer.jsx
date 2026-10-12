@@ -9,7 +9,7 @@ import React, { useState, useRef } from 'react';
 import {
   X, Mic, MicOff, Video, VideoOff, Shield, UserPlus,
   VolumeX, Check, Search, Hand, MoreVertical, Edit2, Lock,
-  Users, MessageSquare, Pin, PinOff
+  Users, MessageSquare, Pin, PinOff, PictureInPicture2
 } from 'lucide-react';
 
 export default function P2PParticipantsDrawer({
@@ -26,9 +26,13 @@ export default function P2PParticipantsDrawer({
   onChangeRole,
   onRemoveUser,
   onSwitchPanel,
+  isDetached = false,
+  onToggleDetach,
+  isClosing = false,
   onClose
 }) {
   const [drawerWidth, setDrawerWidth] = useState(384);
+  const [detachedFrame, setDetachedFrame] = useState(null);
   const isResizingRef = useRef(false);
   const [search, setSearch] = useState('');
   const [copied, setCopied] = useState(false);
@@ -36,6 +40,26 @@ export default function P2PParticipantsDrawer({
   const [renameText, setRenameText] = useState('');
   const [showMuteAllModal, setShowMuteAllModal] = useState(false);
   const [actionMenuPeerId, setActionMenuPeerId] = useState(null);
+
+  const handleStartDrag = (e) => {
+    if (!isDetached || e.button !== 0 || e.target.closest('button')) return;
+    e.preventDefault();
+    const rect = e.currentTarget.parentElement.getBoundingClientRect();
+    const start = { x: e.clientX, y: e.clientY, left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+    const onMove = (event) => {
+      const left = Math.max(8, Math.min(window.innerWidth - start.width - 8, start.left + event.clientX - start.x));
+      const top = Math.max(56, Math.min(window.innerHeight - start.height - 72, start.top + event.clientY - start.y));
+      setDetachedFrame({ left, top, width: start.width, height: start.height });
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
 
   const handleStartResize = (e) => {
     e.preventDefault();
@@ -95,45 +119,48 @@ export default function P2PParticipantsDrawer({
 
   return (
     <aside
-      style={{ width: `${drawerWidth}px` }}
-      className="relative max-w-[90vw] h-full liquid-glass-panel border-l border-white/15 flex flex-col z-30 select-none shadow-2xl shrink-0 animate-in slide-in-from-right duration-150"
+      style={isDetached
+        ? detachedFrame ? { left: detachedFrame.left, top: detachedFrame.top, right: 'auto', bottom: 'auto', width: detachedFrame.width, height: detachedFrame.height } : undefined
+        : { width: `${drawerWidth}px` }}
+      className={`meeting-drawer ${isDetached ? 'meeting-drawer-detached' : 'fixed inset-y-0 right-0 md:relative md:inset-auto'} ${isClosing ? 'is-closing' : ''} max-w-[90vw] h-full liquid-glass-panel border-l border-white/15 flex flex-col z-30 select-none shadow-2xl shrink-0`}
     >
       {/* Draggable resize handle on left border */}
       <div
         onMouseDown={handleStartResize}
-        className="absolute top-0 bottom-0 -left-1 w-2 cursor-col-resize hover:bg-[#FF6B35]/50 active:bg-[#FF6B35] transition z-40 flex items-center justify-center select-none group"
+        className={`${isDetached ? 'hidden' : 'absolute top-0 bottom-0 -left-1 w-2 cursor-col-resize hover:bg-[#FF6B35]/50 active:bg-[#FF6B35] transition z-40 flex items-center justify-center select-none group'}`}
         title="Drag to resize sidebar"
       >
         <div className="w-0.5 h-10 rounded-full bg-white/20 group-hover:bg-[#FF6B35] transition" />
       </div>
       {/* Header with Clean Separated Context Tabs */}
-      <div className="h-12 px-3 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-transparent shrink-0">
+      <div onPointerDown={handleStartDrag} className={`h-12 px-3 border-b border-[rgba(196,181,253,0.14)] flex items-center justify-between bg-transparent shrink-0 ${isDetached ? 'cursor-grab active:cursor-grabbing touch-none' : ''}`}>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs px-2.5 py-1 rounded-full bg-[#FF6B35]/20 text-[#FFA14A] font-bold border border-[#FF6B35]/40 flex items-center gap-1">
+          <span className="flex items-center gap-1.5 px-2 text-xs font-semibold text-white">
             <Users className="w-3.5 h-3.5" />
-            <span>People ({participants.length})</span>
+            <span>People <span className="text-white/55">({participants.length})</span></span>
           </span>
           {onSwitchPanel && (
             <button
               onClick={() => onSwitchPanel('chat')}
-              className="text-xs px-2.5 py-1 rounded-full text-[#C4B5FD]/70 hover:text-[#F8F7FC] hover:bg-white/10 transition cursor-pointer flex items-center gap-1"
+              className="flex items-center gap-1.5 px-2 py-1 text-xs text-white/55 hover:text-white transition cursor-pointer"
             >
               <MessageSquare className="w-3.5 h-3.5" />
               <span>Chat</span>
             </button>
           )}
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 rounded-lg text-[#C4B5FD]/60 hover:text-[#F8F7FC] hover:bg-[rgba(196,181,253,0.10)] transition cursor-pointer"
-          title="Close Sidebar"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={onToggleDetach} className="p-1.5 rounded-lg text-white/65 hover:text-white hover:bg-white/10 transition" title={isDetached ? 'Dock people' : 'Float people'} aria-label={isDetached ? 'Dock people' : 'Float people'}>
+            <PictureInPicture2 className="w-4 h-4" />
+          </button>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-white/65 hover:text-white hover:bg-white/10 transition cursor-pointer" title="Close people panel" aria-label="Close people panel">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Search Input */}
-      <div className="p-2.5 border-b border-[rgba(196,181,253,0.14)] bg-[#0D0B14]/60">
+      <div className="p-2.5 border-b border-white/10 bg-white/[0.025]">
         <div className="relative">
           <Search className="w-3.5 h-3.5 text-[#C4B5FD]/40 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
@@ -141,7 +168,7 @@ export default function P2PParticipantsDrawer({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search participants..."
-            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#0D0B14] border border-[rgba(196,181,253,0.18)] text-xs text-[#F8F7FC] placeholder-[#C4B5FD]/40 focus:outline-none focus:border-[#FF6B35]"
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/[0.07] border border-white/15 text-xs text-[#F8F7FC] placeholder-[#C4B5FD]/55 focus:outline-none focus:border-white/35 focus:bg-white/10 backdrop-blur-xl"
           />
         </div>
       </div>
@@ -164,7 +191,7 @@ export default function P2PParticipantsDrawer({
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 {/* Avatar */}
-                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#221C35] to-[#2C2442] border border-[rgba(196,181,253,0.25)] flex items-center justify-center text-[#C4B5FD] text-xs font-bold shrink-0 shadow-sm">
+                <div className="w-7 h-7 rounded-full bg-[#221C35] border border-[rgba(196,181,253,0.25)] flex items-center justify-center text-[#C4B5FD] text-xs font-bold shrink-0 shadow-sm">
                   {p.name[0]?.toUpperCase() || 'U'}
                 </div>
 
@@ -226,7 +253,7 @@ export default function P2PParticipantsDrawer({
                   <button
                     onClick={() => onLowerHand?.(p.id)}
                     title={isHost || isMe ? "Click to Lower Hand" : "Hand Raised"}
-                    className="p-1 rounded-lg bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] text-xs font-bold hover:scale-105 transition shadow-sm"
+                    className="p-1 rounded-lg bg-[#FF6B35] text-[#0D0B14] text-xs font-bold hover:scale-105 transition shadow-sm"
                   >
                     ✋
                   </button>
@@ -316,7 +343,7 @@ export default function P2PParticipantsDrawer({
       </div>
 
       {/* Footer Host Actions */}
-      <div className="p-3 border-t border-[rgba(196,181,253,0.14)] bg-[#161324] flex items-center gap-2">
+      <div className="p-3 border-t border-white/10 bg-white/[0.035] flex items-center gap-2">
         <button
           onClick={handleInvite}
           className="flex-1 py-2 rounded-xl bg-[rgba(196,181,253,0.12)] hover:bg-[rgba(196,181,253,0.20)] text-[#F8F7FC] font-medium text-xs flex items-center justify-center gap-1.5 border border-[rgba(196,181,253,0.18)] transition shadow-sm"
@@ -350,7 +377,7 @@ export default function P2PParticipantsDrawer({
                   onMuteAll?.();
                   setShowMuteAllModal(false);
                 }}
-                className="flex-1 py-2 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] font-bold text-xs shadow-md shadow-[#FF6B35]/20"
+                className="flex-1 py-2 rounded-xl bg-[#FF6B35] text-[#0D0B14] font-bold text-xs shadow-md shadow-[#FF6B35]/20"
               >
                 Mute All
               </button>

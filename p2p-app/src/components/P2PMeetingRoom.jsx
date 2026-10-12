@@ -13,7 +13,7 @@ import P2PControls from './P2PControls';
 import P2PChatDrawer from './P2PChatDrawer';
 import P2PParticipantsDrawer from './P2PParticipantsDrawer';
 import P2PWhiteboard from './P2PWhiteboard';
-import { soundSynth } from '../lib/soundEffects';
+import { requestNativeDesktopControl, sendNativeDesktopInput } from '../lib/nativeDesktopControl';
 
 export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   const {
@@ -21,6 +21,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     screenStream,
     audioEnabled,
     videoEnabled,
+    mediaError,
+    setMediaError,
     screenSharing,
     audioLevel
   } = useMedia();
@@ -29,15 +31,17 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   const [messages, setMessages] = useState([]);
   const [currentUserName, setCurrentUserName] = useState(meetingInfo.name);
   const [activePanel, setActivePanel] = useState(null); // 'chat' | 'participants' | 'watch'
+  const [closingPanel, setClosingPanel] = useState(null);
+  const [detachedPanel, setDetachedPanel] = useState(null);
+  const panelCloseTimerRef = useRef(null);
   const [viewMode, setViewMode] = useState('gallery'); // 'gallery' | 'speaker'
   const [reactions, setReactions] = useState([]);
-  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsVisible = true;
   const [isMobile, setIsMobile] = useState(false);
   const [isMobileLandscape, setIsMobileLandscape] = useState(false);
   const [screenAudioStreams, setScreenAudioStreams] = useState(new Map());
   const [topologyMode, setTopologyMode] = useState('mesh');
   const [isSupernode, setIsSupernode] = useState(false);
-  const hideTimeoutRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -57,42 +61,14 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     };
   }, []);
 
-  const resetHideTimer = () => {
-    setControlsVisible(true);
-    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    if (!activePanel) {
-      hideTimeoutRef.current = setTimeout(() => {
-        setControlsVisible(false);
-      }, 3000);
-    }
-  };
-
-  const handleStageClick = (e) => {
-    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('.p2p-dock') || e.target.closest('.p2p-panel')) return;
-    setControlsVisible(v => !v);
-  };
-
-  const spawnReaction = (emoji) => {
+  const spawnReaction = (emoji, senderName = currentUserName) => {
     const id = Date.now() + Math.random();
     const left = Math.floor(Math.random() * 80) + 10;
-    setReactions(r => [...r, { id, emoji, left }]);
+    setReactions(r => [...r, { id, emoji, left, senderName }]);
     setTimeout(() => {
       setReactions(r => r.filter(item => item.id !== id));
     }, 2800);
   };
-
-  useEffect(() => {
-    const handleActivity = () => resetHideTimer();
-    window.addEventListener('mousemove', handleActivity);
-    window.addEventListener('keydown', handleActivity);
-    window.addEventListener('touchstart', handleActivity, { passive: true });
-    return () => {
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-      window.removeEventListener('mousemove', handleActivity);
-      window.removeEventListener('keydown', handleActivity);
-      window.removeEventListener('touchstart', handleActivity);
-    };
-  }, [activePanel, isMobile]);
 
   // Remote Access state
   const [remoteControlState, setRemoteControlState] = useState({
@@ -101,10 +77,45 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     controllerName: null,
     requestPending: false,
     requesterId: null,
-    requesterName: null
+    requesterName: null,
+    controllerId: null,
+    nativeAvailable: false
   });
+  const remoteControlStateRef = useRef(remoteControlState);
+  useEffect(() => {
+    remoteControlStateRef.current = remoteControlState;
+  }, [remoteControlState]);
   const [remoteCursor, setRemoteCursor] = useState(null);
   const [remoteRipples, setRemoteRipples] = useState([]);
+  const meshRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    requestNativeDesktopControl('status')
+      .then((status) => { if (active) setRemoteControlState(s => ({ ...s, nativeAvailable: !!status.available })); })
+      .catch(() => { if (active) setRemoteControlState(s => ({ ...s, nativeAvailable: false })); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (screenSharing) return;
+    const current = remoteControlStateRef.current;
+    if (!current.isBeingControlled && !current.isControlling) return;
+    if (current.isBeingControlled && current.controllerId) {
+      meshRef.current?.sendDataToPeer(current.controllerId, { type: 'REMOTE_REVOKE' });
+      requestNativeDesktopControl('revoke').catch(() => {});
+    }
+    setRemoteControlState(s => ({
+      ...s,
+      isControlling: false,
+      isBeingControlled: false,
+      controllerName: null,
+      controllerId: null,
+      requestPending: false,
+      requesterId: null,
+      requesterName: null
+    }));
+  }, [screenSharing]);
 
   // Watch Together state
   const [watchTogetherState, setWatchTogetherState] = useState({
@@ -120,8 +131,13 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   // Authentic Zoom feature states
   const [raisedHands, setRaisedHands] = useState([]); // user IDs with hands raised
   const [whiteboardActive, setWhiteboardActive] = useState(false);
+  const [whiteboardClosing, setWhiteboardClosing] = useState(false);
+  const whiteboardCloseTimerRef = useRef(null);
   const [incomingWhiteboardStroke, setIncomingWhiteboardStroke] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingRequests, setRecordingRequests] = useState([]);
+  const [recordingRequestPending, setRecordingRequestPending] = useState(false);
+  const isRecordingRef = useRef(false);
   const [securitySettings, setSecuritySettings] = useState({
     lockMeeting: false,
     allowScreenShare: true,
@@ -132,6 +148,52 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   const [userRoles, setUserRoles] = useState({}); // userId -> 'host' | 'co-host' | 'participant'
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
+
+  useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
+
+  const openPanel = (panel) => {
+    if (panelCloseTimerRef.current) clearTimeout(panelCloseTimerRef.current);
+    setClosingPanel(null);
+    setDetachedPanel(null);
+    setActivePanel(panel);
+  };
+
+  const closePanel = () => {
+    if (!activePanel) return;
+    if (panelCloseTimerRef.current) clearTimeout(panelCloseTimerRef.current);
+    setClosingPanel(activePanel);
+    setActivePanel(null);
+    panelCloseTimerRef.current = setTimeout(() => {
+      setClosingPanel(null);
+      setDetachedPanel(null);
+    }, 180);
+  };
+
+  const togglePanel = (panel) => activePanel === panel ? closePanel() : openPanel(panel);
+
+  const openWhiteboard = () => {
+    if (whiteboardCloseTimerRef.current) clearTimeout(whiteboardCloseTimerRef.current);
+    setWhiteboardClosing(false);
+    setWhiteboardActive(true);
+  };
+
+  const closeWhiteboard = () => {
+    if (whiteboardCloseTimerRef.current) clearTimeout(whiteboardCloseTimerRef.current);
+    setWhiteboardClosing(true);
+    whiteboardCloseTimerRef.current = setTimeout(() => {
+      setWhiteboardActive(false);
+      setWhiteboardClosing(false);
+    }, 180);
+  };
+
+  const toggleWhiteboard = () => whiteboardActive ? closeWhiteboard() : openWhiteboard();
+
+  useEffect(() => () => {
+    if (panelCloseTimerRef.current) clearTimeout(panelCloseTimerRef.current);
+    if (whiteboardCloseTimerRef.current) clearTimeout(whiteboardCloseTimerRef.current);
+  }, []);
 
   // Multi-Speaker Active Voice Tracking (Detects simultaneous speakers across local mic & all remote peers)
   const [speakingUserIds, setSpeakingUserIds] = useState([]);
@@ -202,15 +264,17 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
         } catch (_) {}
       }
 
-      setSpeakingUserIds(activeSpeakers);
+      setSpeakingUserIds(prev => (
+        prev.length === activeSpeakers.length && prev.every((id, index) => id === activeSpeakers[index])
+          ? prev
+          : activeSpeakers
+      ));
     }, 120);
 
     return () => {
       clearInterval(interval);
     };
   }, [audioEnabled, audioLevel, meetingInfo.userId]);
-
-  const meshRef = useRef(null);
 
   useEffect(() => {
     const mesh = new P2PMesh({
@@ -253,7 +317,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           screenTrackId: screenStream?.getVideoTracks()[0]?.id || null,
           cameraTrackId: localStream?.getVideoTracks()[0]?.id || null,
           isVideoOn: videoEnabled,
-          isAudioOn: audioEnabled
+          isAudioOn: audioEnabled,
+          isRecording: meetingInfo.isHost ? isRecordingRef.current : undefined
         });
       },
       onPeerLeave: (peerId) => {
@@ -263,14 +328,17 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           delete updated[peerId];
           return updated;
         });
-        if (remoteControlState.requesterId === peerId || remoteControlState.isBeingControlled) {
+        if (remoteControlStateRef.current.requesterId === peerId || remoteControlStateRef.current.controllerId === peerId) {
+          if (remoteControlStateRef.current.isBeingControlled) requestNativeDesktopControl('revoke').catch(() => {});
           setRemoteControlState({
             isControlling: false,
             isBeingControlled: false,
             controllerName: null,
             requestPending: false,
             requesterId: null,
-            requesterName: null
+            requesterName: null,
+            controllerId: null,
+            nativeAvailable: remoteControlStateRef.current.nativeAvailable
           });
         }
         // If the host left, end the meeting automatically for all participants
@@ -315,15 +383,16 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           return next;
         });
       },
-      onData: (data) => {
+      onData: (data, peerId = null) => {
         const { type } = data;
 
         if (type === 'chat') {
           setMessages(m => [...m, data.payload || data]);
         } else if (type === 'reaction') {
           const emoji = data.payload?.emoji || data.emoji;
-          spawnReaction(emoji);
-          soundSynth.playEmojiSound(emoji);
+          const senderId = data.payload?.senderId || data.senderId;
+          const senderName = data.payload?.senderName || data.senderName || peers[senderId]?.name || 'Participant';
+          spawnReaction(emoji, senderName);
         } else if (type === 'PEER_MEDIA_STATE') {
           const targetId = data.userId || data.senderId;
           if (targetId) {
@@ -343,35 +412,52 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
                 isAudioOn: data.isAudioOn !== false
               }
             }));
+            if (data.isHost && typeof data.isRecording === 'boolean') {
+              setIsRecording(data.isRecording);
+            }
           }
         } else if (type === 'REMOTE_REQ') {
+          if (!peerId) return;
           setRemoteControlState(s => ({
             ...s,
             requestPending: true,
-            requesterId: data.requesterId,
-            requesterName: data.requesterName
+            requesterId: peerId,
+            requesterName: data.requesterName || 'Participant'
           }));
         } else if (type === 'REMOTE_RES') {
-          if (data.allowed && (!data.targetId || data.targetId === meetingInfo.userId)) {
-            setRemoteControlState(s => ({ ...s, isControlling: true }));
-          } else if (!data.allowed) {
+          if (!peerId || data.targetId !== meetingInfo.userId) return;
+          if (data.allowed) {
+            setRemoteControlState(s => ({ ...s, isControlling: true, requestPending: false, controllerId: peerId }));
+          } else {
+            setRemoteControlState(s => ({ ...s, requestPending: false, controllerId: null }));
             alert('Remote control request was declined.');
           }
         } else if (type === 'REMOTE_REVOKE') {
+          const currentControl = remoteControlStateRef.current;
+          if (!peerId || (currentControl.controllerId && peerId !== currentControl.controllerId)) return;
+          requestNativeDesktopControl('revoke').catch(() => {});
           setRemoteControlState({
             isControlling: false,
             isBeingControlled: false,
             controllerName: null,
             requestPending: false,
             requesterId: null,
-            requesterName: null
+            requesterName: null,
+            controllerId: null,
+            nativeAvailable: currentControl.nativeAvailable
           });
           setRemoteCursor(null);
         } else if (type === 'REMOTE_MOUSE') {
-          setRemoteCursor({ x: data.x, y: data.y, name: data.name });
-          if (data.click) {
+          const currentControl = remoteControlStateRef.current;
+          if (!peerId || peerId !== currentControl.controllerId || !currentControl.isBeingControlled) return;
+          const action = data.action || data;
+          sendNativeDesktopInput(action);
+          if (Number.isFinite(action.x) && Number.isFinite(action.y)) {
+            setRemoteCursor({ x: action.x * 100, y: action.y * 100, name: data.name });
+          }
+          if (action.type === 'buttonDown') {
             const ripId = Date.now() + Math.random();
-            setRemoteRipples(r => [...r, { id: ripId, x: data.x, y: data.y }]);
+            setRemoteRipples(r => [...r, { id: ripId, x: action.x * 100, y: action.y * 100 }]);
             setTimeout(() => {
               setRemoteRipples(r => r.filter(item => item.id !== ripId));
             }, 800);
@@ -398,9 +484,20 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           }
         } else if (type === 'SECURITY_UPDATE') {
           setSecuritySettings(prev => ({ ...prev, ...data.settings }));
+        } else if (type === 'RECORD_REQUEST' && meetingInfo.isHost) {
+          setRecordingRequests(prev => prev.some(request => request.requesterId === data.requesterId)
+            ? prev
+            : [...prev, { requesterId: data.requesterId, requesterName: data.requesterName || 'Participant' }]);
+        } else if (type === 'RECORD_REQUEST_RESULT' && data.targetId === meetingInfo.userId) {
+          setRecordingRequestPending(false);
+          alert(data.allowed ? 'The host approved and started the recording.' : 'The host declined the recording request.');
+        } else if (type === 'RECORDING_STATE') {
+          if (data.isHost || peers[data.senderId]?.isHost || data.userId === meetingInfo.hostId) {
+            setIsRecording(Boolean(data.isRecording));
+          }
         } else if (type === 'WHITEBOARD_STROKE') {
           setIncomingWhiteboardStroke(data.stroke);
-          setWhiteboardActive(true);
+          openWhiteboard();
         } else if (type === 'RENAME_USER') {
           setPeers(prev => ({
             ...prev,
@@ -425,20 +522,38 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     });
 
     meshRef.current = mesh;
+    const unsubscribeIncomingFiles = mesh.dataChannels.on('fileComplete', ({ peerId, fileId, name, size, blob }) => {
+      const url = URL.createObjectURL(blob);
+      setMessages(current => [...current, {
+        type: 'file',
+        fileId,
+        name,
+        size,
+        url,
+        senderId: peerId,
+        senderName: mesh.participants.get(peerId)?.userName || 'Participant',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    });
     mesh.connect();
 
-    mesh.topology?.on?.('modeChanged', ({ mode }) => setTopologyMode(mode));
+    mesh.topology?.on?.('modeChanged', ({ mode }) => {
+      setTopologyMode(prev => prev === mode ? prev : mode);
+    });
     const checkTopology = () => {
       if (mesh.topology) {
-        setTopologyMode(mesh.topology.getMode());
+        const mode = mesh.topology.getMode();
+        setTopologyMode(prev => prev === mode ? prev : mode);
         const bestPeer = mesh.topology.relaySelector?.selectBestRelayCandidate?.();
-        setIsSupernode(bestPeer?.id === meetingInfo.userId);
+        const isSupernode = bestPeer?.id === meetingInfo.userId;
+        setIsSupernode(prev => prev === isSupernode ? prev : isSupernode);
       }
     };
     const topoTimer = setInterval(checkTopology, 2500);
 
     return () => {
       clearInterval(topoTimer);
+      unsubscribeIncomingFiles();
       mesh.destroy();
     };
   }, [meetingInfo.code, meetingInfo.userId]);
@@ -471,10 +586,10 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   }, [audioEnabled, screenSharing, screenStream]);
 
   const handleSendReaction = (emoji) => {
-    spawnReaction(emoji);
+    spawnReaction(emoji, currentUserName);
     meshRef.current?.broadcast({
       type: 'reaction',
-      payload: { emoji, senderId: meetingInfo.userId }
+      payload: { emoji, senderId: meetingInfo.userId, senderName: currentUserName }
     });
   };
 
@@ -493,90 +608,129 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     });
   };
 
-  // Remote Control Handlers (Zoom + RemoteDesk style)
-  const handleRequestRemoteControl = () => {
-    meshRef.current?.broadcast({
-      type: 'REMOTE_REQ',
-      requesterId: meetingInfo.userId,
-      requesterName: meetingInfo.name
-    });
+  const handleSendFile = async (file) => {
+    const mesh = meshRef.current;
+    if (!mesh) throw new Error('The meeting connection is not ready yet.');
+    const recipients = Array.from(mesh.dataChannels.channels.entries())
+      .filter(([, channel]) => channel.readyState === 'open')
+      .map(([peerId]) => peerId);
+    if (recipients.length === 0) {
+      throw new Error('No participant has a ready peer-to-peer connection yet. Wait for them to connect and try again.');
+    }
+
+    const results = await Promise.all(recipients.map(peerId => mesh.dataChannels.sendFile(peerId, file)));
+    setMessages(current => [...current, {
+      type: 'file',
+      fileId: results[0]?.fileId,
+      name: file.name,
+      size: file.size,
+      url: URL.createObjectURL(file),
+      senderId: meetingInfo.userId,
+      senderName: meetingInfo.name,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    }]);
   };
 
-  const handleGrantRemoteControl = (allowed) => {
-    meshRef.current?.broadcast({
-      type: 'REMOTE_RES',
-      allowed,
-      targetId: remoteControlState.requesterId
+  // Remote Control Handlers (Zoom + RemoteDesk style)
+  const handleRequestRemoteControl = (targetId) => {
+    const sent = meshRef.current?.sendDataToPeer(targetId, {
+      type: 'REMOTE_REQ',
+      requesterName: meetingInfo.name
     });
+    if (!sent) {
+      alert('The direct connection is not ready. Try again when the participant is connected.');
+      return;
+    }
+    setRemoteControlState(s => ({ ...s, requestPending: true, controllerId: targetId, requesterName: 'Waiting for approval' }));
+  };
+
+  const handleGrantRemoteControl = async (allowed) => {
+    const targetId = remoteControlState.requesterId;
+    if (allowed) {
+      try {
+        const permission = await requestNativeDesktopControl('authorize');
+        if (!permission.allowed) {
+          if (targetId) meshRef.current?.sendDataToPeer(targetId, { type: 'REMOTE_RES', allowed: false, targetId });
+          setRemoteControlState(s => ({ ...s, requestPending: false, requesterId: null, requesterName: null }));
+          return;
+        }
+      } catch (error) {
+        setMediaError(error.message);
+        if (targetId) meshRef.current?.sendDataToPeer(targetId, { type: 'REMOTE_RES', allowed: false, targetId });
+        setRemoteControlState(s => ({ ...s, requestPending: false, requesterId: null, requesterName: null }));
+        return;
+      }
+    }
+    const sent = targetId && meshRef.current?.sendDataToPeer(targetId, {
+      type: 'REMOTE_RES', allowed, targetId
+    });
+    if (!sent && allowed) {
+      requestNativeDesktopControl('revoke').catch(() => {});
+      setMediaError('Could not reach the participant over the direct connection.');
+      return;
+    }
     if (allowed) {
       setRemoteControlState(s => ({
         ...s,
         isBeingControlled: true,
         controllerName: s.requesterName,
+        controllerId: targetId,
         requestPending: false
       }));
     } else {
-      setRemoteControlState(s => ({ ...s, requestPending: false }));
+      setRemoteControlState(s => ({ ...s, requestPending: false, requesterId: null, requesterName: null }));
     }
   };
 
   const handleGrantRemoteControlToPeer = (targetPeerId, targetPeerName) => {
-    meshRef.current?.broadcast({
+    requestNativeDesktopControl('authorize').then((permission) => {
+      if (!permission.allowed) return;
+      const sent = meshRef.current?.sendDataToPeer(targetPeerId, {
       type: 'REMOTE_RES',
       allowed: true,
       targetId: targetPeerId
-    });
-    setRemoteControlState(s => ({
+      });
+      if (!sent) {
+        requestNativeDesktopControl('revoke').catch(() => {});
+        setMediaError('Could not reach the participant over the direct connection.');
+        return;
+      }
+      setRemoteControlState(s => ({
       ...s,
       isBeingControlled: true,
       controllerName: targetPeerName,
+      controllerId: targetPeerId,
       requestPending: false
-    }));
-  };
-
-  const handleSimulateRemoteControl = () => {
-    setRemoteControlState(s => ({
-      ...s,
-      isBeingControlled: true,
-      controllerName: 'Simulated Remote Guest',
-      requestPending: false
-    }));
-    let count = 0;
-    const interval = setInterval(() => {
-      count++;
-      const x = 30 + Math.sin(count * 0.45) * 25;
-      const y = 35 + Math.cos(count * 0.45) * 20;
-      const click = count % 5 === 0;
-      setRemoteCursor({ x, y, name: 'Guest (Simulated)' });
-      if (click) {
-        const ripId = Date.now() + Math.random();
-        setRemoteRipples(r => [...r, { id: ripId, x, y }]);
-        setTimeout(() => setRemoteRipples(r => r.filter(i => i.id !== ripId)), 800);
-      }
-      if (count > 25) clearInterval(interval);
-    }, 200);
+      }));
+    }).catch(error => setMediaError(error.message));
   };
 
   const handleRevokeRemoteControl = () => {
-    meshRef.current?.broadcast({
+    if (remoteControlState.controllerId) meshRef.current?.sendDataToPeer(remoteControlState.controllerId, {
       type: 'REMOTE_REVOKE'
     });
+    requestNativeDesktopControl('revoke').catch(() => {});
     setRemoteControlState({
       isControlling: false,
       isBeingControlled: false,
       controllerName: null,
       requestPending: false,
       requesterId: null,
-      requesterName: null
+      requesterName: null,
+      controllerId: null,
+      nativeAvailable: remoteControlState.nativeAvailable
     });
     setRemoteCursor(null);
   };
 
   const handleSendRemoteMouseEvent = (eventData) => {
-    meshRef.current?.broadcast({
+    if (!remoteControlState.controllerId) return;
+    meshRef.current?.sendDataToPeer(remoteControlState.controllerId, {
       type: 'REMOTE_MOUSE',
-      ...eventData,
-      name: meetingInfo.name
+      action: eventData,
+      name: meetingInfo.name,
+      x: eventData.x,
+      y: eventData.y
     });
   };
 
@@ -676,11 +830,14 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   };
 
   const handleToggleRecording = () => {
+    if (!meetingInfo.isHost) return false;
     if (isRecording) {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
       }
       setIsRecording(false);
+      meshRef.current?.broadcast({ type: 'RECORDING_STATE', isRecording: false, userId: meetingInfo.userId, isHost: true });
+      return true;
     } else {
       try {
         const streamToRecord = screenStream || localStream;
@@ -694,6 +851,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           if (e.data.size > 0) recordedChunksRef.current.push(e.data);
         };
         recorder.onstop = () => {
+          setIsRecording(false);
+          meshRef.current?.broadcast({ type: 'RECORDING_STATE', isRecording: false, userId: meetingInfo.userId, isHost: true });
           const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -705,11 +864,35 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
         recorder.start(1000);
         mediaRecorderRef.current = recorder;
         setIsRecording(true);
+        meshRef.current?.broadcast({ type: 'RECORDING_STATE', isRecording: true, userId: meetingInfo.userId, isHost: true });
+        return true;
       } catch (e) {
         console.warn('Recording error:', e);
         alert('Could not start recording: ' + e.message);
+        return false;
       }
     }
+  };
+
+  const handleRequestRecording = () => {
+    if (meetingInfo.isHost || recordingRequestPending || isRecording) return;
+    setRecordingRequestPending(true);
+    meshRef.current?.broadcast({
+      type: 'RECORD_REQUEST',
+      requesterId: meetingInfo.userId,
+      requesterName: currentUserName
+    });
+  };
+
+  const handleResolveRecordingRequest = (request, approved) => {
+    if (!meetingInfo.isHost) return;
+    const started = approved && (isRecording || handleToggleRecording());
+    meshRef.current?.broadcast({
+      type: 'RECORD_REQUEST_RESULT',
+      targetId: request.requesterId,
+      allowed: Boolean(started)
+    });
+    setRecordingRequests(prev => prev.filter(item => item.requesterId !== request.requesterId));
   };
 
   const handleBroadcastWhiteboardStroke = (stroke) => {
@@ -731,7 +914,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [meetingInfo.isHost]);
 
-  const handleLeaveMeeting = (endForAll = false) => {
+  function handleLeaveMeeting(endForAll = false) {
     if (meetingInfo.isHost || endForAll) {
       meshRef.current?.broadcast({
         type: 'MEETING_ENDED'
@@ -741,7 +924,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
       sessionStorage.removeItem('p2pmeet_session');
     } catch (_) {}
     onLeave();
-  };
+  }
 
   const handleChangeRole = (targetId, newRole) => {
     setUserRoles(prev => ({ ...prev, [targetId]: newRole }));
@@ -808,56 +991,45 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     });
   };
 
-  const handleUnpinAll = () => {
-    setPinnedIds([]);
-  };
-
-  // Screen sharing / presentation / pinned info
+  // Screen sharing / presentation / spotlight info
   const activeSharer = (screenSharing && screenStream)
     ? { name: `${meetingInfo.name} (Screen)`, isLocal: true, isScreenSharing: true }
     : Object.values(peers).find(p => p.isScreenSharing);
 
   let presentationInfo = null;
-  if (pinnedIds.length === 1) {
+  if (activeSharer) {
+    presentationInfo = {
+      name: activeSharer.name,
+      label: activeSharer.isLocal ? 'You are presenting' : `${activeSharer.name} is presenting`,
+      isLocal: activeSharer.isLocal || false,
+      isScreenSharing: true,
+    };
+  } else if (pinnedIds.length === 1) {
     const pTile = participantList.find(p => p.id === pinnedIds[0]);
     presentationInfo = {
-      name: pTile?.name || 'Pinned',
+      name: pTile?.name || 'Participant',
+      label: `Spotlight: ${pTile?.name || 'Participant'}`,
       isLocal: pinnedIds[0] === meetingInfo.userId,
-      isPinned: true,
-      onUnpin: handleUnpinAll
     };
   } else if (pinnedIds.length === 2) {
     presentationInfo = {
-      name: '2 Pinned',
-      isPinned: true,
-      onUnpin: handleUnpinAll
+      name: '2 participants',
+      label: 'Spotlight view · 2 participants',
     };
   } else if (pinnedIds.length === 3) {
     presentationInfo = {
-      name: '3 Pinned',
-      isPinned: true,
-      onUnpin: handleUnpinAll
+      name: '3 participants',
+      label: 'Spotlight view · 3 participants',
     };
   } else if (pinnedIds.length === 4) {
     presentationInfo = {
-      name: '4 Pinned',
-      isPinned: true,
-      onUnpin: handleUnpinAll
-    };
-  } else if (activeSharer) {
-    const sharerTileId = activeSharer.isLocal ? `${localUserObj.id}-screen` : `${activeSharer.id}-screen`;
-    const isSharerPinned = pinnedIds.includes(sharerTileId);
-    presentationInfo = {
-      name: activeSharer.name,
-      isLocal: activeSharer.isLocal || false,
-      isScreenSharing: true,
-      isPinned: isSharerPinned,
-      onPin: () => handleTogglePin(sharerTileId),
-      onUnpin: () => handleTogglePin(sharerTileId)
+      name: '4 participants',
+      label: 'Spotlight view · 4 participants',
     };
   } else if (watchTogetherState?.active) {
     presentationInfo = {
       name: 'Watch Party',
+      label: 'Watch Party',
       isLocal: false,
       isScreenSharing: false
     };
@@ -867,17 +1039,17 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   const peopleSidebarWidth = 0;
 
   return (
-    <div className="relative w-screen h-[100dvh] max-h-[100dvh] bg-[#0D0B14] text-[#F8F7FC] overflow-hidden flex select-none" style={{ height: '100dvh' }}>
-      {/* Ambient Liquid Glass Optical Light Spheres */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-[10%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-[radial-gradient(circle,rgba(196,181,253,0.14)_0%,transparent_70%)] blur-[90px]" />
-        <div className="absolute -bottom-[15%] -right-[10%] w-[55vw] h-[55vw] rounded-full bg-[radial-gradient(circle,rgba(255,107,53,0.12)_0%,rgba(167,139,250,0.06)_40%,transparent_70%)] blur-[100px]" />
-      </div>
-
+    <div className="meeting-room relative w-screen h-[100dvh] max-h-[100dvh] bg-[#0D0B14] text-[#F8F7FC] overflow-hidden flex select-none" style={{ height: '100dvh' }}>
       {/* 1. Main Video Stage & Floating Overlay Area (resizes flexibly when drawers open) */}
-      <div onClick={handleStageClick} className="flex-1 h-full w-full relative overflow-hidden flex flex-col bg-transparent z-10">
+      <div className="flex-1 h-full w-full min-w-0 relative overflow-hidden flex flex-col bg-transparent z-10">
         {/* Fullscreen Video Canvas */}
         <div className="w-full h-full relative">
+        {mediaError && (
+          <div role="status" className="absolute left-1/2 top-12 z-[60] flex max-w-[min(92vw,32rem)] -translate-x-1/2 items-center gap-3 rounded-xl border border-white/10 bg-[#161324]/90 px-3.5 py-2 text-xs text-[#F8F7FC] shadow-lg backdrop-blur-xl">
+            <span>{mediaError}</span>
+            <button type="button" onClick={() => setMediaError(null)} className="shrink-0 rounded-md px-2 py-1 text-[#C4B5FD] hover:bg-white/10" aria-label="Dismiss message">Dismiss</button>
+          </div>
+        )}
           <P2PGrid
             localUser={localUserObj}
             localStream={localStream}
@@ -896,7 +1068,6 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             onRequestRemoteControl={handleRequestRemoteControl}
             onGrantRemoteControl={handleGrantRemoteControl}
             onGrantRemoteControlToPeer={handleGrantRemoteControlToPeer}
-            onSimulateRemoteControl={handleSimulateRemoteControl}
             onRevokeRemoteControl={handleRevokeRemoteControl}
             onSendRemoteMouseEvent={handleSendRemoteMouseEvent}
             remoteCursor={remoteCursor}
@@ -907,8 +1078,17 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             controlsVisible={controlsVisible || !!activePanel}
             pinnedIds={pinnedIds}
             onTogglePin={handleTogglePin}
-            onUnpinAll={handleUnpinAll}
             onSetPinnedIds={setPinnedIds}
+            isSidePanelOpen={Boolean(activePanel)}
+            stageOverlay={whiteboardActive ? (
+              <P2PWhiteboard
+                onClose={closeWhiteboard}
+                onBroadcastStroke={handleBroadcastWhiteboardStroke}
+                incomingStroke={incomingWhiteboardStroke}
+                isEmbedded
+                isClosing={whiteboardClosing}
+              />
+            ) : null}
           />
         </div>
 
@@ -923,15 +1103,19 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           onToggleViewMode={(mode) => setViewMode(v => mode || (v === 'gallery' ? 'speaker' : 'gallery'))}
           isRecording={isRecording}
           onStopRecording={handleToggleRecording}
-          onToggleWhiteboard={() => setWhiteboardActive(v => !v)}
-          isVisible={controlsVisible || !!activePanel}
+          onToggleRecording={handleToggleRecording}
+          onRequestRecording={meetingInfo.isHost ? undefined : handleRequestRecording}
+          recordingRequestPending={recordingRequestPending}
+          recordingRequests={recordingRequests}
+          onResolveRecordingRequest={handleResolveRecordingRequest}
+          onToggleWhiteboard={toggleWhiteboard}
+          isVisible
           isMobile={isMobile}
           isMobileLandscape={isMobileLandscape}
-          networkStats={networkStats}
-          topologyMode={topologyMode}
-          isSupernode={isSupernode}
           presentationInfo={presentationInfo}
           sidebarOffset={peopleSidebarWidth}
+          securitySettings={securitySettings}
+          onUpdateSecurity={handleUpdateSecurity}
         />
 
         {/* 3. Floating Bottom Controls Dock (centered within video stage area) */}
@@ -940,41 +1124,41 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           isHost={isCurrentUserHost}
           participantCount={participantList.length}
           activePanel={activePanel}
-          onTogglePanel={(panel) => setActivePanel(p => p === panel ? null : panel)}
+          onTogglePanel={togglePanel}
           onSendReaction={handleSendReaction}
           onLeaveMeeting={handleLeaveMeeting}
           isHandRaised={raisedHands.includes(meetingInfo.userId)}
           onToggleRaiseHand={handleToggleRaiseHand}
-          isRecording={isRecording}
-          onToggleRecording={handleToggleRecording}
-          onToggleWhiteboard={() => setWhiteboardActive(v => !v)}
+          onToggleWhiteboard={toggleWhiteboard}
           whiteboardActive={whiteboardActive}
-          securitySettings={securitySettings}
-          onUpdateSecurity={handleUpdateSecurity}
           onStartWatchTogether={handleStartWatchTogether}
           onStopWatchTogether={handleStopWatchTogether}
           watchTogetherActive={watchTogetherState.active}
-          isVisible={controlsVisible || !!activePanel}
+          isVisible
           isMobile={isMobile}
           isMobileLandscape={isMobileLandscape}
         />
       </div>
 
       {/* 4. Docked Side Panels (Chat & Participants) */}
-      {activePanel === 'chat' && (
+      {(activePanel === 'chat' || closingPanel === 'chat') && (
         <P2PChatDrawer
           messages={messages}
           currentUserId={meetingInfo.userId}
           participants={participantList}
           onSendMessage={handleSendMessage}
+          onSendFile={handleSendFile}
           activeVideoStream={screenStream || Object.values(peers)[0]?.stream || localStream}
           activeSpeakerName={screenStream ? `${meetingInfo.name}'s Screen` : (Object.values(peers)[0]?.name || `${meetingInfo.name} (You)`)}
-          onSwitchPanel={(panel) => setActivePanel(panel)}
-          onClose={() => setActivePanel(null)}
+          onSwitchPanel={openPanel}
+          isDetached={detachedPanel === 'chat'}
+          onToggleDetach={() => setDetachedPanel(value => value === 'chat' ? null : 'chat')}
+          isClosing={activePanel !== 'chat'}
+          onClose={closePanel}
         />
       )}
 
-      {activePanel === 'participants' && (
+      {(activePanel === 'participants' || closingPanel === 'participants') && (
         <P2PParticipantsDrawer
           participants={participantList}
           currentUserId={meetingInfo.userId}
@@ -988,17 +1172,11 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           onRenameUser={handleRenameUser}
           onChangeRole={handleChangeRole}
           onRemoveUser={handleRemoveUser}
-          onSwitchPanel={(panel) => setActivePanel(panel)}
-          onClose={() => setActivePanel(null)}
-        />
-      )}
-
-      {/* 5. Interactive Excalidraw & Eraser.io Collaborative Whiteboard */}
-      {whiteboardActive && (
-        <P2PWhiteboard
-          onClose={() => setWhiteboardActive(false)}
-          onBroadcastStroke={handleBroadcastWhiteboardStroke}
-          incomingStroke={incomingWhiteboardStroke}
+          onSwitchPanel={openPanel}
+          isDetached={detachedPanel === 'participants'}
+          onToggleDetach={() => setDetachedPanel(value => value === 'participants' ? null : 'participants')}
+          isClosing={activePanel !== 'participants'}
+          onClose={closePanel}
         />
       )}
 
@@ -1007,14 +1185,17 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
         {reactions.map((r) => (
           <div
             key={r.id}
-            className="absolute bottom-20 text-5xl animate-bounce"
+            className="absolute bottom-20 text-5xl"
             style={{
               left: `${r.left}%`,
-              transition: 'transform 2.5s ease-out, opacity 2.5s ease-out',
-              animation: 'reactionFly 2.5s forwards'
+              animation: 'reactionFly 1.8s cubic-bezier(0.2, 0.65, 0.3, 1) forwards',
+              willChange: 'transform, opacity'
             }}
           >
             {r.emoji}
+            <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2 py-0.5 text-xs font-medium text-white shadow-lg backdrop-blur-md">
+              {r.senderName}
+            </span>
           </div>
         ))}
         {/* Remote Dual-Track Screen Audio Playback Elements (Unmixed Pure Stereo) */}
@@ -1028,14 +1209,14 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
       <style jsx global>{`
         @keyframes reactionFly {
           0% {
-            transform: translateY(0) scale(0.6);
+            transform: translate3d(0, 0, 0) scale(0.82);
+            opacity: 0;
+          }
+          12% {
             opacity: 1;
           }
-          70% {
-            opacity: 0.9;
-          }
           100% {
-            transform: translateY(-500px) scale(1.4);
+            transform: translate3d(0, -34vh, 0) scale(1.06);
             opacity: 0;
           }
         }

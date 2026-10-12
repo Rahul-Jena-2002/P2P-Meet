@@ -94,9 +94,9 @@ export class MeetingController {
     if (onScreenStream) this.on('participantScreenStream', ({ peerId, stream }) => onScreenStream(peerId, stream));
     if (onScreenAudioStream) this.on('participantScreenAudioStream', ({ peerId, stream, track }) => onScreenAudioStream(peerId, stream, track));
     if (onData) {
-      this.on('dataMessage', ({ data }) => onData(data));
-      this.signaling.on('data', (data) => onData(data));
-      this.signaling.on('peer-direct', (data) => onData(data));
+      this.on('dataMessage', ({ data, peerId }) => onData(data, peerId));
+      this.signaling.on('data', (data) => onData(data, null));
+      this.signaling.on('peer-direct', (data) => onData(data, null));
     }
     if (onNetworkStats) {
       this.quality.on('stats', onNetworkStats);
@@ -244,6 +244,10 @@ export class MeetingController {
       }
     });
 
+    this.rtc.on('peerRemoved', ({ peerId }) => {
+      this.dataChannels.detachChannel(peerId);
+    });
+
     this.rtc.on('dataChannelOpen', ({ peerId }) => {
       const peer = this.rtc.getPeer(peerId);
       if (peer?.dataChannel) {
@@ -358,6 +362,10 @@ export class MeetingController {
 
   sendDirect(targetId, payload) {
     this.signaling.sendDirect?.(targetId, payload);
+  }
+
+  sendDataToPeer(peerId, payload) {
+    return this.rtc.sendDataToPeer?.(peerId, payload) || false;
   }
 
   /**

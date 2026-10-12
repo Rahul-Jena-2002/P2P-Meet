@@ -24,7 +24,6 @@ export default function P2PGrid({
   onRequestRemoteControl,
   onGrantRemoteControl,
   onGrantRemoteControlToPeer,
-  onSimulateRemoteControl,
   onRevokeRemoteControl,
   onSendRemoteMouseEvent,
   remoteCursor, // { x, y, name }
@@ -38,7 +37,8 @@ export default function P2PGrid({
   pinnedIds: propPinnedIds,
   onTogglePin: propTogglePin,
   onSetPinnedIds: propSetPinnedIds,
-  onUnpinAll: propUnpinAll
+  isSidePanelOpen = false,
+  stageOverlay = null
 }) {
   const [internalPinnedIds, setInternalPinnedIds] = useState([]);
   const pinnedIds = propPinnedIds ?? internalPinnedIds;
@@ -47,6 +47,7 @@ export default function P2PGrid({
   const containerStageRef = useRef(null);
   const [draggedPinId, setDraggedPinId] = useState(null);
   const [dragOverPinId, setDragOverPinId] = useState(null);
+  const lastRemoteMoveAtRef = useRef(0);
 
   const togglePin = (id) => {
     if (!id) return;
@@ -58,14 +59,6 @@ export default function P2PGrid({
         if (prev.length >= 4) return [...prev.slice(0, 3), id]; // Max 4
         return [...prev, id];
       });
-    }
-  };
-
-  const handleUnpinAll = () => {
-    if (propUnpinAll) {
-      propUnpinAll();
-    } else {
-      setPinnedIds([]);
     }
   };
 
@@ -171,7 +164,9 @@ export default function P2PGrid({
       id: `${p.id}-screen`,
       peerId: p.id,
       name: `${p.name} (Screen)`,
-      stream: p.screenStream || p.stream,
+      // A camera stream is not a valid fallback for a screen tile. Wait for the
+      // separate screen transceiver so a late track never renders as a blank share.
+      stream: p.screenStream || null,
       isLocal: false,
       isHost: p.isHost,
       isAudioOn: true,
@@ -197,15 +192,28 @@ export default function P2PGrid({
     .map(id => allTiles.find(t => t.id === id) || peers[id])
     .filter(Boolean);
 
+  // If the sharer's screen and camera are both pinned, keep the presentation
+  // as the single hero and show that person's camera as a corner PiP.
+  const pinnedScreenTile = pinnedTiles.find(tile => tile.isScreenSharing && tile.id === sharingTile?.id);
+  const pinnedCameraCompanion = pinnedScreenTile
+    ? pinnedTiles.find(tile => !tile.isScreenSharing && tile.peerId === pinnedScreenTile.peerId)
+    : null;
+  const isPinnedShareCameraPair = Boolean(pinnedScreenTile && pinnedCameraCompanion);
+
   // If pinned source disappears, automatically remove from pinnedIds
   React.useEffect(() => {
     if (pinnedIds.length > 0) {
-      setPinnedIds(prev => prev.filter(id => allTiles.some(t => t.id === id) || !!peers[id]));
+      setPinnedIds(prev => {
+        const next = prev.filter(id => allTiles.some(t => t.id === id) || !!peers[id]);
+        return next.length === prev.length ? prev : next;
+      });
     }
   }, [pinnedIds.length, allTiles, peers]);
 
   let heroTile = null;
-  if (pinnedTiles.length === 1) {
+  if (isPinnedShareCameraPair) {
+    heroTile = pinnedScreenTile;
+  } else if (pinnedTiles.length === 1) {
     heroTile = pinnedTiles[0];
   } else if (pinnedTiles.length === 0 && sharingTile) {
     heroTile = sharingTile;
@@ -214,7 +222,7 @@ export default function P2PGrid({
     heroTile = speakerPeer || (remoteCameraTiles.length > 0 ? remoteCameraTiles[0] : null);
   }
 
-  const isMultiPinned = pinnedTiles.length >= 2;
+  const isMultiPinned = pinnedTiles.length >= 2 && !isPinnedShareCameraPair;
   const isPresentingMode = pinnedTiles.length > 0 || !!heroTile || watchTogetherState?.active;
 
   const excludedIds = new Set(pinnedTiles.map(t => t.id));
@@ -223,25 +231,78 @@ export default function P2PGrid({
   // Side tiles in presentation layout: show participants in Google Meet right rail
   const sideTiles = allTiles
     .filter(t => !excludedIds.has(t.id))
+    // A side drawer makes the stage narrower. In that case, reserve the rail
+    // only for live participant cameras; show avatar cards in the idle layout.
+    .filter(t => !isSidePanelOpen || (!t.isScreenSharing && (t.isVideoOn ?? t.stream?.getVideoTracks?.().some(track => track.readyState === 'live'))))
+    // Keep camera feeds together at the front of the Meet-style rail. This
+    // list is derived from the live roster, so joins and leaves resize it.
+    .sort((a, b) => Number(a.isScreenSharing) - Number(b.isScreenSharing))
     .slice(0, 8);
 
   const totalCount = allTiles.length;
 
+  const getScreenPoint = (event) => {
+    const video = event.currentTarget.querySelector('video');
+    const rect = video?.getBoundingClientRect() || event.currentTarget.getBoundingClientRect();
+    const videoWidth = video?.videoWidth || rect.width;
+    const videoHeight = video?.videoHeight || rect.height;
+    if (!rect.width || !rect.height || !videoWidth || !videoHeight) return null;
+    const scale = Math.min(rect.width / videoWidth, rect.height / videoHeight);
+    const width = videoWidth * scale;
+    const height = videoHeight * scale;
+    const left = rect.left + (rect.width - width) / 2;
+    const top = rect.top + (rect.height - height) / 2;
+    const x = (event.clientX - left) / width;
+    const y = (event.clientY - top) / height;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return null;
+    return { x, y };
+  };
+
   // Handle Remote Mouse Interaction on Screen Share (RemoteDesk + Zoom style)
   const handleMouseMove = (e) => {
     if (!remoteControlState?.isControlling) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-    onSendRemoteMouseEvent?.({ type: 'move', x, y });
+    const now = performance.now();
+    if (now - lastRemoteMoveAtRef.current < 33) return;
+    lastRemoteMoveAtRef.current = now;
+    const point = getScreenPoint(e);
+    if (point) onSendRemoteMouseEvent?.({ type: 'move', ...point });
   };
 
-  const handleClick = (e) => {
+  const handleMouseDown = (e) => {
     if (!remoteControlState?.isControlling) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-    onSendRemoteMouseEvent?.({ type: 'click', click: true, x, y });
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const point = getScreenPoint(e);
+    if (point) onSendRemoteMouseEvent?.({ type: 'buttonDown', button: e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left', ...point });
+  };
+
+  const handleMouseUp = (e) => {
+    if (!remoteControlState?.isControlling) return;
+    onSendRemoteMouseEvent?.({ type: 'buttonUp', button: e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left' });
+  };
+
+  const handleContextMenu = (e) => {
+    if (!remoteControlState?.isControlling) return;
+    e.preventDefault();
+  };
+
+  const handleRemoteKeyDown = (e) => {
+    if (!remoteControlState?.isControlling || e.repeat || e.metaKey || e.altKey || e.code.startsWith('Meta') || e.code.startsWith('Alt')) return;
+    const code = e.code;
+    if (e.ctrlKey && (code === 'KeyW' || code === 'KeyT' || code === 'KeyL' || (code === 'Escape' && e.shiftKey))) return;
+    e.preventDefault();
+    onSendRemoteMouseEvent?.({ type: 'keyDown', code });
+  };
+
+  const handleRemoteKeyUp = (e) => {
+    if (!remoteControlState?.isControlling || e.metaKey || e.altKey || e.code.startsWith('Meta') || e.code.startsWith('Alt')) return;
+    e.preventDefault();
+    onSendRemoteMouseEvent?.({ type: 'keyUp', code: e.code });
+  };
+
+  const handleRemoteWheel = (e) => {
+    if (!remoteControlState?.isControlling) return;
+    e.preventDefault();
+    onSendRemoteMouseEvent?.({ type: 'wheel', delta: Math.max(-1200, Math.min(1200, -e.deltaY)) });
   };
 
   // -------------------------------------------------------------
@@ -252,7 +313,7 @@ export default function P2PGrid({
     if (isMultiPinned) {
       return (
         <div className={`absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col ${
-          isMobileLandscape ? 'p-1' : 'pt-10 pb-16 px-1.5'
+          isMobileLandscape ? 'pt-12 pb-16 px-1' : 'pt-12 pb-16 px-1.5'
         } select-none`}>
           <div className={`w-full h-full grid ${
             pinnedTiles.length === 2
@@ -281,15 +342,14 @@ export default function P2PGrid({
 
     // 1. Mobile Screen Share / Presentation Mode: 100% Fullscreen Presentation Edge-to-Edge
     if (heroTile || watchTogetherState?.active) {
-      const pipStream = heroTile?.isLocal
-        ? (remoteCameraTiles[0]?.stream || null)
-        : (heroTile?.isScreenSharing ? (peers[heroTile.peerId]?.stream || localStream) : (screenStream || localStream));
-      const pipName = heroTile?.isLocal
-        ? (remoteCameraTiles[0]?.name || 'Peer')
-        : (heroTile?.isScreenSharing ? (peers[heroTile.peerId]?.name || localUser.name) : localUser.name);
+      const pipCameraTile = heroTile?.isScreenSharing
+        ? allTiles.find(tile => !tile.isScreenSharing && tile.peerId === heroTile.peerId)
+        : null;
+      const pipStream = pipCameraTile?.isVideoOn !== false ? pipCameraTile?.stream : null;
+      const pipName = pipCameraTile?.name || '';
 
       return (
-        <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col p-0 select-none">
+        <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col pt-12 pb-16 select-none">
           {/* Main Stage: 100% full width and height with zero wasted space */}
           <div className="relative flex-1 w-full h-full overflow-hidden flex items-center justify-center bg-[#0D0B14]">
             {watchTogetherState?.active ? (
@@ -311,6 +371,7 @@ export default function P2PGrid({
                 isScreenSharing={heroTile.isScreenSharing}
                 isSpeaking={false}
                 isSingle={true}
+                hideDetachControl={Boolean(stageOverlay)}
                 isPinned={pinnedIds.includes(heroTile.id)}
                 onPinToggle={() => togglePin(heroTile.id)}
               />
@@ -337,10 +398,13 @@ export default function P2PGrid({
                 <P2PVideoTile
                   name={pipName}
                   stream={pipStream}
-                  isLocal={!heroTile?.isLocal}
-                  isAudioOn={isAudioOn}
-                  isVideoOn={isVideoOn}
+                  isLocal={pipCameraTile?.isLocal}
+                  isHost={pipCameraTile?.isHost}
+                  isAudioOn={pipCameraTile?.isAudioOn}
+                  isVideoOn={pipCameraTile?.isVideoOn}
                   isScreenSharing={false}
+                  isPinned={pinnedIds.includes(pipCameraTile?.id)}
+                  onPinToggle={() => pipCameraTile && togglePin(pipCameraTile.id)}
                 />
               </div>
             )}
@@ -354,6 +418,7 @@ export default function P2PGrid({
                 <span>📷 Show Camera</span>
               </button>
             )}
+            {stageOverlay}
           </div>
         </div>
       );
@@ -368,7 +433,7 @@ export default function P2PGrid({
 
       return (
         <div className={`absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col ${
-          isMobileLandscape ? 'p-0' : 'pt-10 pb-16'
+          isMobileLandscape ? 'pt-12 pb-16' : 'pt-12 pb-16'
         } select-none`}>
           {/* Full-Screen Main Video */}
           <div className="relative flex-1 w-full h-full overflow-hidden">
@@ -423,7 +488,7 @@ export default function P2PGrid({
           ...peerList
         ];
         return (
-          <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden p-1.5 select-none">
+          <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden pt-12 pb-16 px-1.5 select-none">
             <div className={`grid ${totalCount <= 4 ? 'grid-cols-2' : 'grid-cols-3'} h-full w-full gap-1.5`}>
               {allParticipants.map(p => (
                 <div key={p.id} className="relative w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#C4B5FD]/15 bg-[#161324]">
@@ -453,7 +518,7 @@ export default function P2PGrid({
       ];
 
       return (
-        <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col pt-10 pb-16 select-none gap-2 px-2">
+        <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col pt-12 pb-16 select-none gap-2 px-2">
           {/* Main Speaker Stage */}
           <div className="relative flex-1 w-full min-h-0 rounded-2xl overflow-hidden border border-[#C4B5FD]/15 bg-[#161324]">
             <P2PVideoTile
@@ -518,7 +583,7 @@ export default function P2PGrid({
     const activeHero = pinnedTiles.length === 1 ? pinnedTiles[0] : heroTile;
 
     return (
-      <div className="absolute inset-0 w-full h-full p-2 sm:p-3 overflow-hidden bg-[#0D0B14] select-none flex flex-row gap-3">
+      <div className="absolute inset-0 w-full h-full overflow-hidden bg-[#0D0B14] select-none flex flex-row gap-1 px-0 pt-12 pb-14 sm:gap-1 sm:px-0 sm:pt-12 sm:pb-14">
         {/* Main Presentation Stage (Google Meet-style rounded-2xl viewport) */}
         <div
           ref={containerStageRef}
@@ -527,7 +592,7 @@ export default function P2PGrid({
             const droppedId = e.dataTransfer.getData('text/plain');
             if (droppedId) togglePin(droppedId);
           }}
-          className="flex-1 h-full min-w-0 rounded-2xl overflow-hidden bg-black border border-white/10 relative flex items-center justify-center shadow-2xl"
+          className="flex-1 h-full min-w-0 rounded-xl overflow-hidden bg-black border border-white/10 relative flex items-center justify-center shadow-xl"
         >
           {watchTogetherState?.active ? (
             <div className="w-full h-full flex flex-col items-center justify-center bg-[#0D0B14] relative">
@@ -634,8 +699,14 @@ export default function P2PGrid({
           ) : activeHero ? (
             /* SINGLE HERO VIEW (1 PINNED OR SCREEN SHARE OR ACTIVE SPEAKER) */
             <div
-              onMouseMove={handleMouseMove}
-              onClick={handleClick}
+              tabIndex={remoteControlState?.isControlling ? 0 : -1}
+              onPointerMove={handleMouseMove}
+              onPointerDown={handleMouseDown}
+              onPointerUp={handleMouseUp}
+              onContextMenu={handleContextMenu}
+              onKeyDown={handleRemoteKeyDown}
+              onKeyUp={handleRemoteKeyUp}
+              onWheel={handleRemoteWheel}
               className={`w-full h-full relative ${remoteControlState?.isControlling ? 'cursor-crosshair' : ''}`}
             >
               <P2PVideoTile
@@ -650,8 +721,32 @@ export default function P2PGrid({
                 isPinned={pinnedIds.includes(activeHero.id)}
                 isHandRaised={raisedHands.includes(activeHero.id)}
                 isSingle={true}
+                hideDetachControl={Boolean(stageOverlay)}
                 onPinToggle={() => togglePin(activeHero.id)}
               />
+              {isPinnedShareCameraPair && pinnedCameraCompanion?.stream && pinnedCameraCompanion.isVideoOn !== false && (
+                <div className="absolute bottom-4 right-4 z-30 h-[clamp(7rem,18vh,12rem)] aspect-video overflow-hidden rounded-xl border border-white/30 bg-[#161324] shadow-xl">
+                  <P2PVideoTile
+                    name={pinnedCameraCompanion.name}
+                    stream={pinnedCameraCompanion.stream}
+                    isLocal={pinnedCameraCompanion.isLocal}
+                    isHost={pinnedCameraCompanion.isHost}
+                    isAudioOn={pinnedCameraCompanion.isAudioOn}
+                    isVideoOn={pinnedCameraCompanion.isVideoOn}
+                    isSpeaking={isUserSpeaking(pinnedCameraCompanion.id)}
+                    isPinned
+                    onPinToggle={() => togglePin(pinnedCameraCompanion.id)}
+                  />
+                </div>
+              )}
+              {activeHero.isScreenSharing && !activeHero.stream?.getVideoTracks?.().some((track) => track.readyState === 'live') && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0D0B14] text-center">
+                  <div className="flex flex-col items-center gap-2 text-white/70">
+                    <Monitor className="h-6 w-6 text-[#FFA14A]" />
+                    <span className="text-sm">Connecting to shared screen…</span>
+                  </div>
+                </div>
+              )}
 
               {/* Click Ripple Animations for Remote Desktop */}
               {remoteRipples?.map(r => (
@@ -678,12 +773,12 @@ export default function P2PGrid({
           ) : null}
 
         {/* Remote Desktop Access Controls (Only shown when active or requested) */}
-        {isScreenSharing && (remoteControlState?.requestPending || remoteControlState?.isBeingControlled || remoteControlState?.isControlling || showGrantMenu) && (
+        {sharingTile && (remoteControlState?.requestPending || remoteControlState?.isBeingControlled || remoteControlState?.isControlling || showGrantMenu || activeHero?.isScreenSharing) && (
           <div className={`absolute top-16 left-4 z-20 flex flex-wrap items-center gap-2 transition-all duration-300 ${
             controlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}>
-            {remoteControlState?.requestPending && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FF6B35] to-[#FFA14A] text-[#0D0B14] text-xs font-bold shadow-lg animate-bounce">
+            {remoteControlState?.requestPending && remoteControlState?.requesterId && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FF6B35] text-[#0D0B14] text-xs font-bold shadow-lg animate-bounce">
                 <ShieldAlert className="w-4 h-4 shrink-0" />
                 <span>{remoteControlState.requesterName} requests Access</span>
                 <button
@@ -701,6 +796,18 @@ export default function P2PGrid({
               </div>
             )}
 
+            {remoteControlState?.requestPending && !remoteControlState?.requesterId && (
+              <span role="status" className="rounded-full border border-white/20 bg-[#161324]/85 px-3 py-1.5 text-xs text-white/90 backdrop-blur-xl">
+                Waiting for the sharer to approve desktop control
+              </span>
+            )}
+
+            {sharingTile?.isLocal && !remoteControlState?.nativeAvailable && (
+              <span role="status" className="rounded-full border border-white/20 bg-[#161324]/85 px-3 py-1.5 text-xs text-white/85 backdrop-blur-xl">
+                Install the Windows control helper to enable desktop control
+              </span>
+            )}
+
             {remoteControlState?.isBeingControlled && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FF6B35] text-[#0D0B14] text-xs font-bold shadow-lg">
                 <MousePointer className="w-3.5 h-3.5 animate-pulse" />
@@ -712,6 +819,16 @@ export default function P2PGrid({
                   Revoke
                 </button>
               </div>
+            )}
+
+            {sharingTile?.isScreenSharing && !sharingTile?.isLocal && !remoteControlState?.isControlling && !remoteControlState?.requestPending && (
+              <button
+                type="button"
+                onClick={() => onRequestRemoteControl?.(sharingTile.peerId)}
+                className="rounded-full border border-white/20 bg-[#161324]/85 px-3 py-1.5 text-xs font-semibold text-white shadow backdrop-blur-xl hover:bg-[#252137]"
+              >
+                Request desktop control
+              </button>
             )}
 
             {!remoteControlState?.isBeingControlled && !remoteControlState?.requestPending && peerList.length > 0 && (
@@ -743,15 +860,17 @@ export default function P2PGrid({
             )}
           </div>
         )}
+        {stageOverlay}
         </div>
 
         {/* GOOGLE MEET-STYLE RIGHT-SIDE VERTICAL PARTICIPANT RAIL */}
         {hasSideTiles && (
-          <div className="w-56 sm:w-64 h-full flex flex-col justify-center gap-3 overflow-y-auto shrink-0 py-2 pr-1 pointer-events-auto z-20">
+          <div className="presentation-participant-rail h-full flex flex-col justify-center gap-1.5 overflow-y-auto overflow-x-hidden pointer-events-auto z-20 shrink-0">
             {sideTiles.map((tile) => (
               <div
                 key={tile.id}
-                className="w-full aspect-video rounded-2xl overflow-hidden border border-white/15 bg-[#161324] relative shadow-2xl hover:border-[#FF6B35]/50 transition group shrink-0"
+                style={{ maxHeight: `calc((100vh - 7rem) / ${Math.min(sideTiles.length, 5)})` }}
+                className="w-full aspect-video min-h-[4.5rem] rounded-lg overflow-hidden border border-white/10 bg-[#161324] relative hover:border-[#FF6B35]/40 transition group shrink-0"
               >
                 <P2PVideoTile
                   name={tile.name}
@@ -783,7 +902,7 @@ export default function P2PGrid({
 
   return (
     <div className={`absolute inset-0 w-full h-full flex items-center justify-center ${
-      isSolo ? 'p-0' : 'p-2 pt-13 pb-16 sm:pt-14 sm:pb-20'
+      isSolo ? 'p-0' : 'p-2 pt-16 pb-20 sm:p-3 sm:pt-20 sm:pb-24'
     }`}>
       {hasPrev && (
         <button
@@ -844,6 +963,7 @@ export default function P2PGrid({
           ›
         </button>
       )}
+      {stageOverlay}
     </div>
   );
 }

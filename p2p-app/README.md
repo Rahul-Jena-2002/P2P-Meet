@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Decentralized, Privacy-First Video Conferencing & Direct P2P File Sharing</strong><br>
-  <em>No intermediate relays • Zero cloud storage • Full End-to-End Encryption (E2EE)</em>
+  <em>Direct peer connections when available • No file storage • Encrypted WebRTC transport</em>
 </p>
 
 <p align="center">
@@ -20,11 +20,11 @@
 
 ## 🌟 Key Features
 
-- **🔒 100% Direct Peer-to-Peer (WebRTC E2EE)**:
-  - Video streams, audio tracks, chat messages, and file payloads are transmitted **directly between peers** using WebRTC DataChannels and DTLS-SRTP encryption (AES-128/256 GCM).
-  - Even when hosted on Cloudflare Pages, Cloudflare only serves static assets and initial handshake. Zero media data touches any server.
-- **📁 Universal Direct P2P File Sharing & Requests**:
-  - Share files of **ANY format** directly inside the meeting chat.
+- **🔒 Peer-to-Peer WebRTC**:
+  - Video streams, audio tracks, chat messages, and file payloads use WebRTC peer connections. File bytes are chunked as binary data and sent through the peer data channel; they are never uploaded to Pages or the signaling broker.
+  - WebRTC uses public STUN servers only. The call and file transfer require networks that permit a direct peer connection; no TURN relay or cloud file storage is used.
+- **📁 Direct P2P File Sharing & Requests**:
+  - Share files up to 500 MB directly inside the meeting chat.
   - Interactive file cards with file size, direct P2P badge, and one-click instant download.
   - "Request File" feature allowing participants to request documents or assets from specific peers.
 - **✨ Camera Background Blur & Screen Filters**:
@@ -39,6 +39,18 @@
   - Request and grant screen pointer assistance with live animated ripples.
 
 ---
+
+## Cloudflare Pages networking setup
+
+The Pages build is a static export (`out/`). Cloudflare serves the application and the existing signaling service coordinates peer discovery and WebRTC handshakes. Audio, video, and selected-file bytes travel over WebRTC peer connections; file data is never posted to Pages or signaling. This deployment intentionally uses public STUN only, with no TURN credentials, paid relay, or upload path. Some restrictive NAT/firewall combinations will prevent calls or transfers from connecting.
+
+Received files are assembled in the recipient's browser and downloaded from there. Both participants must stay in the meeting until transfer completes. Use the browser's file picker; a web page cannot access a local path supplied as text. Files up to 500 MB are sent in 16 KiB binary chunks with data-channel backpressure instead of being base64 encoded in memory or sent through MQTT/signaling.
+
+## Windows remote desktop control
+
+Remote mouse and keyboard input requires the optional Windows Native Messaging helper and Chromium browser extension in [`native/README.md`](native/README.md). The sharer must approve the participant in the meeting and separately approve Windows' helper prompt. Inputs are sent over that participant's direct WebRTC data channel. The first version controls the primary display only and requires sharing the full display; window-only and secondary-monitor control are not supported. The website-only cursor preview is not a substitute for installing the native helper.
+
+Files up to 500 MB are supported in the meeting chat. The app sends the selected `File` in 16 KiB binary chunks with data-channel backpressure instead of encoding the whole file in memory or sending it through MQTT/signaling.
 
 ## 💖 Support the Developer
 

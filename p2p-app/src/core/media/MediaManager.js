@@ -169,45 +169,6 @@ export class MediaManager {
         } catch {
           stream = typeof MediaStream !== 'undefined' ? new MediaStream() : null;
         }
-        if (stream && typeof document !== 'undefined') {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = 640;
-            canvas.height = 360;
-            const ctx = canvas.getContext('2d');
-            if (ctx && canvas.captureStream) {
-              let f = 0;
-              const tick = () => {
-                f++;
-                const g = ctx.createLinearGradient(0, 0, 640, 360);
-                g.addColorStop(0, '#1E1B4B');
-                g.addColorStop(1, '#312E81');
-                ctx.fillStyle = g;
-                ctx.fillRect(0, 0, 640, 360);
-                ctx.beginPath();
-                ctx.arc(320, 160, 48 + Math.sin(f * 0.08) * 4, 0, Math.PI * 2);
-                ctx.fillStyle = '#4F46E5';
-                ctx.fill();
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = 'bold 22px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('CAM 2', 320, 160);
-                ctx.font = '12px sans-serif';
-                ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                ctx.fillText('Camera hardware in use by another tab', 320, 230);
-              };
-              tick();
-              const timer = setInterval(tick, 100);
-              const synth = canvas.captureStream(10).getVideoTracks()[0];
-              if (synth) {
-                const orig = synth.stop.bind(synth);
-                synth.stop = () => { clearInterval(timer); orig(); };
-                stream.addTrack(synth);
-              }
-            }
-          } catch (_) {}
-        }
       }
     }
 
