@@ -432,13 +432,13 @@
   }
 
   .meeting-controls {
-    left: max(8px, env(safe-area-inset-left));
-    right: max(8px, env(safe-area-inset-right));
+    left: 50%;
+    right: auto;
     bottom: calc(env(safe-area-inset-bottom) + 8px);
-    width: auto;
-    max-width: none;
-    translate: 0 0 !important;
-    transform: none;
+    width: min(calc(100vw - 16px), 28rem);
+    max-width: calc(100vw - 16px);
+    translate: none !important;
+    transform: translateX(-50%) !important;
   }
 
   .meeting-controls-dock {
@@ -446,9 +446,9 @@
     max-width: 100%;
     min-height: 50px;
     gap: 0;
-    overflow-x: auto;
+    overflow-x: hidden;
     overflow-y: hidden;
-    justify-content: space-between;
+    justify-content: space-evenly;
     border-radius: 14px;
     padding: 4px 5px;
     scrollbar-width: none;
@@ -479,9 +479,7 @@
     padding: 0 !important;
   }
   .meeting-controls-dock .meeting-av-control-group > button:not(.meeting-control-button) {
-    width: 7px;
-    min-width: 7px;
-    min-height: 38px;
+    display: none;
   }
   .meeting-controls-dock > .meeting-control-button:not(.meeting-end-button) {
     width: 34px;
@@ -678,6 +676,14 @@
   }
 
   .lobby-preview-surface > video { object-position: center; }
+
+  .lobby-preview-badge {
+    position: absolute !important;
+    inset: 12px auto auto 12px !important;
+    width: max-content;
+    max-width: calc(100% - 24px);
+    white-space: nowrap;
+  }
 
   .lobby-preview-surface > div:last-child {
     bottom: 10px;
