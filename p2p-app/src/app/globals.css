@@ -401,6 +401,33 @@
 
 /* Keep primary meeting controls reachable in narrow mobile webviews. */
 @media (max-width: 767px) {
+  /* Mobile meeting is a separate phone composition: edge-to-edge stage,
+     compact chrome, and a full-width bottom tray. */
+  .mobile-meeting-stage {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    padding: 0 !important;
+    display: block !important;
+    isolation: isolate;
+  }
+
+  .mobile-meeting-stage .meeting-tile,
+  .mobile-meeting-stage > div,
+  .mobile-meeting-stage video {
+    border-radius: 0 !important;
+  }
+
+  .mobile-meeting-stage .meeting-tile {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-meeting-stage .meeting-tile > video {
+    object-fit: cover;
+  }
+
   .mobile-meeting-stage {
     padding-top: calc(env(safe-area-inset-top) + 3.5rem) !important;
     padding-bottom: calc(env(safe-area-inset-bottom) + 4.75rem) !important;
@@ -432,17 +459,18 @@
   }
 
   .meeting-controls {
-    left: 50%;
-    right: auto;
+    position: fixed !important;
+    left: max(8px, env(safe-area-inset-left)) !important;
+    right: max(8px, env(safe-area-inset-right)) !important;
     bottom: calc(env(safe-area-inset-bottom) + 8px);
-    width: min(calc(100vw - 16px), 28rem);
-    max-width: calc(100vw - 16px);
+    width: auto !important;
+    max-width: none !important;
     translate: none !important;
-    transform: translateX(-50%) !important;
+    transform: none !important;
   }
 
   .meeting-controls-dock {
-    width: 100%;
+    width: 100% !important;
     max-width: 100%;
     min-height: 50px;
     gap: 0;
@@ -453,6 +481,7 @@
     padding: 4px 5px;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
   }
 
   .meeting-controls-dock::-webkit-scrollbar { display: none; }

@@ -184,7 +184,7 @@ export class MediaManager {
 
     if (stream) {
       this.setStream(stream);
-      this.setupAudioAnalyzer(stream);
+      if (stream.getAudioTracks().length > 0) this.setupAudioAnalyzer(stream);
     }
     return stream;
   }
