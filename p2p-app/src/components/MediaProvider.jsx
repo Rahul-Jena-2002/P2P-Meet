@@ -13,8 +13,8 @@ const MediaContext = createContext(null);
 export function MediaProvider({ children }) {
   const [localStream, setLocalStream] = useState(null);
   const [screenStream, setScreenStream] = useState(null);
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [videoEnabled, setVideoEnabled] = useState(true);
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [videoEnabled, setVideoEnabled] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
   const [devices, setDevices] = useState({ video: [], audio: [], audioOutput: [] });
   const [selectedCam, setSelectedCam] = useState('');
@@ -35,21 +35,30 @@ export function MediaProvider({ children }) {
   const rawStreamRef = useRef(null);
 
   // Initialize or re-acquire user media
-  const initMedia = useCallback(async (camId, micId) => {
+  const initMedia = useCallback(async (camId, micId, requested = {}) => {
+    const wantsAudio = requested.audio ?? audioEnabled;
+    const wantsVideo = requested.video ?? videoEnabled;
+    if (!wantsAudio && !wantsVideo) return null;
     try {
       setMediaError(null);
       if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
         setMediaError("Mobile browsers restrict camera/mic on HTTP. You can still join to view, chat, and watch!");
-        setVideoEnabled(false);
-        setAudioEnabled(false);
+        if (wantsVideo) setVideoEnabled(false);
+        if (wantsAudio) setAudioEnabled(false);
         return null;
       }
 
-      const stream = await mediaManager.acquireUserMedia({ camId, micId });
+      const stream = await mediaManager.acquireUserMedia({ camId, micId, audio: wantsAudio, video: wantsVideo });
       rawStreamRef.current = stream;
 
+      const hasAudioTrack = stream?.getAudioTracks().some((track) => track.readyState === 'live');
+      if (wantsAudio && !hasAudioTrack) {
+        mediaManager.setAudioEnabled(false);
+        setAudioEnabled(false);
+        setMediaError('Microphone unavailable. Check browser permissions and try again.');
+      }
       const hasCameraTrack = stream?.getVideoTracks().some((track) => track.readyState === 'live');
-      if (!hasCameraTrack) {
+      if (wantsVideo && !hasCameraTrack) {
         mediaManager.setVideoEnabled(false);
         setVideoEnabled(false);
         setMediaError('Camera unavailable. Check browser permission or close another app using it.');
@@ -58,7 +67,7 @@ export function MediaProvider({ children }) {
       // acquireUserMedia -> setStream already applies mediaManager's enabled flags
 
       const aiFilters = ['blur', 'blur-light', 'blur-heavy', 'studio', 'rocket', 'nature', 'moon', 'astronaut'];
-      if (aiFilters.includes(videoFilter)) {
+      if (wantsVideo && aiFilters.includes(videoFilter)) {
         videoProcessor.start(stream, videoFilter, (updated) => {
           setLocalStream(updated);
         }).then((processed) => {
@@ -86,28 +95,40 @@ export function MediaProvider({ children }) {
       return stream;
     } catch (err) {
       console.warn('Camera/Mic permission notice:', err);
-      setMediaError("Camera/Mic not available on this connection. Joining in Viewer mode.");
-      setVideoEnabled(false);
-      setAudioEnabled(false);
+      setMediaError(`${wantsVideo && wantsAudio ? 'Camera/Mic' : wantsVideo ? 'Camera' : 'Microphone'} not available. Check browser permissions and try again.`);
+      if (wantsVideo) {
+        mediaManager.setVideoEnabled(false);
+        setVideoEnabled(false);
+      }
+      if (wantsAudio) {
+        mediaManager.setAudioEnabled(false);
+        setAudioEnabled(false);
+      }
       return null;
     }
   }, [audioEnabled, videoEnabled, selectedCam, selectedMic, videoFilter, mediaManager]);
 
   useEffect(() => {
     const unsubAudio = mediaManager.on('audioLevel', (lvl) => setAudioLevel(lvl));
-    initMedia();
+    mediaManager.setAudioEnabled(false);
+    mediaManager.setVideoEnabled(false);
     return () => {
       unsubAudio();
       mediaManager.stop();
     };
-  }, []);
+  }, [mediaManager]);
 
-  const toggleAudio = useCallback(() => {
+  const toggleAudio = useCallback(async () => {
     const next = !audioEnabled;
     mediaManager.setAudioEnabled(next);
     setAudioEnabled(next);
+    const hasLiveAudio = mediaManager.stream?.getAudioTracks().some(track => track.readyState === 'live');
+    if (next && !hasLiveAudio) {
+      const stream = await initMedia(selectedCam, selectedMic, { audio: true, video: videoEnabled });
+      if (!stream?.getAudioTracks().some(track => track.readyState === 'live')) return false;
+    }
     return next;
-  }, [audioEnabled, mediaManager]);
+  }, [audioEnabled, mediaManager, initMedia, selectedCam, selectedMic, videoEnabled]);
 
   const toggleVoiceFocus = useCallback(async () => {
     const next = !voiceFocusEnabled;
@@ -123,7 +144,7 @@ export function MediaProvider({ children }) {
     const hasLiveVideo = mediaManager.stream?.getVideoTracks().some(t => t.readyState === 'live');
     if (next && !hasLiveVideo) {
       // No usable camera track (viewer mode / ended track): acquire it now
-      const stream = await initMedia(selectedCam, selectedMic);
+      const stream = await initMedia(selectedCam, selectedMic, { audio: audioEnabled, video: true });
       if (!stream?.getVideoTracks().some((track) => track.readyState === 'live')) {
         mediaManager.setVideoEnabled(false);
         setVideoEnabled(false);
@@ -132,7 +153,7 @@ export function MediaProvider({ children }) {
       }
     }
     return next;
-  }, [videoEnabled, mediaManager, initMedia, selectedCam, selectedMic]);
+  }, [videoEnabled, mediaManager, initMedia, selectedCam, selectedMic, audioEnabled]);
 
   const switchCamera = useCallback(async (deviceId) => {
     setSelectedCam(deviceId);

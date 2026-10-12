@@ -85,9 +85,9 @@ export default function GreenRoom({ onJoinMeeting }) {
   };
 
   return (
-    <div className="relative h-[100dvh] min-h-0 w-full bg-[#0D0B14] text-[#F8F7FC] flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 overflow-y-auto overscroll-contain select-none">
+    <div className="lobby-page relative h-[100dvh] min-h-0 w-full bg-[#0D0B14] text-[#F8F7FC] flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 overflow-y-auto overscroll-contain select-none">
       {/* Header */}
-      <div className="w-full max-w-4xl flex items-center justify-between py-3 mb-2 sm:mb-6 md:absolute md:top-8 md:left-8 md:w-auto md:py-0 z-20">
+      <div className="lobby-brand-header w-full max-w-4xl flex items-center justify-between py-3 mb-2 sm:mb-6 md:absolute md:top-8 md:left-8 md:w-auto md:py-0 z-20">
         <div className="flex items-center gap-3">
           <P2PLogo size={38} />
           <div>
@@ -99,10 +99,10 @@ export default function GreenRoom({ onJoinMeeting }) {
         </div>
       </div>
 
-      <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 items-center z-10 my-auto pb-6 sm:pb-0">
+      <div className="lobby-layout max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 items-center z-10 my-auto pb-6 sm:pb-0">
         {/* Left: Camera & Mic Hardware Preview Box */}
-        <div className="flex flex-col items-center">
-          <div className="relative w-full aspect-video rounded-3xl overflow-hidden liquid-glass-panel shadow-2xl flex items-center justify-center">
+        <div className="lobby-preview-section flex flex-col items-center">
+          <div className="lobby-preview-surface relative w-full aspect-video rounded-3xl overflow-hidden liquid-glass-panel shadow-2xl flex items-center justify-center">
             {videoEnabled && localStream ? (
               <video
                 ref={videoRef}
@@ -120,6 +120,11 @@ export default function GreenRoom({ onJoinMeeting }) {
               </div>
             )}
 
+            <div className="lobby-preview-badge">
+              <span className={`lobby-preview-dot ${videoEnabled && localStream ? 'is-live' : ''}`} />
+              {videoEnabled && localStream ? 'Camera ready' : 'Camera preview'}
+            </div>
+
             {/* Notice if camera/mic restricted on HTTP */}
             {mediaError && (
               <div className="absolute top-3 left-3 right-3 p-2.5 rounded-xl bg-[#FF6B35]/95 backdrop-blur-md text-[#0D0B14] text-xs flex items-center gap-2 shadow-lg font-semibold border border-black/10">
@@ -129,7 +134,7 @@ export default function GreenRoom({ onJoinMeeting }) {
             )}
 
             {/* Live Audio Meter & Control Pill */}
-            <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
+            <div className="lobby-preview-controls absolute z-10 bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
               {/* Mic volume bar */}
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0D0B14]/85 backdrop-blur-md border border-[rgba(196,181,253,0.16)] text-xs text-[#F8F7FC] shadow-md">
                 <Volume2 className={`w-3.5 h-3.5 ${audioLevel > 10 ? 'text-[#FF6B35]' : 'text-[#C4B5FD]/60'}`} />
@@ -238,8 +243,8 @@ export default function GreenRoom({ onJoinMeeting }) {
         </div>
 
         {/* Right: Join / Create Meeting Form */}
-        <div className="flex flex-col space-y-5">
-          <div className="flex p-1 rounded-2xl liquid-glass-dock shadow-inner">
+        <div className="lobby-form-section flex flex-col space-y-5">
+          <div className="lobby-mode-switch flex p-1 rounded-2xl liquid-glass-dock shadow-inner">
             <button
               onClick={() => setMode('new')}
               className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
@@ -262,7 +267,7 @@ export default function GreenRoom({ onJoinMeeting }) {
             </button>
           </div>
 
-          <form onSubmit={handleStart} className="p-7 rounded-3xl liquid-glass-panel shadow-2xl space-y-4.5">
+          <form onSubmit={handleStart} className="lobby-form p-7 rounded-3xl liquid-glass-panel shadow-2xl space-y-4.5">
             <div>
               <label className="block text-xs font-semibold text-[#C4B5FD] mb-1.5">
                 Your Display Name

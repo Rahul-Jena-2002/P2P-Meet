@@ -607,6 +607,141 @@
   .mobile-more-effect-list button.is-active { color: #FFD1B9; border-color: rgba(255, 107, 53, 0.46); background: rgba(255, 107, 53, 0.14); }
 }
 
+/* Purpose-built lobby layout for narrow browser viewports. */
+.lobby-preview-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(13, 11, 20, 0.56);
+  color: rgba(248, 247, 252, 0.86);
+  font-size: 11px;
+  font-weight: 600;
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+
+.lobby-preview-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(196, 181, 253, 0.8);
+}
+
+.lobby-preview-dot.is-live {
+  background: #FF6B35;
+  box-shadow: 0 0 10px rgba(255, 107, 53, 0.7);
+}
+
+@media (max-width: 767px) {
+  .lobby-page {
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0;
+    padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+
+  .lobby-brand-header {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: none;
+    min-height: 58px;
+    margin: 0 0 12px;
+    padding: 2px 2px 8px;
+  }
+
+  .lobby-layout {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0 0 12px;
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .lobby-preview-section,
+  .lobby-form-section { min-width: 0; }
+
+  .lobby-preview-surface {
+    min-height: 176px;
+    max-height: 31dvh;
+    aspect-ratio: 16 / 10;
+    border-radius: 22px;
+  }
+
+  .lobby-preview-surface > video { object-position: center; }
+
+  .lobby-preview-surface > div:last-child {
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+  }
+
+  .lobby-mode-switch {
+    min-height: 52px;
+    border-radius: 16px;
+  }
+
+  .lobby-mode-switch button {
+    min-height: 44px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  .lobby-form-section { gap: 12px; }
+
+  .lobby-form {
+    padding: 17px;
+    border-radius: 21px;
+  }
+
+  .lobby-form > div { margin-top: 0.85rem; }
+
+  .lobby-form label { margin-bottom: 7px; }
+
+  .lobby-form input {
+    min-height: 46px;
+    border-radius: 13px;
+    font-size: 14px;
+  }
+
+  .lobby-form button[type="submit"] {
+    min-height: 50px;
+    margin-top: 4px;
+    border-radius: 15px;
+  }
+
+  .lobby-preview-section .liquid-glass-panel { box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.24) !important; }
+}
+
+@media (max-width: 767px) and (max-height: 720px) and (orientation: portrait) {
+  .lobby-brand-header { min-height: 50px; margin-bottom: 8px; }
+  .lobby-layout { gap: 10px; }
+  .lobby-preview-surface { min-height: 138px; max-height: 25dvh; }
+  .lobby-form { padding: 14px; }
+  .lobby-form-section { gap: 9px; }
+}
+
+@media (max-width: 767px) and (orientation: landscape) {
+  .lobby-page { padding-top: max(8px, env(safe-area-inset-top)); }
+  .lobby-brand-header { min-height: 44px; margin-bottom: 6px; }
+  .lobby-layout {
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+  }
+  .lobby-preview-surface { min-height: 130px; max-height: 38dvh; }
+  .lobby-form { padding: 13px; }
+  .lobby-form-section { gap: 9px; }
+}
+
 @media (max-width: 380px) {
   .meeting-controls-dock .meeting-av-control-group > .meeting-control-button,
   .meeting-controls-dock > .meeting-control-button:not(.meeting-end-button) {

@@ -12,8 +12,8 @@ export class MediaManager {
     this.stream = null;
     this.screenStream = null;
     this.localScreenAudioTrack = null;
-    this.isAudioEnabled = true;
-    this.isVideoEnabled = true;
+    this.isAudioEnabled = false;
+    this.isVideoEnabled = false;
     this.isVoiceFocusEnabled = true; // noise suppression / voice focus on by default
     this.audioContext = null;
     this.analyser = null;
@@ -133,10 +133,11 @@ export class MediaManager {
     return this.isVoiceFocusEnabled;
   }
 
-  async acquireUserMedia({ camId, micId } = {}) {
+  async acquireUserMedia({ camId, micId, audio = true, video = true } = {}) {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       throw new Error('getUserMedia is not supported on this environment/origin');
     }
+    if (!audio && !video) return null;
 
     if (this.stream) {
       this.stream.getTracks().forEach(t => t.stop());
@@ -151,23 +152,32 @@ export class MediaManager {
         latency: 0
       };
       const constraints = {
-        video: camId ? { deviceId: { exact: camId } } : { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-        audio: micId
+        video: video ? (camId ? { deviceId: { exact: camId } } : { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }) : false,
+        audio: audio ? (micId
           ? { deviceId: { exact: micId }, ...audioProcessing }
-          : audioProcessing,
+          : audioProcessing) : false,
       };
       stream = await navigator.mediaDevices.getUserMedia(constraints);
-    } catch {
+    } catch (error) {
+      const fallback = {
+        video: video ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false,
+        audio: audio ? { echoCancellation: this.isVoiceFocusEnabled, noiseSuppression: this.isVoiceFocusEnabled, autoGainControl: this.isVoiceFocusEnabled } : false
+      };
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, latency: 0 }
-        });
+        stream = await navigator.mediaDevices.getUserMedia(fallback);
       } catch {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch {
-          stream = typeof MediaStream !== 'undefined' ? new MediaStream() : null;
+        if (audio && video) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: fallback.video, audio: false });
+          } catch {
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: fallback.audio });
+            } catch {
+              throw error;
+            }
+          }
+        } else {
+          throw error;
         }
       }
     }
