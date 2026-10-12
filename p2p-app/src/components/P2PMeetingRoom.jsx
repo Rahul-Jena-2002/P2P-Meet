@@ -132,6 +132,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
   const [raisedHands, setRaisedHands] = useState([]); // user IDs with hands raised
   const [whiteboardActive, setWhiteboardActive] = useState(false);
   const [whiteboardClosing, setWhiteboardClosing] = useState(false);
+  const [whiteboardOwnerId, setWhiteboardOwnerId] = useState(null);
   const whiteboardCloseTimerRef = useRef(null);
   const [incomingWhiteboardStroke, setIncomingWhiteboardStroke] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -188,7 +189,25 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
     }, 180);
   };
 
-  const toggleWhiteboard = () => whiteboardActive ? closeWhiteboard() : openWhiteboard();
+  const toggleWhiteboard = () => {
+    if (!screenSharing) return;
+    if (whiteboardActive) {
+      meshRef.current?.broadcast({ type: 'WHITEBOARD_STATE', open: false, ownerId: meetingInfo.userId });
+      setWhiteboardOwnerId(null);
+      closeWhiteboard();
+      return;
+    }
+    setWhiteboardOwnerId(meetingInfo.userId);
+    openWhiteboard();
+    meshRef.current?.broadcast({ type: 'WHITEBOARD_STATE', open: true, ownerId: meetingInfo.userId });
+  };
+
+  useEffect(() => {
+    if (screenSharing || whiteboardOwnerId !== meetingInfo.userId) return;
+    meshRef.current?.broadcast({ type: 'WHITEBOARD_STATE', open: false, ownerId: meetingInfo.userId });
+    setWhiteboardOwnerId(null);
+    closeWhiteboard();
+  }, [screenSharing, whiteboardOwnerId, meetingInfo.userId]);
 
   useEffect(() => () => {
     if (panelCloseTimerRef.current) clearTimeout(panelCloseTimerRef.current);
@@ -495,7 +514,16 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           if (data.isHost || peers[data.senderId]?.isHost || data.userId === meetingInfo.hostId) {
             setIsRecording(Boolean(data.isRecording));
           }
+        } else if (type === 'WHITEBOARD_STATE') {
+          if (data.open) {
+            setWhiteboardOwnerId(data.ownerId || peerId);
+            openWhiteboard();
+          } else if (!data.ownerId || data.ownerId === whiteboardOwnerId || data.ownerId === peerId) {
+            setWhiteboardOwnerId(null);
+            closeWhiteboard();
+          }
         } else if (type === 'WHITEBOARD_STROKE') {
+          setWhiteboardOwnerId(data.ownerId || peerId);
           setIncomingWhiteboardStroke(data.stroke);
           openWhiteboard();
         } else if (type === 'RENAME_USER') {
@@ -629,6 +657,11 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
       senderName: meetingInfo.name,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }]);
+  };
+
+  const handleShareWhiteboardExport = async (file) => {
+    await handleSendFile(file);
+    openPanel('chat');
   };
 
   // Remote Control Handlers (Zoom + RemoteDesk style)
@@ -1082,11 +1115,13 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
             isSidePanelOpen={Boolean(activePanel)}
             stageOverlay={whiteboardActive ? (
               <P2PWhiteboard
-                onClose={closeWhiteboard}
+                onClose={whiteboardOwnerId === meetingInfo.userId ? toggleWhiteboard : closeWhiteboard}
                 onBroadcastStroke={handleBroadcastWhiteboardStroke}
+                onShareExport={handleShareWhiteboardExport}
                 incomingStroke={incomingWhiteboardStroke}
                 isEmbedded
                 isClosing={whiteboardClosing}
+                canEdit={screenSharing && whiteboardOwnerId === meetingInfo.userId}
               />
             ) : null}
           />
@@ -1108,7 +1143,7 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           recordingRequestPending={recordingRequestPending}
           recordingRequests={recordingRequests}
           onResolveRecordingRequest={handleResolveRecordingRequest}
-          onToggleWhiteboard={toggleWhiteboard}
+          onToggleWhiteboard={screenSharing ? toggleWhiteboard : undefined}
           isVisible
           isMobile={isMobile}
           isMobileLandscape={isMobileLandscape}
@@ -1129,7 +1164,8 @@ export default function P2PMeetingRoom({ meetingInfo, onLeave }) {
           onLeaveMeeting={handleLeaveMeeting}
           isHandRaised={raisedHands.includes(meetingInfo.userId)}
           onToggleRaiseHand={handleToggleRaiseHand}
-          onToggleWhiteboard={toggleWhiteboard}
+          onToggleWhiteboard={screenSharing ? toggleWhiteboard : undefined}
+          canUseWhiteboard={screenSharing}
           whiteboardActive={whiteboardActive}
           onStartWatchTogether={handleStartWatchTogether}
           onStopWatchTogether={handleStopWatchTogether}

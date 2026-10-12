@@ -21,7 +21,8 @@ export default function P2PVideoTile({
   isHandRaised = false,
   isSingle = false,
   hideDetachControl = false,
-  onPinToggle
+  onPinToggle,
+  pinPlacement = 'bottom-right'
 }) {
   const containerRef = useRef(null);
   const videoRef = useRef(null);
@@ -424,7 +425,7 @@ export default function P2PVideoTile({
 
       {/* Google Meet-Style Centered Hover Action Overlay (Pin / Unpin) */}
       {onPinToggle && !isEffectLoading && (
-        <div className="absolute bottom-3 right-3 pointer-events-none z-30 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+        <div className={`absolute ${pinPlacement === 'top-right' ? 'top-3 right-3' : 'bottom-3 right-3'} pointer-events-none z-30 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200`}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -438,7 +439,7 @@ export default function P2PVideoTile({
             title={isPinned ? 'Unpin from main screen' : 'Pin to main screen'}
           >
             {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
-            <span>{isPinned ? 'Unpin' : 'Pin'}</span>
+            <span className="meeting-pin-label">{isPinned ? 'Unpin' : 'Pin'}</span>
           </button>
         </div>
       )}

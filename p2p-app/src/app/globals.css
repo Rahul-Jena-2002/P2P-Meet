@@ -39,6 +39,8 @@
     height: 100vh;
     height: 100dvh;
     min-height: -webkit-fill-available;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
     overflow: hidden;
     background-color: #0D0B14;
     color: #F8F7FC;
@@ -399,17 +401,40 @@
 
 /* Keep primary meeting controls reachable in narrow mobile webviews. */
 @media (max-width: 767px) {
+  .mobile-meeting-stage {
+    padding-top: calc(env(safe-area-inset-top) + 3.5rem) !important;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 4.75rem) !important;
+    min-height: 0;
+  }
+
   .meeting-header-row {
-    top: max(8px, env(safe-area-inset-top));
-    left: 10px;
-    right: 10px;
-    gap: 6px;
+    top: calc(env(safe-area-inset-top) + 6px);
+    left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right));
+    min-height: 42px;
+    gap: 5px;
+    padding: 0 2px;
+  }
+
+  .meeting-header-row .meeting-mobile-leave {
+    display: none !important;
+  }
+
+  .meeting-header-row > div:last-child {
+    gap: 5px;
+  }
+
+  .meeting-header-row #zoom-view-btn {
+    min-width: 42px;
+    min-height: 42px;
+    justify-content: center;
+    padding: 0 8px;
   }
 
   .meeting-controls {
-    left: 8px;
-    right: 8px;
-    bottom: max(8px, env(safe-area-inset-bottom));
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
     width: auto;
     max-width: none;
     transform: none;
@@ -420,15 +445,30 @@
     max-width: 100%;
     min-height: 50px;
     gap: 0;
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: hidden;
     justify-content: space-between;
     border-radius: 14px;
     padding: 4px 5px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
+
+  .meeting-controls-dock::-webkit-scrollbar { display: none; }
 
   .meeting-controls-dock > * { flex: 0 0 auto; }
   .meeting-controls-dock .meeting-label { display: none !important; }
+  .meeting-controls-dock .meeting-control-whiteboard { display: none !important; }
+  .meeting-controls-dock .meeting-control-reactions { display: none !important; }
+  .meeting-controls-dock .meeting-control-desktop-hand { display: none !important; }
+  .meeting-controls-dock .meeting-control-button:not(.meeting-end-button) {
+    width: 34px;
+    min-width: 34px;
+    min-height: 42px;
+    justify-content: center;
+    padding: 0 !important;
+  }
+  .meeting-controls-dock .meeting-mobile-more { display: flex !important; }
   .meeting-controls-dock .meeting-av-control-group { gap: 0; }
   .meeting-controls-dock .meeting-av-control-group > .meeting-control-button {
     width: 34px;
@@ -438,9 +478,9 @@
     padding: 0 !important;
   }
   .meeting-controls-dock .meeting-av-control-group > button:not(.meeting-control-button) {
-    width: 9px;
-    min-width: 9px;
-    min-height: 42px;
+    width: 7px;
+    min-width: 7px;
+    min-height: 38px;
   }
   .meeting-controls-dock > .meeting-control-button:not(.meeting-end-button) {
     width: 34px;
@@ -454,6 +494,147 @@
     min-height: 40px;
     padding: 0 8px !important;
   }
+
+  .meeting-pin-label { display: none; }
+
+  .mobile-more-sheet {
+    position: absolute;
+    display: block;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 10px);
+    max-height: min(58dvh, 34rem);
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 14px;
+    border-radius: 22px;
+    background: rgba(30, 26, 43, 0.78);
+    border: 1px solid rgba(225, 218, 255, 0.24);
+    box-shadow: 0 18px 55px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    backdrop-filter: blur(28px) saturate(160%);
+    color: #F8F7FC;
+    animation: meetingPanelEnter 160ms ease-out both;
+  }
+
+  .mobile-more-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 11px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .mobile-more-close {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    color: rgba(248, 247, 252, 0.78);
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .mobile-more-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mobile-more-action {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 11px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(248, 247, 252, 0.9);
+    font-size: 12px;
+    text-align: left;
+  }
+
+  .mobile-more-action.is-active { color: #FFD1B9; border-color: rgba(255, 107, 53, 0.4); background: rgba(255, 107, 53, 0.12); }
+  .mobile-more-action.is-danger { color: #FFB4A9; border-color: rgba(255, 90, 80, 0.36); }
+  .mobile-more-section { margin-top: 14px; }
+  .mobile-more-label { margin: 0 0 8px; color: rgba(248, 247, 252, 0.58); font-size: 11px; font-weight: 600; }
+
+  .mobile-more-reactions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .mobile-more-reactions button {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 21px;
+  }
+
+  .mobile-more-devices { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
+  .mobile-more-devices label { min-width: 0; display: grid; gap: 6px; color: rgba(248, 247, 252, 0.6); font-size: 10px; }
+  .mobile-more-devices select {
+    min-width: 0;
+    width: 100%;
+    height: 40px;
+    padding: 0 9px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(13, 11, 20, 0.62);
+    color: #F8F7FC;
+    font-size: 11px;
+  }
+
+  .mobile-more-effect-list { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 3px; }
+  .mobile-more-effect-list button {
+    flex: 0 0 auto;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(248, 247, 252, 0.8);
+    font-size: 11px;
+  }
+  .mobile-more-effect-list button.is-active { color: #FFD1B9; border-color: rgba(255, 107, 53, 0.46); background: rgba(255, 107, 53, 0.14); }
+}
+
+@media (max-width: 380px) {
+  .meeting-controls-dock .meeting-av-control-group > .meeting-control-button,
+  .meeting-controls-dock > .meeting-control-button:not(.meeting-end-button) {
+    width: 31px;
+    min-width: 31px;
+  }
+
+  .meeting-controls-dock > .meeting-end-button {
+    min-width: 40px;
+    padding-inline: 6px !important;
+  }
+
+  .meeting-controls-dock .meeting-control-button:not(.meeting-end-button) {
+    width: 30px;
+    min-width: 30px;
+  }
+
+  .meeting-controls-dock .meeting-av-control-group > button:not(.meeting-control-button) {
+    width: 5px;
+    min-width: 5px;
+  }
+
+  .meeting-controls-dock { padding-inline: 3px; }
+
+  .mobile-more-sheet { padding: 12px; }
+  .mobile-more-actions { gap: 6px; }
+  .mobile-more-action { padding-inline: 9px; }
+  .mobile-more-reactions button { width: 38px; height: 40px; }
 }
 
 /* Custom frosted lavender scrollbar */

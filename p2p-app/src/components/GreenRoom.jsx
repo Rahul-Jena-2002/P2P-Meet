@@ -85,7 +85,7 @@ export default function GreenRoom({ onJoinMeeting }) {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#0D0B14] text-[#F8F7FC] flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 overflow-y-auto select-none">
+    <div className="relative h-[100dvh] min-h-0 w-full bg-[#0D0B14] text-[#F8F7FC] flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 overflow-y-auto overscroll-contain select-none">
       {/* Header */}
       <div className="w-full max-w-4xl flex items-center justify-between py-3 mb-2 sm:mb-6 md:absolute md:top-8 md:left-8 md:w-auto md:py-0 z-20">
         <div className="flex items-center gap-3">

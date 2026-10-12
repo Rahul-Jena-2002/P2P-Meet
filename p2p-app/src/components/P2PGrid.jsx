@@ -312,7 +312,7 @@ export default function P2PGrid({
     // 0. Mobile Multi-Pinned Stage (2 to 4 pinned tiles)
     if (isMultiPinned) {
       return (
-        <div className={`absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col ${
+        <div className={`mobile-meeting-stage absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col ${
           isMobileLandscape ? 'pt-12 pb-16 px-1' : 'pt-12 pb-16 px-1.5'
         } select-none`}>
           <div className={`w-full h-full grid ${
@@ -349,7 +349,7 @@ export default function P2PGrid({
       const pipName = pipCameraTile?.name || '';
 
       return (
-        <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col pt-12 pb-16 select-none">
+        <div className="mobile-meeting-stage absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col select-none">
           {/* Main Stage: 100% full width and height with zero wasted space */}
           <div className="relative flex-1 w-full h-full overflow-hidden flex items-center justify-center bg-[#0D0B14]">
             {watchTogetherState?.active ? (
@@ -374,14 +374,8 @@ export default function P2PGrid({
                 hideDetachControl={Boolean(stageOverlay)}
                 isPinned={pinnedIds.includes(heroTile.id)}
                 onPinToggle={() => togglePin(heroTile.id)}
+                pinPlacement="top-right"
               />
-            )}
-
-            {/* In portrait: helper tip to rotate phone */}
-            {!isMobileLandscape && (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none px-3 py-1 rounded-full bg-[#0D0B14]/80 border border-[#C4B5FD]/20 text-[10px] text-[#C4B5FD] backdrop-blur-md flex items-center gap-1.5 shadow-lg">
-                <span>🔄 Rotate phone sideways for fullscreen</span>
-              </div>
             )}
 
             {/* Corner floating PiP camera */}
@@ -391,7 +385,7 @@ export default function P2PGrid({
                 className={`absolute z-20 rounded-2xl overflow-hidden border-2 border-[#C4B5FD]/30 shadow-2xl bg-[#161324] cursor-pointer active:scale-95 transition-transform ${
                   isMobileLandscape
                     ? 'bottom-3 right-3 w-32 h-20'
-                    : 'bottom-4 right-3 w-26 h-36'
+                    : 'bottom-4 right-3 w-[clamp(7.5rem,24vw,10rem)] h-[clamp(10rem,28vh,13rem)]'
                 }`}
                 title="Tap to minimize PiP"
               >
@@ -405,6 +399,7 @@ export default function P2PGrid({
                   isScreenSharing={false}
                   isPinned={pinnedIds.includes(pipCameraTile?.id)}
                   onPinToggle={() => pipCameraTile && togglePin(pipCameraTile.id)}
+                  pinPlacement="top-right"
                 />
               </div>
             )}
@@ -432,7 +427,7 @@ export default function P2PGrid({
       const pipUser = mainIsRemote ? { ...localUser, stream: localStream, isLocal: true, isAudioOn, isVideoOn } : remotePeer;
 
       return (
-        <div className={`absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col ${
+        <div className={`mobile-meeting-stage absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col ${
           isMobileLandscape ? 'pt-12 pb-16' : 'pt-12 pb-16'
         } select-none`}>
           {/* Full-Screen Main Video */}
@@ -469,6 +464,7 @@ export default function P2PGrid({
                 isSpeaking={isUserSpeaking(pipUser.id)}
                 isPinned={pinnedIds.includes(pipUser.id)}
                 onPinToggle={() => togglePin(pipUser.id)}
+              pinPlacement="top-right"
               />
               <div className="absolute top-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[9px] text-[#C4B5FD] backdrop-blur-sm pointer-events-none">
                 Swap ⇋
@@ -488,7 +484,7 @@ export default function P2PGrid({
           ...peerList
         ];
         return (
-          <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden pt-12 pb-16 px-1.5 select-none">
+          <div className="mobile-meeting-stage absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden px-1.5 select-none">
             <div className={`grid ${totalCount <= 4 ? 'grid-cols-2' : 'grid-cols-3'} h-full w-full gap-1.5`}>
               {allParticipants.map(p => (
                 <div key={p.id} className="relative w-full h-full min-h-0 rounded-xl overflow-hidden border border-[#C4B5FD]/15 bg-[#161324]">
@@ -518,7 +514,7 @@ export default function P2PGrid({
       ];
 
       return (
-        <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col pt-12 pb-16 select-none gap-2 px-2">
+        <div className="mobile-meeting-stage absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col select-none gap-2 px-2">
           {/* Main Speaker Stage */}
           <div className="relative flex-1 w-full min-h-0 rounded-2xl overflow-hidden border border-[#C4B5FD]/15 bg-[#161324]">
             <P2PVideoTile
@@ -557,7 +553,7 @@ export default function P2PGrid({
 
     // 4. Solo in room on Mobile (1 person): Clean fullscreen self view
     return (
-      <div className="absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col p-0 select-none">
+      <div className="mobile-meeting-stage absolute inset-0 w-full h-full bg-[#0D0B14] overflow-hidden flex flex-col p-0 select-none">
         <div className="relative flex-1 w-full h-full overflow-hidden">
           <P2PVideoTile
             name={localUser.name}

@@ -7,7 +7,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { X, Maximize2, Minimize2, Edit3 } from 'lucide-react';
+import { X, Maximize2, Minimize2, Edit3, Download, Send } from 'lucide-react';
 import '@excalidraw/excalidraw/index.css';
 
 // Dynamically import Excalidraw to ensure no SSR errors in Next.js
@@ -27,7 +27,7 @@ const Excalidraw = dynamic(
   }
 );
 
-export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStroke, isEmbedded = false, isClosing = false }) {
+export default function P2PWhiteboard({ onClose, onBroadcastStroke, onShareExport, incomingStroke, isEmbedded = false, isClosing = false, canEdit = true }) {
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const isRemoteUpdateRef = useRef(false);
@@ -85,6 +85,44 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
     }
   };
 
+  const exportBoard = async () => {
+    if (!excalidrawAPI) return;
+    const { exportToBlob } = await import('@excalidraw/excalidraw');
+    return exportToBlob({
+      elements: excalidrawAPI.getSceneElements(),
+      appState: { ...excalidrawAPI.getAppState(), exportBackground: true },
+      files: excalidrawAPI.getFiles(),
+      mimeType: 'image/png'
+    });
+  };
+
+  const downloadBoard = async () => {
+    try {
+      const blob = await exportBoard();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `p2pmeet-whiteboard-${new Date().toISOString().slice(0, 10)}.png`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      console.error('[Whiteboard] Could not export PNG:', error);
+    }
+  };
+
+  const shareBoard = async () => {
+    if (!onShareExport || !canEdit) return;
+    try {
+      const blob = await exportBoard();
+      if (!blob) return;
+      const date = new Date().toISOString().slice(0, 10);
+      await onShareExport(new File([blob], `p2pmeet-whiteboard-${date}.png`, { type: 'image/png' }));
+    } catch (error) {
+      console.error('[Whiteboard] Could not share PNG:', error);
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -104,6 +142,28 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
         </div>
 
         <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={downloadBoard}
+            disabled={!excalidrawAPI}
+            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white/85 transition hover:bg-white/10 disabled:opacity-40"
+            title="Download the shared whiteboard as a PNG"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Download</span>
+          </button>
+          {canEdit && onShareExport && (
+            <button
+              type="button"
+              onClick={shareBoard}
+              disabled={!excalidrawAPI}
+              className="flex items-center gap-1.5 rounded-lg border border-[#FF6B35]/35 bg-[#FF6B35]/10 px-2.5 py-1.5 text-xs text-[#FFA14A] transition hover:bg-[#FF6B35]/20 disabled:opacity-40"
+              title="Send a PNG copy to everyone through peer-to-peer file sharing"
+            >
+              <Send className="h-4 w-4" />
+              <span className="hidden sm:inline">Share in chat</span>
+            </button>
+          )}
           <button
             onClick={toggleFullscreen}
             className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-[#F8F7FC]/70 hover:text-white transition"
@@ -137,7 +197,7 @@ export default function P2PWhiteboard({ onClose, onBroadcastStroke, incomingStro
             }
           }}
           theme="dark"
-          viewModeEnabled={false}
+          viewModeEnabled={!canEdit}
           zenModeEnabled={false}
           UIOptions={{
             canvasActions: {

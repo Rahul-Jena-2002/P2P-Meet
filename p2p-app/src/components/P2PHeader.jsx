@@ -277,7 +277,7 @@ export default function P2PHeader({
         {onLeave && (
           <button
             onClick={onLeave}
-            className="md:hidden pointer-events-auto px-3.5 py-1.5 rounded-full bg-[#FF6B35] hover:bg-[#FF854D] text-[#0D0B14] font-bold text-xs border border-[#FF6B35] transition cursor-pointer"
+            className="meeting-mobile-leave md:hidden pointer-events-auto px-3.5 py-1.5 rounded-full bg-[#FF6B35] hover:bg-[#FF854D] text-[#0D0B14] font-bold text-xs border border-[#FF6B35] transition cursor-pointer"
           >
             {isHost ? 'End' : 'Leave'}
           </button>

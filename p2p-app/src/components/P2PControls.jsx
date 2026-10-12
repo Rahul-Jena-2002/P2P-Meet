@@ -10,7 +10,7 @@ import {
   Mic, MicOff, Video, VideoOff, ChevronUp, Users,
   MessageSquare, Smile, Check,
   MonitorUp, Hand, Palette,
-  Volume2, Sparkles, RefreshCw, X, Square, Clapperboard
+  Volume2, Sparkles, RefreshCw, X, Square, Clapperboard, MoreHorizontal
 } from 'lucide-react';
 import { useMedia } from './MediaProvider';
 
@@ -25,6 +25,7 @@ export default function P2PControls({
   isHandRaised = false,
   onToggleRaiseHand,
   onToggleWhiteboard,
+  canUseWhiteboard = false,
   whiteboardActive = false,
   onStartWatchTogether,
   onStopWatchTogether,
@@ -60,6 +61,7 @@ export default function P2PControls({
   const [showReactionsMenu, setShowReactionsMenu] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [videoMenuTab, setVideoMenuTab] = useState('effects'); // 'effects' | 'devices'
 
   // Ref tracking for outside clicks
@@ -445,17 +447,17 @@ export default function P2PControls({
           </div>
 
           {/* WHITEBOARD BUTTON */}
-          <button
+          {canUseWhiteboard && <button
             type="button"
             onClick={onToggleWhiteboard}
-            className={`meeting-control-button flex items-center gap-1.5 px-3 py-2 rounded-xl transition cursor-pointer ${
+            className={`meeting-control-button meeting-control-whiteboard flex items-center gap-1.5 px-3 py-2 rounded-xl transition cursor-pointer ${
               whiteboardActive ? 'meeting-control-active text-[#FFA14A]' : 'text-white hover:text-[#FFA14A]'
             }`}
             title="Open Interactive Whiteboard"
           >
             <Palette className="w-4 h-4" />
             <span className="meeting-label hidden md:inline text-[11px] font-semibold">Whiteboard</span>
-          </button>
+          </button>}
 
           {/* REACTIONS & RAISE HAND */}
           <div ref={reactionsMenuRef} className="relative">
@@ -466,7 +468,7 @@ export default function P2PControls({
                 setShowAudioMenu(false);
                 setShowVideoMenu(false);
               }}
-              className={`meeting-control-button flex items-center gap-1.5 px-3 py-2 rounded-xl transition cursor-pointer ${
+              className={`meeting-control-button meeting-control-reactions flex items-center gap-1.5 px-3 py-2 rounded-xl transition cursor-pointer ${
                 isHandRaised ? 'meeting-control-active text-[#FFA14A]' : 'text-white hover:text-[#FFA14A]'
               }`}
               title="Send Reactions & Raise Hand"
@@ -511,6 +513,32 @@ export default function P2PControls({
             )}
           </div>
 
+          {/* Desktop hand raise is a direct action; mobile keeps it in More. */}
+          <button
+            type="button"
+            onClick={onToggleRaiseHand}
+            aria-pressed={isHandRaised}
+            className={`meeting-control-button meeting-control-desktop-hand hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl transition cursor-pointer ${
+              isHandRaised ? 'meeting-control-active text-[#FFA14A]' : 'text-white hover:text-[#FFA14A]'
+            }`}
+            title={isHandRaised ? 'Lower hand' : 'Raise hand'}
+          >
+            <Hand className={`h-4 w-4 ${isHandRaised ? 'text-[#FFA14A]' : ''}`} />
+            <span className="meeting-label text-[11px] font-semibold">{isHandRaised ? 'Lower hand' : 'Raise hand'}</span>
+          </button>
+
+          {/* Mobile overflow menu: secondary actions live in the expanding glass dock. */}
+          <button
+            type="button"
+            onClick={() => setShowMoreMenu(value => !value)}
+            aria-expanded={showMoreMenu}
+            aria-label={showMoreMenu ? 'Close more meeting controls' : 'More meeting controls'}
+            className="meeting-control-button meeting-mobile-more hidden items-center justify-center rounded-xl text-white/90 transition hover:text-[#FFA14A]"
+            title="More meeting controls"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
+
           {/* Divider */}
           <div className="h-6 w-[1px] bg-white/20 mx-0.5 hidden sm:block shrink-0" />
 
@@ -523,6 +551,74 @@ export default function P2PControls({
             {isHost ? 'End' : 'Leave'}
           </button>
         </div>
+
+        {showMoreMenu && (
+          <section className="mobile-more-sheet liquid-glass-panel" aria-label="More meeting controls">
+            <div className="mobile-more-heading">
+              <div>
+                <p className="text-sm font-semibold text-white">More controls</p>
+                <p className="text-[11px] text-white/55">Meeting tools and device options</p>
+              </div>
+              <button type="button" onClick={() => setShowMoreMenu(false)} aria-label="Close menu" className="mobile-more-close">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mobile-more-actions">
+              <button type="button" onClick={() => { onToggleRaiseHand?.(); setShowMoreMenu(false); }} className={`mobile-more-action ${isHandRaised ? 'is-active' : ''}`}>
+                <Hand className="h-4 w-4" /><span>{isHandRaised ? 'Lower hand' : 'Raise hand'}</span>
+              </button>
+              {canUseWhiteboard && onToggleWhiteboard && (
+                <button type="button" onClick={() => { onToggleWhiteboard(); setShowMoreMenu(false); }} className={`mobile-more-action ${whiteboardActive ? 'is-active' : ''}`}>
+                  <Palette className="h-4 w-4" /><span>{whiteboardActive ? 'Close whiteboard' : 'Whiteboard'}</span>
+                </button>
+              )}
+              <button type="button" onClick={() => toggleVoiceFocus?.()} className={`mobile-more-action ${voiceFocusEnabled ? 'is-active' : ''}`}>
+                <Sparkles className="h-4 w-4" /><span>Voice focus {voiceFocusEnabled ? 'on' : 'off'}</span>
+              </button>
+              {screenSharing && (
+                <button type="button" onClick={() => { stopScreenShare(); setShowMoreMenu(false); }} className="mobile-more-action is-danger">
+                  <Square className="h-4 w-4" /><span>Stop sharing</span>
+                </button>
+              )}
+            </div>
+
+            <div className="mobile-more-section">
+              <p className="mobile-more-label">Send a reaction</p>
+              <div className="mobile-more-reactions">
+                {quickReactions.map(emoji => (
+                  <button type="button" key={emoji} onClick={() => { onSendReaction?.(emoji); setShowMoreMenu(false); }} aria-label={`Send ${emoji} reaction`}>{emoji}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mobile-more-devices">
+              <label>
+                <span>Microphone</span>
+                <select value={selectedMic || ''} onChange={event => switchMicrophone(event.target.value)}>
+                  {devices.audio.map(device => <option key={device.deviceId} value={device.deviceId}>{device.label || 'Microphone'}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>Camera</span>
+                <select value={selectedCam || ''} onChange={event => switchCamera(event.target.value)}>
+                  {devices.video.map(device => <option key={device.deviceId} value={device.deviceId}>{device.label || 'Camera'}</option>)}
+                </select>
+              </label>
+            </div>
+
+            <div className="mobile-more-section mobile-more-effects">
+              <p className="mobile-more-label">Camera effect</p>
+              <div className="mobile-more-effect-list">
+                {filterOptions.map(effect => (
+                  <button type="button" key={effect.id} onClick={() => setVideoFilter(effect.id)} className={videoFilter === effect.id ? 'is-active' : ''}>
+                    <span>{effect.icon}</span>{effect.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
       </footer>
 
       {/* Leave Confirmation Modal */}
