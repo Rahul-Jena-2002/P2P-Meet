@@ -437,6 +437,7 @@
     bottom: calc(env(safe-area-inset-bottom) + 8px);
     width: auto;
     max-width: none;
+    translate: 0 0 !important;
     transform: none;
   }
 

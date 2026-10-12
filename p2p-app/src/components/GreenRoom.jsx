@@ -120,7 +120,7 @@ export default function GreenRoom({ onJoinMeeting }) {
               </div>
             )}
 
-            <div className="lobby-preview-badge">
+            <div className="lobby-preview-badge absolute">
               <span className={`lobby-preview-dot ${videoEnabled && localStream ? 'is-live' : ''}`} />
               {videoEnabled && localStream ? 'Camera ready' : 'Camera preview'}
             </div>
