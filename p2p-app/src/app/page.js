@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { MediaProvider } from '@/components/MediaProvider';
 import GreenRoom from '@/components/GreenRoom';
+import MobileGreenRoom from '@/components/MobileGreenRoom';
 import P2PMeetingRoom from '@/components/P2PMeetingRoom';
 
 const SESSION_KEY = 'p2pmeet_session';
@@ -43,7 +44,10 @@ export default function Home() {
             onLeave={handleLeaveMeeting}
           />
         ) : (
-          <GreenRoom onJoinMeeting={handleJoinMeeting} />
+          <>
+            <div className="mobile-lobby-entry"><MobileGreenRoom onJoinMeeting={handleJoinMeeting} /></div>
+            <div className="desktop-lobby-entry"><GreenRoom onJoinMeeting={handleJoinMeeting} /></div>
+          </>
         )}
       </main>
     </MediaProvider>

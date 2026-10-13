@@ -596,12 +596,14 @@ export default function P2PControls({
               <label>
                 <span>Microphone</span>
                 <select value={selectedMic || ''} onChange={event => switchMicrophone(event.target.value)}>
+                  {devices.audio.length === 0 && <option value="">Default microphone</option>}
                   {devices.audio.map(device => <option key={device.deviceId} value={device.deviceId}>{device.label || 'Microphone'}</option>)}
                 </select>
               </label>
               <label>
                 <span>Camera</span>
                 <select value={selectedCam || ''} onChange={event => switchCamera(event.target.value)}>
+                  {devices.video.length === 0 && <option value="">Default camera</option>}
                   {devices.video.map(device => <option key={device.deviceId} value={device.deviceId}>{device.label || 'Camera'}</option>)}
                 </select>
               </label>

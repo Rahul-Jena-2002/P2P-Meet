@@ -55,7 +55,8 @@ export default function GreenRoom({ onJoinMeeting }) {
       const code = params.get('code');
       if (code) {
         setRoomCode(code.toUpperCase());
-        setMode('join');
+        setUserName(params.get('name') || '');
+        setMode(params.get('host') === '1' ? 'new' : 'join');
       }
     }
   }, []);
@@ -72,7 +73,9 @@ export default function GreenRoom({ onJoinMeeting }) {
   const handleStart = (e) => {
     e.preventDefault();
     const finalName = userName.trim() || (mode === 'new' ? 'Host' : 'Participant');
-    const finalCode = mode === 'new' ? generateCode() : roomCode.trim().toUpperCase();
+    const params = new URLSearchParams(window.location.search);
+    const linkedHostRoom = params.get('host') === '1' && params.get('code');
+    const finalCode = linkedHostRoom ? params.get('code').trim().toUpperCase() : mode === 'new' ? generateCode() : roomCode.trim().toUpperCase();
 
     if (!finalCode) return;
 
